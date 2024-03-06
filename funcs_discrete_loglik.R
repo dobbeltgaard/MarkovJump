@@ -41,6 +41,7 @@ log.lik.cov2 <- function(m, s1, s2, u, z, beta, states, A_param = NULL, weight =
 }
 
 
+
 # maximum likelihood estimation
 mle.cov <- function(m, s1, s2, u, z, beta, states,
                     A_param = NULL, pvalues.bin = F, method = NULL, weight = NULL) {
@@ -158,3 +159,26 @@ gradient.log.lik.cov2 <- function(m, s1, s2, u, z, beta, states, A_param = NULL,
     return(pracma::grad(f = log.lik.cov2, x0 = beta, m = m, s1 = s1, s2 = s2, u = u, states = states,  z = z))
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

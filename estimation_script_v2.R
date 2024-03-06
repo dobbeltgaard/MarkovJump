@@ -31,20 +31,20 @@ idx.remove <-
   (D$`s-` == 5 & D$`s` == 5 & D$u > 300) 
 
 
-d <- D[, c("pos", "s-", "s", "u", exo.cols, "Track0")] #define data set of interest
-
-
+d <- D[!idx.remove, c("pos", "s-", "s", "u", exo.cols, "Track0")] #define data set of interest
 
 
 #########################
 ### DIRECT MAXIMATION ###
 #########################
-#relies in the current form on gradient approximation; might have to look again at the analytical gradient...
 
 beta0 <- c(rep(0.25, (m-1)), rep(0.1,length(exo.cols)))  
 res3 <- mle.cov(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, 
                 z = as.matrix(d[,exo.cols]), beta = beta0, states = states, 
                 A_param = NULL, pvalues.bin =  T, method = "BFGS", weight = NULL)
+
+
+
 res3
 base.foo <- 1/exp(res3$lambda[1:(m-1)])*365
 exo.foo <- apply(sweep((d[,exo.cols]), 2, res3$lambda[m:(m-1+length(exo.cols))], "*"), 
@@ -56,8 +56,28 @@ base.foo/exp(sum(exo.foo))
 
 sum(base.foo/exp(sum(exo.foo)))/365
 #saveRDS(res3, file = "loglik_estimates.rds")
+#res3 <- readRDS("loglik_estimates.rds")
 
-res3 <- readRDS("loglik_estimates.rds")
+
+z = as.matrix(d[,exo.cols]);
+gradient.log.lik.cov2(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = as.matrix(d[,exo.cols]), beta = res3$lambda, states = states, A_param = NULL, weight = NULL)
+
+
+library(RcppEigen); library(Rcpp)
+sourceCpp("funcs_discrete_loglik.cpp")
+log.lik.cov2(m = m, s1 = s1, s2 = s2, u = u, z = z, beta = beta0, states = states)
+discrete_loglik_cpp(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, pars = beta0)
+
+
+pracma::grad(f = log.lik.cov2, x0 = beta0, m = m, s1 = d$s1, s2 = d$s2, u = d$u/365, z = z, states = states)
+pracma::grad(f = discrete_loglik_cpp, x0 = beta0, m = m, s1 = d$s1, s2 = d$s2, u = d$u/365, z = z)
+
+s1 = d$`s-`; s2 = d$`s`; u = d$u/365; z = as.matrix(d[,exo.cols]);
+optim( par = beta0, fn = log.lik.cov2, m = m, s1 = s1, s2 = s2, u = u, z = z, states = states) # optimize
+pracma::grad(f = log.lik.cov2, x0 = res3$lambda, m = m, s1 = s1, s2 = s2, u = u, z = z, states = states)
+
+
+optim( par = beta0, fn = discrete_loglik_cpp, m = m, s1 = s1, s2 = s2, u = u, z = z, method = "BFGS") # optimize
 
 
 #########################
