@@ -1,3 +1,20 @@
+log.lik.cov <- function(m, s1, s2, u, z, beta, states, A_param = NULL, weight = NULL) {
+  log.lik <- 0 # init log likelihood
+  Cz <- exp(beta[(m):length(beta)] %*% t(z)) # precompute covariate contribution
+  lambda <- exp(beta[1:(m - 1)]) # transform to working parameter
+  if (is.null(weight)) {
+    weight <- rep(1, length(u))
+  } # if no weights, weigh all equal
+  for (i in 1:length(u)) { # iterate through data
+    A <- construct.A(m, lambda * Cz[i], A_param) # construct trans. rate matrix
+    Pt <- s1[i] == states # compute state probs
+    Ptu <- Pt %*% Matrix::expm(A * u[i]) # compute state probs forward in time u
+    log.lik <- log.lik + weight[i] * log(Ptu[which(s2[i] == states)]) # update
+  }
+  return(-log.lik)
+}
+
+
 # very efficient incomplete data log-likelihood computation (all vectorized in case of diagonalizable transition rate matrix)
 log.lik.cov2 <- function(m, s1, s2, u, z, beta, states, A_param = NULL, weight = NULL) {
   n <- length(u) # number of observations
@@ -40,6 +57,27 @@ log.lik.cov2 <- function(m, s1, s2, u, z, beta, states, A_param = NULL, weight =
   return(-log.lik) # return negative log likelihood
 }
 
+
+sourceCpp("funcs_discrete_loglik.cpp")
+log.lik.cov3 <- function(m, s1, s2, u, z, beta){
+  log.lik <- 0
+  if (length(beta) == length(unique(beta))) {
+    log.lik <- discrete_loglik_eigen_cpp(m = m, s1 = s1, s2 = s2, u = u, z = z, pars = beta)
+  } else {
+    log.lik <- discrete_loglik_cpp(m = m, s1 = s1, s2 = s2, u = u, z = z, pars = beta)
+  }
+  return(log.lik)
+}
+
+
+log.lik.grad.cov3 <- function(m, s1, s2, u, z, beta){
+  if (length(beta) == length(unique(beta))) { #
+    grad <- discrete_loglik_eigen_grad_cpp(m = m, s1 = s1, s2 = s2, u = u, z = z, pars = beta)
+  } else {
+    grad <- pracma::grad(f = discrete_loglik_cpp, x0 = beta, m = m, s1 = s1, s2 = s2, u = u, z = z)
+  }
+  return(grad)
+}
 
 
 # maximum likelihood estimation
@@ -159,6 +197,7 @@ gradient.log.lik.cov2 <- function(m, s1, s2, u, z, beta, states, A_param = NULL,
     return(pracma::grad(f = log.lik.cov2, x0 = beta, m = m, s1 = s1, s2 = s2, u = u, states = states,  z = z))
   }
 }
+
 
 
 

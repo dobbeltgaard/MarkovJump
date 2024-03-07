@@ -11,6 +11,8 @@ source("funcs_forecasting.R")
 source("funcs_helping.R")
 source("funcs_mcem.R")
 
+library(RcppEigen); library(Rcpp)
+
 load("defects_covs_base.RData"); D <- foo; rm(foo) #load dat
 
 #########################
@@ -59,25 +61,63 @@ sum(base.foo/exp(sum(exo.foo)))/365
 #res3 <- readRDS("loglik_estimates.rds")
 
 
+
+
+
+
 z = as.matrix(d[,exo.cols]);
-gradient.log.lik.cov2(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = as.matrix(d[,exo.cols]), beta = res3$lambda, states = states, A_param = NULL, weight = NULL)
+beta0 <- c(-0.5,1.02,-0.3,0.4, 0.5,0.6,0.7,0.8,0.9)
+beta0 <- x$par
 
-
-library(RcppEigen); library(Rcpp)
 sourceCpp("funcs_discrete_loglik.cpp")
-log.lik.cov2(m = m, s1 = s1, s2 = s2, u = u, z = z, beta = beta0, states = states)
+
+discrete_loglik_eigen_grad_cpp(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, pars = beta0)
+pracma::grad(f = discrete_loglik_eigen_cpp, x0 = beta0, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z)
+
+
+log.lik.cov2(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, beta = beta0, states = states)
 discrete_loglik_cpp(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, pars = beta0)
+discrete_loglik_eigen_cpp(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, pars = beta0)
 
 
 pracma::grad(f = log.lik.cov2, x0 = beta0, m = m, s1 = d$s1, s2 = d$s2, u = d$u/365, z = z, states = states)
-pracma::grad(f = discrete_loglik_cpp, x0 = beta0, m = m, s1 = d$s1, s2 = d$s2, u = d$u/365, z = z)
+pracma::grad(f = discrete_loglik_cpp, x0 = beta0, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z)
+pracma::grad(f = discrete_loglik_eigen_cpp, x0 = beta0, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z)
+
+
 
 s1 = d$`s-`; s2 = d$`s`; u = d$u/365; z = as.matrix(d[,exo.cols]);
-optim( par = beta0, fn = log.lik.cov2, m = m, s1 = s1, s2 = s2, u = u, z = z, states = states) # optimize
-pracma::grad(f = log.lik.cov2, x0 = res3$lambda, m = m, s1 = s1, s2 = s2, u = u, z = z, states = states)
 
 
-optim( par = beta0, fn = discrete_loglik_cpp, m = m, s1 = s1, s2 = s2, u = u, z = z, method = "BFGS") # optimize
+
+x = optim( par = beta0, fn = discrete_loglik_cpp, gr = discrete_loglik_eigen_grad_cpp, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, method = "BFGS") 
+x = optim( par = beta0, fn = discrete_loglik_cpp, gr = NULL, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, method = "BFGS") 
+2 * (x$value + length(x$par))
+
+
+beta0 <- c(-1.5,1.02,-0.3,0.4, 0.5,0.6,0.7,0.8,0.9)
+
+
+x = optim( par = beta0, fn = log.lik.cov3, gr = NULL, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, method = "BFGS") 
+2 * (x$value + length(x$par))
+
+x = optim( par = beta0, fn = log.lik.cov3, gr = log.lik.grad.cov3, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, method = "BFGS") 
+2 * (x$value + length(x$par))
+
+
+
+log.lik.cov3(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, beta = beta0, states = states)
+
+
+
+
+library("bench")
+bench::mark(
+  log.lik.cov(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, beta = beta0, states = states),
+  log.lik.cov2(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, beta = beta0, states = states),
+  discrete_loglik_cpp(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, pars = beta0),
+  discrete_loglik_eigen_cpp(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, pars = beta0), 
+  relative = T, check = F)
 
 
 #########################

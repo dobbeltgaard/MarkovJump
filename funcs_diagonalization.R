@@ -45,7 +45,7 @@ eigenspace.U.grad <- function(m, lambda, h) {
       }
     }
   }
-  return(U * Us)
+  return(Us*U)
 }
 
 # eigenspace.U.grad(m, (c(1,3,4,2.5) ), 3)
