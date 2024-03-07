@@ -149,6 +149,7 @@ double discrete_loglik_eigen_cpp(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, 
  
 
 /* Gradient of eigenspace wrt. the h'th lambda */
+// [[Rcpp::export]]
 Eigen::MatrixXd eigenspace_U_grad(int m, Eigen::VectorXd lambda, int h){
   Eigen::MatrixXd U = Eigen::MatrixXd::Ones(m, m);
   Eigen::MatrixXd Us = Eigen::MatrixXd::Zero(m, m);
@@ -174,6 +175,7 @@ Eigen::MatrixXd eigenspace_U_grad(int m, Eigen::VectorXd lambda, int h){
  
 
 /* Gradient of inverse eigenspace*/
+// [[Rcpp::export]]
 Eigen::MatrixXd eigenspace_U_inv_grad(int m, Eigen::VectorXd lambda, int h){
   Eigen::MatrixXd U = Eigen::MatrixXd::Ones(m, m);
   Eigen::MatrixXd Us = Eigen::MatrixXd::Zero(m, m);
@@ -253,7 +255,7 @@ Eigen::VectorXd discrete_loglik_eigen_grad_cpp(int m, Eigen::VectorXd s1, Eigen:
     
     Eigen::MatrixXd Delta_gradient = Eigen::MatrixXd::Zero(m, m);
     U_grad = eigenspace_U_grad(m, lambda_base, h);
-    U_inv_grad = eigenspace_U_inv_grad(m, lambda_base, h);
+    U_inv_grad = -U_inv * U_grad * U_inv;//eigenspace_U_inv_grad(m, lambda_base, h);
     
     for(int i = 0; i < n; i++){
       lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );

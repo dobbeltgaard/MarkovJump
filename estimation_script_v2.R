@@ -71,6 +71,13 @@ beta0 <- x$par
 
 sourceCpp("funcs_discrete_loglik.cpp")
 
+eigenspace.U.grad(5,c(-1,3,4,2.5), 1) 
+eigenspace_U_grad(5, c(-1,3,4,2.5), 3)
+
+
+eigenspace_U_inv_grad(5, c(1,3,4,2.5), 0)
+
+
 discrete_loglik_eigen_grad_cpp(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, pars = beta0)
 pracma::grad(f = discrete_loglik_eigen_cpp, x0 = beta0, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z)
 
