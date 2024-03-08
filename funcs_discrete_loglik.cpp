@@ -241,51 +241,48 @@ Eigen::VectorXd discrete_loglik_eigen_grad_cpp(int m, Eigen::VectorXd s1, Eigen:
   Eigen::MatrixXd U_grad = Eigen::MatrixXd::Zero(m, m);
   Eigen::MatrixXd U_inv_grad = Eigen::MatrixXd::Zero(m, m);
   Eigen::MatrixXd lambda_grad = Eigen::MatrixXd::Zero(m, m);
-  //Eigen::MatrixXd beta_grad = Eigen::MatrixXd::Zero(m, k);
-  //Eigen::MatrixXd z_grad = Eigen::MatrixXd::Zero(n, k);
   Eigen::VectorXd grad(m-1+k);
   Eigen::RowVectorXd Pt(m);
   Eigen::RowVectorXd Ptu1(m);
   Eigen::RowVectorXd Ptu2(m);
-  
+  Eigen::MatrixXd Delta_gradient(m,m);
   
   /* Loop over base parameters */
   for(int h = 0; h < m-1; ++h){
     double foo = 0;
-    
-    Eigen::MatrixXd Delta_gradient = Eigen::MatrixXd::Zero(m, m);
+
+    Delta_gradient.setZero();
     U_grad = eigenspace_U_grad(m, lambda_base, h);
     U_inv_grad = -U_inv * U_grad * U_inv;//eigenspace_U_inv_grad(m, lambda_base, h);
-    
-    for(int i = 0; i < n; i++){
+    //U_inv_grad = eigenspace_U_inv_grad(m, lambda_base, h);
+
+    for(int i = 0; i < n; ++i){
       lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );
-      for(int j = 0; j < m-1; ++j){ 
-        Delta(j, j) = exp(-lambda(j)*u(i)); 
+      for(int j = 0; j < m-1; ++j){
+        Delta(j, j) = exp(-lambda(j)*u(i));
         }
-      Delta_gradient(h,h) = -u(i) * exp( beta_covs.dot(z.row(i)) ) * exp(-lambda(h)*u(i)); // why Delta(h,h)?
-      
+      Delta_gradient(h,h) = -u(i) * exp( beta_covs.dot(z.row(i)) ) * Delta(h,h) ;//exp(-lambda(h)*u(i));
+
       tpm_grad = (U_grad * Delta * U_inv) + (U * Delta_gradient * U_inv) + (U * Delta * U_inv_grad);
       tpm = U * Delta * U_inv;
-      
+
       start_idx = int(s1(i)-1);
       end_idx = int(s2(i)-1);
-      Pt.setZero(); 
+      Pt.setZero();
       Pt( start_idx) = int(1);
       Ptu1 = Pt * tpm_grad;
       Ptu2 = Pt * tpm;
-      
-      foo +=  Ptu1( end_idx  )   / Ptu2( end_idx ) ;
+
+      foo +=  Ptu1( end_idx )  / Ptu2( end_idx ) ;
     }
     grad(h) = foo;
-    
+
   }
   
   /* Loop over covariate parameters */
   for(int h = 0; h < k; ++h){
     double foo = 0;
-    
-    Eigen::MatrixXd Delta_gradient = Eigen::MatrixXd::Zero(m, m);
-    Delta_gradient(m-1,m-1) = 0;
+    Delta_gradient.setZero();
 
     for(int i = 0; i < n; i++){
       lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );

@@ -5,13 +5,14 @@ rm(list = ls()) #clear memory
 #setwd("C:/Users/askbi/OneDrive - COWI/Desktop/Bane NOR transmission rates estimation")
 #source("funcs.R") #define functions from another R file
 
+library(RcppEigen); library(Rcpp)
+
 source("funcs_diagonalization.R")
 source("funcs_discrete_loglik.R")
 source("funcs_forecasting.R")
 source("funcs_helping.R")
 source("funcs_mcem.R")
 
-library(RcppEigen); library(Rcpp)
 
 load("defects_covs_base.RData"); D <- foo; rm(foo) #load dat
 
@@ -71,12 +72,6 @@ beta0 <- x$par
 
 sourceCpp("funcs_discrete_loglik.cpp")
 
-eigenspace.U.grad(5,c(-1,3,4,2.5), 1) 
-eigenspace_U_grad(5, c(-1,3,4,2.5), 3)
-
-
-eigenspace_U_inv_grad(5, c(1,3,4,2.5), 0)
-
 
 discrete_loglik_eigen_grad_cpp(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, pars = beta0)
 pracma::grad(f = discrete_loglik_eigen_cpp, x0 = beta0, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z)
@@ -91,6 +86,8 @@ pracma::grad(f = log.lik.cov2, x0 = beta0, m = m, s1 = d$s1, s2 = d$s2, u = d$u/
 pracma::grad(f = discrete_loglik_cpp, x0 = beta0, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z)
 pracma::grad(f = discrete_loglik_eigen_cpp, x0 = beta0, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z)
 
+eigenspace.U.grad(5,c(-1,3,4,2.5), 4) 
+eigenspace_U_grad(5, c(-1,3,4,-2.5), 3)
 
 
 s1 = d$`s-`; s2 = d$`s`; u = d$u/365; z = as.matrix(d[,exo.cols]);
@@ -105,10 +102,10 @@ x = optim( par = beta0, fn = discrete_loglik_cpp, gr = NULL, m = m, s1 = d$`s-`,
 beta0 <- c(-1.5,1.02,-0.3,0.4, 0.5,0.6,0.7,0.8,0.9)
 
 
-x = optim( par = beta0, fn = log.lik.cov3, gr = NULL, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, method = "BFGS") 
+x1 = optim( par = beta0, fn = log.lik.cov3, gr = NULL, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, method = "BFGS") 
 2 * (x$value + length(x$par))
 
-x = optim( par = beta0, fn = log.lik.cov3, gr = log.lik.grad.cov3, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, method = "BFGS") 
+x2 = optim( par = beta0, fn = log.lik.cov3, gr = log.lik.grad.cov3, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, method = "BFGS") 
 2 * (x$value + length(x$par))
 
 
