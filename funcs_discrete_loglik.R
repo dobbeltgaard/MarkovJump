@@ -95,12 +95,58 @@ mle.cov <- function(m, s1, s2, u, z, beta, states,
     control <- list()
   }
   mod <- optim(
-    par = beta, fn = log.lik.cov2, m = m,
+    par = beta, fn = log.lik.cov3, m = m,
     s1 = s1, s2 = s2, u = u, z = z,
-    states = states, A_param = A_param,
     control = control, hessian = pvalues.bin,
-    method = method, weight = weight
+    method = method
   ) # optimize
+  end_time <- Sys.time() # End of run time
+  if (pvalues.bin) { # check if pvalues should be computed
+    hessian <- mod$hessian # retrieve hessian
+    pvals <- round(p.values(hessian, mod$par), 5) # compute values
+    CI.UP <- mod$par + (1.96 / sqrt(length(u) * diag(pracma::inv(hessian))))
+    CI.LO <- mod$par - (1.96 / sqrt(length(u) * diag(pracma::inv(hessian))))
+  } else {
+    pvals <- NULL
+    hessian <- NULL
+    CI.UP <- NULL
+    CI.LO <- NULL
+  }
+  return(
+    list(
+      lambda = mod$par, # retur working params
+      pvalues = pvals, # return pvalues
+      CI.UP = CI.UP, # return 95 upper CI
+      CI.LO = CI.LO, # return 95 lower CI
+      mllk = -mod$value, # return log-likelihood value
+      AIC = 2 * (mod$value + length(beta)), # return AIC
+      convergence = mod$convergence, # return congernece code
+      message = mod$message, # return error messages if any
+      runtime = end_time - start_time
+    ) # return run time
+  )
+}
+
+
+mle.no.covs <- function(m, s1, s2, u, beta, states,
+                    A_param = NULL, pvalues.bin = F, method = NULL, weight = NULL) {
+  start_time <- Sys.time() # Start of run time
+  if (is.null(method) | method == "Nelder-Mead") { # Nelder-Mead = standard method
+    method <- "Nelder-Mead"
+    control <- list(maxit = 20000)
+  }
+  if (method == "SANN") { # Simulated annealing
+    control <- list(maxit = 20000, temp = 10, tmax = 10)
+  }
+  if (method == "BFGS") { # Simulated annealing
+    control <- list()
+  }
+  mod <- optim(
+    par = beta, fn = discrete_loglik_cpp_nocovs, m = m,
+    s1 = s1, s2 = s2, u = u,
+    control = control, hessian = pvalues.bin,
+    method = method
+  )
   end_time <- Sys.time() # End of run time
   if (pvalues.bin) { # check if pvalues should be computed
     hessian <- mod$hessian # retrieve hessian

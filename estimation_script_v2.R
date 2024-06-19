@@ -23,8 +23,7 @@ states <- c(1,2,3,4,5) #define states
 #states <- c(2,3,4,5)
 m <- length(states) #number of states
 track <- unique(D$Track) #define investigated tracks
-exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", 
-              "invRad.norm")#, , "dist.to.station.trans") #covariate space
+exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
 #idx <- D$Track0 %in% track #choose all tracks 
 #idx <- Dtot$Track0 == "nord" #select single tracks
 
@@ -37,15 +36,15 @@ idx.remove <-
 d <- D[!idx.remove, c("pos", "s-", "s", "u", exo.cols, "Track0")] #define data set of interest
 
 
+
 #########################
 ### DIRECT MAXIMATION ###
 #########################
 
 beta0 <- c(rep(0.25, (m-1)), rep(0.1,length(exo.cols)))  
 res3 <- mle.cov(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, 
-                z = as.matrix(d[,exo.cols]), beta = beta0, states = states, 
-                A_param = NULL, pvalues.bin =  T, method = "BFGS", weight = NULL)
-
+                z = as.matrix(d[,exo.cols]), beta = beta0, 
+                pvalues.bin =  T, method = "BFGS")
 
 
 res3
@@ -55,23 +54,41 @@ exo.foo <- apply(sweep((d[,exo.cols]), 2, res3$lambda[m:(m-1+length(exo.cols))],
 
 base.foo
 base.foo/exp(sum(exo.foo))
-
-
 sum(base.foo/exp(sum(exo.foo)))/365
-#saveRDS(res3, file = "loglik_estimates.rds")
-#res3 <- readRDS("loglik_estimates.rds")
 
+
+
+#RPS estimation
+source("funcs_rps.R")
+
+exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
+beta0 <- c(rep(0.25, (m-1)), rep(0.1,length(exo.cols)))  
+
+obs = make_Ptu_obs(m, d.test$`s`)
+res4 <- rps.estim.cov(m = m, s1 = d$`s-`, s2 = d.train$s, u = d.train$u/365, z = as.matrix(d.train[,exo.cols]), beta = beta0, method = "BFGS")
+res4pred = jump_prediction_cov(m, s1 = d.test$`s-`, u = d.test$u/365, z = as.matrix(d.test[,exo.cols]), res4$lambda)
+mean(rps_vectors(m, res4pred, obs))
+
+
+
+res4
+base.foo <- 1/exp(res4$lambda[1:(m-1)])*365
+exo.foo <- apply(sweep((d[,exo.cols]), 2, res3$lambda[m:(m-1+length(exo.cols))], "*"), 
+                 MARGIN = 2, quantile, probs = 0.5)
+
+base.foo
+base.foo/exp(sum(exo.foo))
+sum(base.foo/exp(sum(exo.foo)))/365
 
 
 
 
 
 z = as.matrix(d[,exo.cols]);
-beta0 <- c(-0.5,1.02,-0.3,0.4, 0.5,0.6,0.7,0.8,0.9)
+beta0 <- c(-0.5,1.02,-0.3,0.2,0.5,0.6,0.7,0.8,0.9)
 beta0 <- x$par
 
 sourceCpp("funcs_discrete_loglik.cpp")
-
 
 discrete_loglik_eigen_grad_cpp(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, pars = beta0)
 pracma::grad(f = discrete_loglik_eigen_cpp, x0 = beta0, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z)
