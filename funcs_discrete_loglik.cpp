@@ -17,7 +17,6 @@
 // #construct A matrix as generalized Erlang
 // [[Rcpp::export]]
 Eigen::MatrixXd make_A(int m, Eigen::VectorXd lambda){
-  int count = 0; //init counter
   Eigen::MatrixXd A = Eigen::MatrixXd::Zero(m, m); //init A
   for(int i = 0; i < (m-1); i++){ //iterate through rows
         A(i, i + 1) = lambda(i); //assign elements
@@ -293,7 +292,6 @@ Eigen::VectorXd discrete_loglik_eigen_grad_cpp(int m, Eigen::VectorXd s1, Eigen:
     Delta_gradient.setZero();
     U_grad = eigenspace_U_grad(m, lambda_base, h);
     U_inv_grad = -U_inv * U_grad * U_inv;//eigenspace_U_inv_grad(m, lambda_base, h);
-    //U_inv_grad = eigenspace_U_inv_grad(m, lambda_base, h);
 
     for(int i = 0; i < n; ++i){
       lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );
@@ -345,8 +343,6 @@ Eigen::VectorXd discrete_loglik_eigen_grad_cpp(int m, Eigen::VectorXd s1, Eigen:
     grad(h + m-1) = foo;
     
   }
-  
-  
   return -grad;
 }
 

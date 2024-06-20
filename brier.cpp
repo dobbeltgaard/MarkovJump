@@ -1,6 +1,3 @@
-/* load: library(RcppEigen); library(Rcpp)  */ 
-/* to compile, run: sourceCpp("funcs2.cpp") */ 
-
 //#include <boost/math/special_functions/digamma.hpp>
 #include <unsupported/Eigen/MatrixFunctions>
 #include <RcppEigen.h>
@@ -12,49 +9,31 @@
 // [[Rcpp::depends(RcppEigen)]]
 
 
-/*RPS function*/
-// // [[Rcpp::export]]
-// double rps_cpp3(int m, Eigen::VectorXd pred, Eigen::VectorXd obs){
-//   double res = 0.0;
-//   for(int k = 0; k < m; k++){
-//     double rps = 0.0;
-//     for(int i = 0; i <= k; i++){
-//       rps += pred[i] - obs[i];
-//     }
-//     res += rps * rps;
-//   }
-//   return res;
-// }
+/*Brier score function with vector input*/
 // [[Rcpp::export]]
-double rps_cpp(int m, Eigen::VectorXd pred, Eigen::VectorXd obs) {
-  double res = 0.0;
-  for (int k = 0; k < m; k++) {
-    double cum_pred = 0.0;
-    double cum_obs = 0.0;
-    for (int i = 0; i <= k; i++) {
-      cum_pred += pred[i];
-      cum_obs += obs[i];
-    }
-    double rps = cum_pred - cum_obs;
-    res += rps * rps;
-  }
+double brier_cpp(const Eigen::VectorXd& pred, const Eigen::VectorXd& obs) {
+  Eigen::VectorXd diff = pred - obs;
+  Eigen::VectorXd squared_diff = diff.array().square();
+  double res = squared_diff.mean(); 
   return res;
 }
 
 
 // #construct A matrix as generalized Erlang
+// [[Rcpp::export]]
 Eigen::MatrixXd make_A(int m, Eigen::VectorXd lambda){
   Eigen::MatrixXd A = Eigen::MatrixXd::Zero(m, m); //init A
   for(int i = 0; i < (m-1); i++){ //iterate through rows
     A(i, i + 1) = lambda(i); //assign elements
   }
-  A.diagonal() = -A.rowwise().sum(); //diag elements are equal to negative total rate of transmission
+  A.diagonal() = -A.rowwise().sum(); 
   return A;
 }
 
 
+
 // [[Rcpp::export]]
-double discrete_rps_cpp_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen::VectorXd u, Eigen::MatrixXd z, Eigen::VectorXd pars){
+double discrete_brier_cpp_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen::VectorXd u, Eigen::MatrixXd z, Eigen::VectorXd pars){
   
   /* Initialization */
   int n = u.size();
@@ -68,7 +47,7 @@ double discrete_rps_cpp_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen
   Eigen::RowVectorXd Ptu(m);
   Eigen::RowVectorXd Ptu_obs(m);
   
-  double rps = 0;
+  double brier = 0;
   int start_idx = 0;
   int end_idx = 0;
   
@@ -91,15 +70,15 @@ double discrete_rps_cpp_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen
     Ptu_obs(end_idx) = int(1);
     
     
-    rps += rps_cpp(m, Ptu, Ptu_obs);
+    brier += brier_cpp(Ptu, Ptu_obs);
   }
   
-  return rps/n;
+  return brier/n;
 }
 
 
 // [[Rcpp::export]]
-double discrete_rps_cpp(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen::VectorXd u, Eigen::VectorXd pars){
+double discrete_brier_cpp(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen::VectorXd u, Eigen::VectorXd pars){
   
   /* Initialization */
   int n = u.size();
@@ -110,13 +89,12 @@ double discrete_rps_cpp(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen::Ve
   Eigen::RowVectorXd Ptu(m);
   Eigen::RowVectorXd Ptu_obs(m);
   
-  double rps = 0;
+  double brier = 0;
   int start_idx = 0;
   int end_idx = 0;
   
   /* Compute the log-likelihood */
   for(int i = 0; i < n; i++){
-    //lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );
     At = make_A(m, lambda )*u(i);
     tpm = At.exp();
     
@@ -133,15 +111,15 @@ double discrete_rps_cpp(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen::Ve
     Ptu_obs(end_idx) = int(1);
     
     
-    rps += rps_cpp(m, Ptu, Ptu_obs);
+    brier += brier_cpp(Ptu, Ptu_obs);
   }
   
-  return rps/n;
+  return brier/n;
 }
 
 
 // [[Rcpp::export]]
-double discrete_rps_loglik_cpp_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen::VectorXd u, Eigen::MatrixXd z, Eigen::VectorXd pars){
+double discrete_brier_loglik_cpp_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen::VectorXd u, Eigen::MatrixXd z, Eigen::VectorXd pars){
   
   /* Initialization */
   int n = u.size();
@@ -155,7 +133,7 @@ double discrete_rps_loglik_cpp_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd s2
   Eigen::RowVectorXd Ptu(m);
   Eigen::RowVectorXd Ptu_obs(m);
   
-  double rps = 0;
+  double brier = 0;
   double loglik = 0;
   int start_idx = 0;
   int end_idx = 0;
@@ -179,9 +157,10 @@ double discrete_rps_loglik_cpp_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd s2
     Ptu_obs(end_idx) = int(1);
     
     loglik += log( Ptu( end_idx  )  );
-    rps += rps_cpp(m, Ptu, Ptu_obs);
+    brier += brier_cpp(Ptu, Ptu_obs);
   }
   
-  return (rps-loglik)/n;
+  return (brier-loglik)/n;
 }
+
 
