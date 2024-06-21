@@ -68,7 +68,7 @@ corr.empirical.pred = function(m, idx, naive){
 }
 
 #INITIALIZE
-set.seed(123)
+set.seed(234)
 k <- 10
 ints = seq(1, NROW(d), ceiling(NROW(d)/k)-1)
 ints[length(ints)] = NROW(d)
@@ -87,10 +87,12 @@ pars_olr_cov <- matrix(NA, ncol = length(exo.cols)+m, nrow = k)
 pars_olr <- matrix(NA, ncol = m, nrow = k)
 pars_RPS_MLE_cov <- matrix(NA, ncol = length(beta0), nrow = k)
 pars_BRIER_MLE_cov <- matrix(NA, ncol = length(beta0), nrow = k)
+pars_rps_skill_cov <- matrix(NA, ncol = length(beta0), nrow = k)
 
-RPS_err = matrix(NA, ncol = k, nrow = 14)
-log_err = matrix(NA, ncol = k, nrow = 14)
-Brier_e = matrix(NA, ncol = k, nrow = 14)
+
+RPS_err = matrix(NA, ncol = k, nrow = 15)
+log_err = matrix(NA, ncol = k, nrow = 15)
+Brier_e = matrix(NA, ncol = k, nrow = 15)
 
 #RUN K-FOLD PREDICTION
 for(i in 1:(length(ints)-1)){
@@ -142,6 +144,10 @@ for(i in 1:(length(ints)-1)){
   preds_RPS_MLE_cov = jump_prediction_cov(m, s1 = d.test$`s-`, u = d.test$t, z = as.matrix(d.test[,exo.cols]), jump_RPS_MLE_cov$lambda)
   preds_BRIER_MLE_cov = jump_prediction_cov(m, s1 = d.test$`s-`, u = d.test$t, z = as.matrix(d.test[,exo.cols]), jump_BRIER_MLE_cov$lambda)
   
+  preds_olr_cov_train = predict(olr_cov, newdata = d.train, type = "p")
+  jump_RPS_skill_cov = rps.skill.estim.cov(m = m, s1 = d.train$`s-`, s2 = d.train$s, u = d.train$t, z = as.matrix(d.train[,exo.cols]), beta = beta0, base = preds_olr_cov_train, method = "BFGS")
+  preds_RPS_skill_cov = jump_prediction_cov(m, s1 = d.test$`s-`, u = d.test$t, z = as.matrix(d.test[,exo.cols]), jump_RPS_skill_cov$lambda)
+  
   #Evaluate predictions in terms of RPS and log score and Brier score
   obs = make_Ptu_obs(m, d.test$`s`)
   log_err[1, i] = mean(logscore_vectors(m, preds_MLE, obs))
@@ -188,16 +194,21 @@ for(i in 1:(length(ints)-1)){
   RPS_err[12, i] = mean(rps_vectors(m, preds_olr_cov, obs))
   RPS_err[14, i] = mean(rps_vectors(m, preds_RPS_MLE_cov, obs))
   RPS_err[13, i] = mean(rps_vectors(m, preds_BRIER_MLE_cov, obs))
+  RPS_err[15, i] = mean(rps_vectors(m, preds_RPS_skill_cov, obs))
   
 }
 
 names = c("jump_MLE", "jump_MLE_cov", "jump_Brier", "jump_Brier_cov", "jump_RPS","jump_RPS_cov",
           "Uniform", "Persistence", "Empirical", "Empirical_corr", 
-          "olr", "olr_cov", "jump_Brier_MLE_cov", "jump_RPS_MLE_cov")
+          "olr", "olr_cov", "jump_Brier_MLE_cov", "jump_RPS_MLE_cov", "jump_RPS_skill_cov")
 errs = cbind(rowMeans(log_err),rowMeans(Brier_e),rowMeans(RPS_err))
 rownames(errs) = names
 colnames(errs) = c("Log S", "Brier", "RPS")
 errs
 
 
+# sourceCpp("rps.cpp")
+# discrete_rps_skill_cpp_cov(m = m, s1 = d.train$`s-`, s2 = d.train$s, u = d.train$t, z = as.matrix(d.train[,exo.cols]), pars = beta0, base = preds_olr_cov)
+# discrete_rps_cpp_cov(m = m, s1 = d.train$`s-`, s2 = d.train$s, u = d.train$t, z = as.matrix(d.train[,exo.cols]), pars = beta0)
+# rps_cpp(m, preds_olr_cov[1,], obs[1,])
 

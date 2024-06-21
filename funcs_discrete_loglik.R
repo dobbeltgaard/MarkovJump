@@ -81,7 +81,7 @@ log.lik.grad.cov3 <- function(m, s1, s2, u, z, beta){
 
 
 # maximum likelihood estimation
-mle.cov <- function(m, s1, s2, u, z, beta, states,
+mle.cov <- function(m, s1, s2, u, z, beta,
                     A_param = NULL, pvalues.bin = F, method = NULL, weight = NULL) {
   start_time <- Sys.time() # Start of run time
   if (is.null(method) | method == "Nelder-Mead") { # Nelder-Mead = standard method
@@ -128,7 +128,7 @@ mle.cov <- function(m, s1, s2, u, z, beta, states,
 }
 
 
-mle.no.covs <- function(m, s1, s2, u, beta, states,
+mle.no.covs <- function(m, s1, s2, u, beta,
                     A_param = NULL, pvalues.bin = F, method = NULL, weight = NULL) {
   start_time <- Sys.time() # Start of run time
   if (is.null(method) | method == "Nelder-Mead") { # Nelder-Mead = standard method

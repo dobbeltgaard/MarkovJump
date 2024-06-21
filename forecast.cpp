@@ -214,12 +214,24 @@ Eigen::VectorXd logscore_vectors(int m, Eigen::MatrixXd pred, Eigen::MatrixXd ob
   return res;
 }
 
+/*Brier score function*/
+double brier_cpp(const Eigen::VectorXd& pred, const Eigen::VectorXd& obs) {
+  Eigen::VectorXd diff = pred - obs;
+  Eigen::VectorXd squared_diff = diff.array().square();
+  double res = squared_diff.sum(); 
+  return res;
+}
+
+
+
 /*Brier score function with vector input*/
 // [[Rcpp::export]]
 Eigen::VectorXd BrierScore_vectors(const Eigen::MatrixXd& pred, const Eigen::MatrixXd& obs) {
-  Eigen::MatrixXd diff = pred - obs;
-  Eigen::MatrixXd squared_diff = diff.array().square();
-  Eigen::VectorXd res = squared_diff.rowwise().mean(); 
+  int n = pred.rows();
+  Eigen::VectorXd res(n);
+  for(int i = 0; i < n; i++){
+    res(i) = brier_cpp(pred.row(i), obs.row(i));
+  }
   return res;
 }
 

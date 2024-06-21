@@ -9,12 +9,12 @@
 // [[Rcpp::depends(RcppEigen)]]
 
 
-/*Brier score function with vector input*/
+/*Brier score function */
 // [[Rcpp::export]]
 double brier_cpp(const Eigen::VectorXd& pred, const Eigen::VectorXd& obs) {
   Eigen::VectorXd diff = pred - obs;
   Eigen::VectorXd squared_diff = diff.array().square();
-  double res = squared_diff.mean(); 
+  double res = squared_diff.sum(); 
   return res;
 }
 
