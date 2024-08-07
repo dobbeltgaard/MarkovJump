@@ -17,6 +17,8 @@ exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm"
 z = as.matrix(d[,exo.cols]);
 
 #test 1
+
+#test 4
 library(Rcpp)
 library(RcppArmadillo)
 library(Matrix)
