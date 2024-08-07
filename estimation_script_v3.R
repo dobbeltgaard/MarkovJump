@@ -27,6 +27,7 @@ source("funcs_helping.R")
 
 sourceCpp("FUNCS_MJP.cpp")
 
+print(101)
 
 beta0 <- c(rep(0.25, (m-1)), rep(0.1,length(exo.cols)))  
 
