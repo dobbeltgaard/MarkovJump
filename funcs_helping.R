@@ -79,24 +79,41 @@ construct.A1 <- function(m, lambda) {
 # example::: construct.A(m = 5, lambda = 1:10)
 
 # function for constructing transition rate matrix with parameterized trans rates
+# construct.A2 <- function(m, lambda) {
+#   count <- 0 # init counter
+#   A <- matrix(0, ncol = m, nrow = m) # init A
+#   for (i in m:1) { # iterate through rows
+#     for (j in 1:m) { # iterate through cols
+#       if (j - i == 1) { # Set first upper pseudo diagonal to lambda
+#         count <- count + 1 # keep track of inputing elements
+#         A[i, j] <- lambda[m - count] # assign elements
+#       } else if (j - i > 1) { # position condition for constrained parameters
+#         foo <- 0 # initialize sum variable
+#         for (k in i:(j - 1)) { # sum left positioned elements
+#           foo <- foo + A[k, k + 1] # update sum
+#         }
+#         A[i, j] <- 1 / foo # assign value to conditioned parameter
+#       }
+#     }
+#   }
+#   diag(A) <- -rowSums(A) # diag elements are equal to negative total rate of transmission
+#   return(A)
+# }
+
 construct.A2 <- function(m, lambda) {
-  count <- 0 # init counter
-  A <- matrix(0, ncol = m, nrow = m) # init A
-  for (i in m:1) { # iterate through rows
-    for (j in 1:m) { # iterate through cols
-      if (j - i == 1) { # Set first upper pseudo diagonal to lambda
-        count <- count + 1 # keep track of inputing elements
-        A[i, j] <- lambda[m - count] # assign elements
-      } else if (j - i > 1) { # position condition for constrained parameters
-        foo <- 0 # initialize sum variable
-        for (k in i:(j - 1)) { # sum left positioned elements
-          foo <- foo + A[k, k + 1] # update sum
-        }
-        A[i, j] <- 1 / foo # assign value to conditioned parameter
+  count = 0 # init counter
+  A = construct.A3(m,lambda)
+  for(i in 1:m){
+    for(j in 1:m){
+      if(j-i > 1){
+        #A[i,j] = 1/(1/A[i,j-1] + 1/A[j-1,j])
+        A[i,j] = (A[i,j-1] * A[j-1,j]) / (A[i,j-1] + A[j-1,j])
       }
     }
   }
-  diag(A) <- -rowSums(A) # diag elements are equal to negative total rate of transmission
+  diag(A) = 0 # diag elements are equal to negative total rate of transmission
+  diag(A) = -rowSums(A) # diag elements are equal to negative total rate of transmission
+  
   return(A)
 }
 

@@ -48,7 +48,8 @@ rps.estim.cov <- function(m, s1, s2, u, z, beta, pvalues.bin = F, method = NULL)
 }
 
 
-rps.loglik.estim.cov <- function(m, s1, s2, u, z, beta, pvalues.bin = F, method = NULL) {
+
+rps.estim.cov.A2 <- function(m, s1, s2, u, z, beta, pvalues.bin = F, method = NULL) {
   start_time <- Sys.time() # Start of run time
   if (is.null(method) | method == "Nelder-Mead") { # Nelder-Mead = standard method
     method <- "Nelder-Mead"
@@ -61,7 +62,7 @@ rps.loglik.estim.cov <- function(m, s1, s2, u, z, beta, pvalues.bin = F, method 
     control <- list()
   }
   mod <- optim(
-    par = beta, fn = discrete_rps_loglik_cpp_cov, m = m,
+    par = beta, fn = discrete_rps_cpp_cov_A2, m = m,
     s1 = s1, s2 = s2, u = u, z = z,
     control = control, hessian = pvalues.bin,
     method = method) # optimize
@@ -92,7 +93,7 @@ rps.loglik.estim.cov <- function(m, s1, s2, u, z, beta, pvalues.bin = F, method 
   )
 }
 
-rps.skill.estim.cov <- function(m, s1, s2, u, z, beta, base, pvalues.bin = F, method = NULL) {
+rps.loglik.estim.cov <- function(m, s1, s2, u, z, beta, pvalues.bin = F, method = NULL) {
   start_time <- Sys.time() # Start of run time
   if (is.null(method) | method == "Nelder-Mead") { # Nelder-Mead = standard method
     method <- "Nelder-Mead"
@@ -105,8 +106,8 @@ rps.skill.estim.cov <- function(m, s1, s2, u, z, beta, base, pvalues.bin = F, me
     control <- list()
   }
   mod <- optim(
-    par = beta, fn = discrete_rps_skill_cpp_cov, m = m,
-    s1 = s1, s2 = s2, u = u, z = z, base = base,
+    par = beta, fn = discrete_rps_loglik_cpp_cov, m = m,
+    s1 = s1, s2 = s2, u = u, z = z,
     control = control, hessian = pvalues.bin,
     method = method) # optimize
   end_time <- Sys.time() # End of run time

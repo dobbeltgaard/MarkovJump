@@ -43,12 +43,29 @@ double rps_cpp(int m, Eigen::VectorXd pred, Eigen::VectorXd obs){
 
 
 // #construct A matrix as generalized Erlang
+// [[Rcpp::export]]
 Eigen::MatrixXd make_A(int m, Eigen::VectorXd lambda){
   Eigen::MatrixXd A = Eigen::MatrixXd::Zero(m, m); //init A
   for(int i = 0; i < (m-1); i++){ //iterate through rows
     A(i, i + 1) = lambda(i); //assign elements
   }
   A.diagonal() = -A.rowwise().sum(); //diag elements are equal to negative total rate of transmission
+  return A;
+}
+
+// [[Rcpp::export]]
+Eigen::MatrixXd make_A2(int m, Eigen::VectorXd lambda) {
+  Eigen::MatrixXd A = make_A(m, lambda);
+  for (int i = 0; i < m; ++i) {
+    for (int j = 0; j < m; ++j) {
+      if (j - i > 1) {
+        A(i, j) = (A(i, j - 1) * A(j - 1, j)) / (A(i, j - 1) + A(j - 1, j));
+      }
+    }
+  }
+  A.diagonal().setZero(); // Set diagonal elements to 0
+  A.diagonal() = -A.rowwise().sum(); // Set diagonal elements to negative row sums
+  
   return A;
 }
 
@@ -76,6 +93,50 @@ double discrete_rps_cpp_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen
   for(int i = 0; i < n; i++){
     lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );
     At = make_A(m, lambda )*u(i);
+    tpm = At.exp();
+    
+    start_idx = int(s1(i)-1);
+    end_idx = int(s2(i)-1);
+    
+    /*Prediction*/
+    Pt.setZero();
+    Pt( start_idx) = int(1);
+    Ptu = Pt * tpm;
+    
+    /*Observation*/
+    Ptu_obs.setZero();
+    Ptu_obs(end_idx) = int(1);
+    
+    
+    rps += rps_cpp(m, Ptu, Ptu_obs);
+  }
+  
+  return rps/n;
+}
+
+// [[Rcpp::export]]
+double discrete_rps_cpp_cov_A2(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen::VectorXd u, Eigen::MatrixXd z, Eigen::VectorXd pars){
+  
+  /* Initialization */
+  int n = u.size();
+  int k = z.cols();
+  Eigen::VectorXd lambda_base = pars.segment(0,m-1).array().exp(); 
+  Eigen::VectorXd beta_covs = pars.segment(m-1,k); 
+  Eigen::MatrixXd At = Eigen::MatrixXd::Zero(m, m);
+  Eigen::MatrixXd tpm = Eigen::MatrixXd::Zero(m, m);
+  Eigen::VectorXd lambda(m);
+  Eigen::RowVectorXd Pt(m);
+  Eigen::RowVectorXd Ptu(m);
+  Eigen::RowVectorXd Ptu_obs(m);
+  
+  double rps = 0;
+  int start_idx = 0;
+  int end_idx = 0;
+  
+  /* Compute the log-likelihood */
+  for(int i = 0; i < n; i++){
+    lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );
+    At = make_A2(m, lambda )*u(i);
     tpm = At.exp();
     
     start_idx = int(s1(i)-1);
@@ -183,56 +244,5 @@ double discrete_rps_loglik_cpp_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd s2
   }
   
   return (rps-loglik)/n;
-}
-
-// [[Rcpp::export]]
-double discrete_rps_skill_cpp_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen::VectorXd u, Eigen::MatrixXd z, Eigen::VectorXd pars, Eigen::MatrixXd base){
-  
-  /* Initialization */
-  int n = u.size();
-  int k = z.cols();
-  Eigen::VectorXd lambda_base = pars.segment(0,m-1).array().exp(); 
-  Eigen::VectorXd beta_covs = pars.segment(m-1,k); 
-  Eigen::MatrixXd At = Eigen::MatrixXd::Zero(m, m);
-  Eigen::MatrixXd tpm = Eigen::MatrixXd::Zero(m, m);
-  Eigen::VectorXd lambda(m);
-  Eigen::RowVectorXd Pt(m);
-  Eigen::RowVectorXd Ptu(m);
-  Eigen::RowVectorXd Ptu_obs(m);
-  
-  double rps = 0;
-  double rps_base = 0; 
-  double rpss = 0;
-  int start_idx = 0;
-  int end_idx = 0;
-  
-  /* Compute the log-likelihood */
-  for(int i = 0; i < n; i++){
-    lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );
-    At = make_A(m, lambda )*u(i);
-    tpm = At.exp();
-    
-    start_idx = int(s1(i)-1);
-    end_idx = int(s2(i)-1);
-    
-    /*Prediction*/
-    Pt.setZero();
-    Pt( start_idx) = int(1);
-    Ptu = Pt * tpm;
-    
-    /*Observation*/
-    Ptu_obs.setZero();
-    Ptu_obs(end_idx) = int(1);
-    
-    //loglik += log( Ptu( end_idx  )  );
-    rps = rps_cpp(m, Ptu, Ptu_obs);
-    rps_base = rps_cpp(m, base.row(i), Ptu_obs);
-    
-    rpss += rps/(rps_base + 1);
-    //rpss += rps_base;
-    
-  }
-  
-  return rpss;
 }
 

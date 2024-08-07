@@ -16,9 +16,7 @@ m = length(states)
 exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
 z = as.matrix(d[,exo.cols]);
 
-#test 1
 
-#test 4
 library(Rcpp)
 library(RcppArmadillo)
 library(Matrix)
@@ -29,7 +27,6 @@ source("funcs_helping.R")
 
 sourceCpp("FUNCS_MJP.cpp")
 
-print(101)
 
 beta0 <- c(rep(0.25, (m-1)), rep(0.1,length(exo.cols)))  
 

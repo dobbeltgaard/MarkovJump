@@ -19,9 +19,25 @@
 Eigen::MatrixXd make_A(int m, Eigen::VectorXd lambda){
   Eigen::MatrixXd A = Eigen::MatrixXd::Zero(m, m); //init A
   for(int i = 0; i < (m-1); i++){ //iterate through rows
-        A(i, i + 1) = lambda(i); //assign elements
+    A(i, i + 1) = lambda(i); //assign elements
   }
   A.diagonal() = -A.rowwise().sum(); //diag elements are equal to negative total rate of transmission
+  return A;
+}
+
+// // [[Rcpp::export]]
+Eigen::MatrixXd make_A2(int m, Eigen::VectorXd lambda) {
+  Eigen::MatrixXd A = make_A(m, lambda);
+  for (int i = 0; i < m; ++i) {
+    for (int j = 0; j < m; ++j) {
+      if (j - i > 1) {
+        A(i, j) = (A(i, j - 1) * A(j - 1, j)) / (A(i, j - 1) + A(j - 1, j));
+      }
+    }
+  }
+  A.diagonal().setZero(); // Set diagonal elements to 0
+  A.diagonal() = -A.rowwise().sum(); // Set diagonal elements to negative row sums
+  
   return A;
 }
 
@@ -58,6 +74,58 @@ double discrete_loglik_cpp(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen:
     Ptu = Pt * tpm;
     
     loglik += log( Ptu( end_idx  )  );
+  }
+  
+  return -loglik;
+}
+
+
+/*Brier score function */
+// [[Rcpp::export]]
+double brier_cpp(const Eigen::VectorXd& pred, const Eigen::VectorXd& obs) {
+  Eigen::VectorXd diff = pred - obs;
+  Eigen::VectorXd squared_diff = diff.array().square();
+  double res = squared_diff.sum(); 
+  return res;
+}
+
+
+/*Log-likelihood*/
+// [[Rcpp::export]]
+double discrete_loglik_cpp_A2(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen::VectorXd u, Eigen::MatrixXd z, Eigen::VectorXd pars){
+  
+  /* Initialization */
+  int n = u.size();
+  int k = z.cols();
+  Eigen::VectorXd lambda_base = pars.segment(0,m-1).array().exp(); //(Eigen::seq(0, m-2));
+  Eigen::VectorXd beta_covs = pars.segment(m-1,k); //beta(Eigen::seq(m-1, beta.size()-1));
+  Eigen::MatrixXd At = Eigen::MatrixXd::Zero(m, m);
+  Eigen::MatrixXd tpm = Eigen::MatrixXd::Zero(m, m);
+  Eigen::VectorXd lambda(m);
+  Eigen::RowVectorXd Pt(m);
+  Eigen::RowVectorXd Ptu(m);
+  double loglik = 0;
+  int start_idx = 0;
+  int end_idx = 0;
+  
+  Eigen::RowVectorXd Ptu_obs(m);
+  
+  
+  /* Compute the log-likelihood */
+  for(int i = 0; i < n; i++){
+    lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );
+    At = make_A2(m, lambda )*u(i);
+    tpm = At.exp();
+    
+    start_idx = int(s1(i)-1);
+    end_idx = int(s2(i)-1);
+    
+    Pt.setZero(); 
+    Pt( start_idx) = int(1);
+    Ptu = Pt * tpm;
+    
+    loglik += log( Ptu( end_idx  )  );
+    
   }
   
   return -loglik;
@@ -184,7 +252,7 @@ double discrete_loglik_eigen_cpp(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, 
   
   return -loglik;
 }
- 
+
 
 /* Gradient of eigenspace wrt. the h'th lambda */
 // [[Rcpp::export]]
@@ -210,7 +278,7 @@ Eigen::MatrixXd eigenspace_U_grad(int m, Eigen::VectorXd lambda, int h){
   Eigen::MatrixXd result = U.array() * Us.array(); 
   return result;
 }
- 
+
 
 /* Gradient of inverse eigenspace*/
 // [[Rcpp::export]]
@@ -255,7 +323,7 @@ Eigen::MatrixXd eigenspace_U_inv_grad(int m, Eigen::VectorXd lambda, int h){
 }
 
 
-  
+
 /* Gradient of log-likelihood with eigen decomposition*/
 // [[Rcpp::export]]
 Eigen::VectorXd discrete_loglik_eigen_grad_cpp(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, Eigen::VectorXd u, Eigen::MatrixXd z, Eigen::VectorXd pars){
@@ -288,45 +356,45 @@ Eigen::VectorXd discrete_loglik_eigen_grad_cpp(int m, Eigen::VectorXd s1, Eigen:
   /* Loop over base parameters */
   for(int h = 0; h < m-1; ++h){
     double foo = 0;
-
+    
     Delta_gradient.setZero();
     U_grad = eigenspace_U_grad(m, lambda_base, h);
     U_inv_grad = -U_inv * U_grad * U_inv;//eigenspace_U_inv_grad(m, lambda_base, h);
-
+    
     for(int i = 0; i < n; ++i){
       lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );
       for(int j = 0; j < m-1; ++j){
         Delta(j, j) = exp(-lambda(j)*u(i));
-        }
+      }
       Delta_gradient(h,h) = -u(i) * exp( beta_covs.dot(z.row(i)) ) * Delta(h,h) ;//exp(-lambda(h)*u(i));
-
+      
       tpm_grad = (U_grad * Delta * U_inv) + (U * Delta_gradient * U_inv) + (U * Delta * U_inv_grad);
       tpm = U * Delta * U_inv;
-
+      
       start_idx = int(s1(i)-1);
       end_idx = int(s2(i)-1);
       Pt.setZero();
       Pt( start_idx) = int(1);
       Ptu1 = Pt * tpm_grad;
       Ptu2 = Pt * tpm;
-
+      
       foo +=  Ptu1( end_idx )  / Ptu2( end_idx ) ;
     }
     grad(h) = foo;
-
+    
   }
   
   /* Loop over covariate parameters */
   for(int h = 0; h < k; ++h){
     double foo = 0;
     Delta_gradient.setZero();
-
+    
     for(int i = 0; i < n; i++){
       lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );
       for(int j = 0; j < m-1; ++j){ 
         Delta(j, j) = exp(-lambda(j)*u(i)); 
         Delta_gradient(j,j) = -lambda(j)*u(i)*z(i,h) * Delta(j,j); // = Delta_grad(m, lambda, u(i), Delta, h);
-        }
+      }
       
       tpm_grad = U * Delta_gradient * U_inv;
       tpm = U * Delta * U_inv;
@@ -347,17 +415,16 @@ Eigen::VectorXd discrete_loglik_eigen_grad_cpp(int m, Eigen::VectorXd s1, Eigen:
 }
 
 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+
+
+
+
+
+
+
+
+
+
+
+
+
