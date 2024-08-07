@@ -30,11 +30,27 @@ Eigen::MatrixXd make_A(int m, Eigen::VectorXd lambda){
   return A;
 }
 
+Eigen::MatrixXd make_A2(int m, Eigen::VectorXd lambda) {
+  Eigen::MatrixXd A = make_A(m, lambda);
+  for (int i = 0; i < m; ++i) {
+    for (int j = 0; j < m; ++j) {
+      if (j - i > 1) {
+        A(i, j) = (A(i, j - 1) * A(j - 1, j)) / (A(i, j - 1) + A(j - 1, j));
+      }
+    }
+  }
+  A.diagonal().setZero(); // Set diagonal elements to 0
+  A.diagonal() = -A.rowwise().sum(); // Set diagonal elements to negative row sums
+  
+  return A;
+}
+
+
 
 // Predict probability vector by Markov Jump process with covariates
 // [[Rcpp::export]]
 Eigen::MatrixXd jump_prediction_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd u, Eigen::MatrixXd z, Eigen::VectorXd pars){
-
+  
   /* Initialization */
   int n = u.size();
   int k = z.cols();
@@ -48,14 +64,14 @@ Eigen::MatrixXd jump_prediction_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd u
   Eigen::MatrixXd solution(n,m);
   
   int start_idx = 0;
-
+  
   for(int i = 0; i < n; i++){
     lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );
     At = make_A(m, lambda )*u(i);
     tpm = At.exp();
     
     start_idx = int(s1(i)-1);
-
+    
     /*Prediction*/
     Pt.setZero();
     Pt( start_idx) = int(1);
@@ -68,6 +84,45 @@ Eigen::MatrixXd jump_prediction_cov(int m, Eigen::VectorXd s1, Eigen::VectorXd u
   return solution;
   
 }
+
+// Predict probability vector by Markov Jump process with covariates
+// [[Rcpp::export]]
+Eigen::MatrixXd jump_prediction_cov_A2(int m, Eigen::VectorXd s1, Eigen::VectorXd u, Eigen::MatrixXd z, Eigen::VectorXd pars){
+  
+  /* Initialization */
+  int n = u.size();
+  int k = z.cols();
+  Eigen::VectorXd lambda_base = pars.segment(0,m-1).array().exp(); //(Eigen::seq(0, m-2));
+  Eigen::VectorXd beta_covs = pars.segment(m-1,k); //beta(Eigen::seq(m-1, beta.size()-1));
+  Eigen::MatrixXd At = Eigen::MatrixXd::Zero(m, m);
+  Eigen::MatrixXd tpm = Eigen::MatrixXd::Zero(m, m);
+  Eigen::VectorXd lambda(m);
+  Eigen::RowVectorXd Pt(m);
+  Eigen::RowVectorXd Ptu(m);
+  Eigen::MatrixXd solution(n,m);
+  
+  int start_idx = 0;
+  
+  for(int i = 0; i < n; i++){
+    lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );
+    At = make_A2(m, lambda )*u(i);
+    tpm = At.exp();
+    
+    start_idx = int(s1(i)-1);
+    
+    /*Prediction*/
+    Pt.setZero();
+    Pt( start_idx) = int(1);
+    Ptu = Pt * tpm;
+    
+    solution.row(i) = Ptu;
+    
+  }
+  
+  return solution;
+  
+}
+
 
 
 // Predict probability vector by Markov Jump process with covariates
@@ -215,6 +270,7 @@ Eigen::VectorXd logscore_vectors(int m, Eigen::MatrixXd pred, Eigen::MatrixXd ob
 }
 
 /*Brier score function*/
+// [[Rcpp::export]]
 double brier_cpp(const Eigen::VectorXd& pred, const Eigen::VectorXd& obs) {
   Eigen::VectorXd diff = pred - obs;
   Eigen::VectorXd squared_diff = diff.array().square();
