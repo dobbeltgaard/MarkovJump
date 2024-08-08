@@ -44,10 +44,10 @@ MJP_score(m = m, s1 = d$`s.`, s2 = d$s, u = d$u/365,pars = beta0, z = z, generat
 
 #todo
 #- see if it works for estimation
-#- implement other ways to compute the transient distribution (maybe implement eigenvalue?)
 #- make revised data frame with days divided by 365. change name of s.?
-#- 
-
+#- eigenvalue decomp of relaxed g_erlang. 
+#- forecast and eval functions
+#- speed investigation of transient distribution methods
 
 
 

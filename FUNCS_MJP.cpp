@@ -1160,7 +1160,7 @@ arma::rowvec transient_dist_Eig(int m, const arma::rowvec& Pt, const arma::mat& 
   //function does not use eps
   arma::mat Delta(m, m, arma::fill::zeros); 
   for(int i = 0; i < (m-1); ++i){ Delta(i,i) = exp( -At(i,i+1)) ; }
-  Delta(m-1,m-1) = 1.0;
+  Delta(m-1,m-1) = 1;
   arma::mat tpm = U * Delta * U_inv;
   return Pt * tpm;
 }
@@ -1276,10 +1276,10 @@ double MJP_score(int m,
       At = A*u(i);
       start_idx = int(s1(i)-1);
       end_idx = int(s2(i)-1);
-      Pt.fill(0.0);
-      obs.fill(0.0);
-      Pt(start_idx) = 1.0 ;
-      obs(end_idx) = 1.0 ;
+      Pt.fill(0);
+      obs.fill(0);
+      Pt(start_idx) = 1 ;
+      obs(end_idx) = 1 ;
       Ptu = transient_dist(m, Pt, At, eps, U, U_inv); 
       res += score_function(m, Ptu, obs);
     }
@@ -1294,10 +1294,10 @@ double MJP_score(int m,
       At = make_A(m, lambda )*u(i);
       start_idx = int(s1(i)-1);
       end_idx = int(s2(i)-1);
-      Pt.fill(0.0);
-      obs.fill(0.0);
-      Pt( start_idx) = 1.0 ;
-      obs(end_idx) = 1.0 ;
+      Pt.fill(0);
+      obs.fill(0);
+      Pt( start_idx) = 1 ;
+      obs(end_idx) = 1 ;
       Ptu = transient_dist(m, Pt, At, eps, U, U_inv); 
       res += score_function(m, Ptu, obs);
     }
