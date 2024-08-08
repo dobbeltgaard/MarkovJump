@@ -237,7 +237,7 @@ double discrete_loglik_eigen_cpp(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, 
   /* Compute the log-likelihood */
   for(int i = 0; i < n; i++){
     lambda = lambda_base * exp( beta_covs.dot(z.row(i)) );
-    for(int j = 0; j < m-1; ++j){ Delta(j, j) = exp(-lambda(j)*u(i)); }
+    for(int j = 0; j < m-1; ++j){ Delta(j, j) = exp( -lambda(j)*u(i) ); }
     tpm = U * Delta * U_inv;
     
     start_idx = int(s1(i)-1);
@@ -249,7 +249,6 @@ double discrete_loglik_eigen_cpp(int m, Eigen::VectorXd s1, Eigen::VectorXd s2, 
     
     loglik += log( Ptu( end_idx  )  );
   }
-  
   return -loglik;
 }
 

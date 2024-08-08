@@ -9,6 +9,8 @@
 #include <boost/math/distributions/poisson.hpp>
 #include <chrono>
 
+#include <algorithm> // For std::transform
+#include <cctype>    // For std::tolower
 
 using namespace std;
 
@@ -1101,10 +1103,89 @@ arma::vec logscore_vectors(int m, const arma::mat& pred, const arma::mat& obs) {
   return res;
 }
 
+/* ----------------------------------------- */
+/* FUNCTIONS: Transient distribution methods */
+/* ----------------------------------------- */
+
+arma::rowvec transient_dist_Pade(int m, const arma::rowvec& Pt, const arma::mat& At, double eps, const arma::mat& U, const arma::mat& U_inv){
+  //function does not use eps, U and U_inv
+  arma::mat tpm = arma::expmat(At); //scaling and squaring with 6th degree Padé
+  return Pt * tpm;
+}
+arma::rowvec transient_dist_Uni(int m, const arma::rowvec& Pt, const arma::mat& At, double eps, const arma::mat& U, const arma::mat& U_inv){
+  //function does not use U and U_inv
+  return Unif_v_exp_Q(Pt,At,eps);
+}
+
+/* eigenspace matrix assuming generalized erlang */
+arma::mat eigenspace_U(int m, const arma::vec& lambda) {
+  arma::mat U = arma::ones<arma::mat>(m, m);
+  for(int i =0; i < m; i++){for(int j = 0; j < m; j++){ if(i > j){ U(i,j) = 0.0; } } } //set lower tri to zero 
+  for(int i = 0; i < (m-1); i++){
+    for(int j = 0; j < (m-1); j++){
+      if(j > i){
+        for(int k = i; k < j; k++){
+          U(i, j) *= (lambda(k) / (lambda(k) - lambda(j)));
+        }
+      }
+    }
+  }
+  return U;
+}
+
+/* Inverse eigenspace matrix assuming generalized erlang */
+arma::mat eigenspace_U_inv(int m, const arma::vec& lambda) {
+  arma::mat U = arma::ones<arma::mat>(m, m);
+  for(int i =0; i < m; i++){for(int j = 0; j < m; j++){ if(i > j){ U(i,j) = 0.0; } } } //set lower tri to zero 
+  for(int i = 0; i < (m-1); i++){
+    for(int j = 0; j < (m-1); j++){
+      if(j > i){
+        for(int k = i; k < j; k++){
+          U(i, j) *= (lambda(k) / (lambda(i) - lambda(k + 1)));
+        }
+        U(i, j) *= pow(-1, (j - i));
+      }
+    }
+    if( i < (m-1) ){ //this condition is unnecessary
+      for(int k = i+1; k < m-1; k++){
+        U(i, m-1) *= (lambda(k) / (lambda(i) - lambda(k)));
+      }
+      U(i, m-1) *= pow(-1, (m - i + 1));
+    }
+  }
+  return U;
+}
+
+arma::rowvec transient_dist_Eig(int m, const arma::rowvec& Pt, const arma::mat& At, double eps, const arma::mat& U, const arma::mat& U_inv){
+  //function does not use eps
+  arma::mat Delta(m, m, arma::fill::zeros); 
+  for(int i = 0; i < (m-1); ++i){ Delta(i,i) = exp( -At(i,i+1)) ; }
+  Delta(m-1,m-1) = 1.0;
+  arma::mat tpm = U * Delta * U_inv;
+  return Pt * tpm;
+}
+
+bool are_rates_distinct(int m, const arma::vec& x, double eps) {
+  for (int i = 0; i < (m-1); ++i) {
+    for (int j = i + 1; j < (m-1); ++j) {
+      if (std::abs(x(i) - x(j)) <= eps) {
+        return false;
+      }
+    }
+  }
+  return true;  
+}
+
+std::string to_lowercase(const std::string& str) {
+  std::string result = str;
+  std::transform(result.begin(), result.end(), result.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+  return result;
+}
 
 
 // [[Rcpp::export]]
-double score_function(int m, 
+double MJP_score(int m, 
                       const arma::vec& s1, 
                       const arma::vec& s2, 
                       const arma::vec& u, 
@@ -1114,7 +1195,8 @@ double score_function(int m,
                       bool covs_bin = true,
                       bool likelihood_bin = true, 
                       bool rps_bin = false, 
-                      bool brier_bin = false, 
+                      bool brier_bin = false,
+                      const string& transient_dist_method = "uniformization",
                       double eps = 2^(-52)){
   
   
@@ -1130,24 +1212,57 @@ double score_function(int m,
   double res = 0;
   int start_idx = 0;
   int end_idx = 0;
+  arma::mat U = eigenspace_U(m, lambda_base); //only used for eigen decomp
+  arma::mat U_inv = eigenspace_U_inv(m, lambda_base); //only used for eigen decomp
   
   
   /* Determine which parameterization to use */
   std::function<arma::mat(int, const arma::vec&)> make_A;
-  if (generator == "Erlang") {
+  if (to_lowercase(generator) == "erlang") {
     make_A = [](int m, const arma::vec& lambda) { return make_A1(m, lambda); };
-  } else if (generator == "Erlang_Relax") {
+  } else if (to_lowercase(generator) == "erlang_relax") {
     make_A = [](int m, const arma::vec& lambda) { return make_A2(m, lambda); };
   }
   
   /* Determine which score to use */
   std::function<double(int, const arma::rowvec&, const arma::rowvec&)> score_function;
-  if (likelihood_bin) {
+  if (likelihood_bin && !rps_bin && !brier_bin) {
     score_function = [](int m, const arma::rowvec& pred, const arma::rowvec& obs) { return log_cpp(m, pred, obs); };
-  } else if (rps_bin) {
+  } else if (!likelihood_bin && rps_bin && !brier_bin) {
     score_function = [](int m, const arma::rowvec& pred, const arma::rowvec& obs) { return rps_cpp(m, pred, obs); };
-  } else if (brier_bin) {
+  } else if (!likelihood_bin && !rps_bin && brier_bin) {
     score_function = [](int m, const arma::rowvec& pred, const arma::rowvec& obs) { return brier_cpp(m, pred, obs); };
+  } else if (likelihood_bin && rps_bin && !brier_bin) {
+    score_function = [](int m, const arma::rowvec& pred, const arma::rowvec& obs) { return log_cpp(m, pred, obs) + rps_cpp(m, pred, obs); };
+  } else if (likelihood_bin && !rps_bin && brier_bin) {
+    score_function = [](int m, const arma::rowvec& pred, const arma::rowvec& obs) { return log_cpp(m, pred, obs) + brier_cpp(m, pred, obs); };
+  } else if (!likelihood_bin && rps_bin && brier_bin) {
+    score_function = [](int m, const arma::rowvec& pred, const arma::rowvec& obs) { return rps_cpp(m, pred, obs) + brier_cpp(m, pred, obs); };
+  } else if (likelihood_bin && rps_bin && brier_bin) {
+    score_function = [](int m, const arma::rowvec& pred, const arma::rowvec& obs) { return log_cpp(m, pred, obs) + rps_cpp(m, pred, obs) + brier_cpp(m, pred, obs); };
+  } else {
+    Rcpp::warning("A score metric needs to be specified.");
+    return R_NaReal; 
+  }
+  
+  
+  /* Determine how to calculate transient distribution */
+  std::function<arma::mat(int, const arma::rowvec&, const arma::mat&, double, const arma::mat&, const arma::mat&)> transient_dist;
+  if (to_lowercase(transient_dist_method) == "uniformization") {
+    transient_dist = [](int m, const arma::rowvec& Pt, const arma::mat& At, double eps, const arma::mat& U, const arma::mat& U_inv) { return transient_dist_Uni(m, Pt, At, eps, U, U_inv); };
+  } else if (to_lowercase(transient_dist_method) == "pade") {
+    transient_dist = [](int m, const arma::rowvec& Pt, const arma::mat& At, double eps, const arma::mat& U, const arma::mat& U_inv) { return transient_dist_Pade(m, Pt, At, eps, U, U_inv); };
+  } else if (to_lowercase(transient_dist_method) == "eigenvalue_decomp" && to_lowercase(generator) == "erlang"){
+    bool distinct_rates = are_rates_distinct(m, lambda_base, 0.00000001); // check if rates are distinct
+     if(distinct_rates){ //if eigenvalue decomp. is appropiate then use it
+       //Rcpp::Rcout << "Using eigenvalue decomp." << std::endl;
+       transient_dist = [](int m, const arma::rowvec& Pt, const arma::mat& At, double eps, const arma::mat& U, const arma::mat& U_inv) { return transient_dist_Eig(m, Pt, At, eps, U, U_inv); }; 
+     } else { // else we just apply uniformization
+       transient_dist = [](int m, const arma::rowvec& Pt, const arma::mat& At, double eps, const arma::mat& U, const arma::mat& U_inv) { return transient_dist_Uni(m, Pt, At, eps, U, U_inv); };
+       } 
+  } else {
+    Rcpp::warning("An appropiate calculation method for the transient distribution needs to be specified.");
+    return R_NaReal; 
   }
   
   
@@ -1165,7 +1280,7 @@ double score_function(int m,
       obs.fill(0.0);
       Pt(start_idx) = 1.0 ;
       obs(end_idx) = 1.0 ;
-      Ptu = Unif_v_exp_Q(Pt,At,eps);
+      Ptu = transient_dist(m, Pt, At, eps, U, U_inv); 
       res += score_function(m, Ptu, obs);
     }
 
@@ -1183,11 +1298,10 @@ double score_function(int m,
       obs.fill(0.0);
       Pt( start_idx) = 1.0 ;
       obs(end_idx) = 1.0 ;
-      Ptu = Unif_v_exp_Q(Pt,At,eps);
+      Ptu = transient_dist(m, Pt, At, eps, U, U_inv); 
       res += score_function(m, Ptu, obs);
     }
 
   }
-  
   return res;
 }

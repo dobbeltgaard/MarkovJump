@@ -28,16 +28,24 @@ source("funcs_helping.R")
 sourceCpp("FUNCS_MJP.cpp")
 
 
-beta0 <- c(rep(0.25, (m-1)), rep(0.1,length(exo.cols)))  
+beta0 <- c(c(0.1,0.2,0.3,0.4),
+           #rep(0.25, (m-1)), 
+           rep(0.1,length(exo.cols)))  
 
 log.lik.cov(m = m, s1 = d$`s.`, s2 = d$s, u = d$u/365, z = z, beta = beta0, states)
-score_function(m = m, s1 = d$`s.`, s2 = d$s, u = d$u/365,pars = beta0, z = z, generator="Erlang", likelihood_bin = T)
+MJP_score(m = m, s1 = d$`s.`, s2 = d$s, u = d$u/365,pars = beta0, z = z, generator="erlang", 
+               covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F, 
+          transient_dist_method = "uniformization")
+
+
+
+
+#eigenvalue_decomp
 
 #todo
 #- see if it works for estimation
-#- implement mixed scores
-#- implement other ways to compute the transient distribution
-#- make revised data frame with days divided by 365
+#- implement other ways to compute the transient distribution (maybe implement eigenvalue?)
+#- make revised data frame with days divided by 365. change name of s.?
 #- 
 
 
