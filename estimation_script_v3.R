@@ -41,40 +41,33 @@ library(RcppEigen)
 sourceCpp("FUNCS_MJP_with_eigen.cpp")
 
 
-beta0 <- c(#c(0.1,0.2,0.3,0.4),
-           rep(0.25, (m-1)),
+beta0 <- c(c(0.1,0.2,0.3,0.4),
+           #rep(0.25, (m-1)),
            #c(0.1,0.2,0.3,0.4, 0.2,0.2,0.3,0.4,0.1,9),
            rep(0.1,length(exo.cols)))  
 
 
-beta0 = c(-0.1429,0.5735,-1.0762,-0.1925,-0.0694,-0.6080,-0.8727,-0.2814,-0.0523)
+beta0 = c(c(-0.1429,0.5735,-1.0762,-0.1925,-0.0694,-0.6080,-0.8727,-0.2814,-0.0523),
+          rep(0.1,length(exo.cols)))
 
 
 MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang", 
                covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F, 
-          transient_dist_method = "pade")
+          transient_dist_method = "uniformization")
 
-
-
-
-discrete_loglik_cpp(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z )
-discrete_loglik_eigen_cpp(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z )
+#discrete_loglik_cpp(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z )
+#discrete_loglik_eigen_cpp(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z )
 
 x = optim( par = beta0, fn = MJP_score, m = m, s1 = d$`s-`, s2 = d$s, u = d$t, z = z, generator="gerlang", 
            covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F,
-           transient_dist_method = "eigenvalue_decomp", method = "BFGS") 
+           transient_dist_method = "eigenvalue_decomp", method = "BFGS", control = list(maxit = 1000)) 
 
 x
-#eigenvalue_decomp
 
 #todo
-#- see if it works for estimation
 #- make revised data frame with days divided by 365. change name of s.?
-#- eigenvalue decomp of relaxed g_erlang. 
 #- forecast and eval functions
-#- speed investigation of transient distribution methods
-
-#compare rps and brier scores with previous implementation. Are they made correctly?
+#- speed investigation of transient distribution methods vs. generator parameterizations
 
 
 
@@ -82,16 +75,9 @@ x
 
 
 #comments: 
-# free_upper_tri parameterization does not seem to work
-# uniformization is not possible to perform with eigencpp yet. Some implementation work is needed. 
 # gerlang_relax seems to work fine
 # eigenvalue decomp seems to work fine for both gerlang and gerlang_relax, also with BFGS. 
-
-
-
-
-
-
+# rps and brier estimation on gerlang relax is meaningful, it just takes more iterations to reach convergence
 
 
 
