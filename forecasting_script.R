@@ -1,7 +1,7 @@
 rm(list = ls()) #clear memory
 
 #setwd("C:/Users/ATBD/OneDrive - Danmarks Tekniske Universitet/MarkovJump")
-setwd("C:/Users/askbi/OneDrive - Danmarks Tekniske Universitet/MarkovJump")
+#setwd("C:/Users/askbi/OneDrive - Danmarks Tekniske Universitet/MarkovJump")
 library(RcppEigen); library(Rcpp)
 
 #source("funcs_diagonalization.R")
@@ -20,6 +20,8 @@ states <- c(1,2,3,4,5) #define states
 m <- length(states) #number of states
 track <- unique(D$Track) #define investigated tracks
 exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
+exo.cols2 <- c("speed.norm","profil.norm", "steel.norm", "invRad.norm")
+
 idx.remove <- 
   (D$`s-` == 4 & D$`s` == 4 & D$u > 300) | 
   (D$`s-` == 4 & D$`s` == 5 & D$u > 300) | 
@@ -31,6 +33,7 @@ d <- D[!idx.remove, c("pos", "s-", "s", "u", exo.cols, "Track0")] #define data s
 d$s1 = d$`s-`
 d$s2 = d$`s`
 d$t = d$u/365
+d$t_mgt = d$u/365*d$MBT.norm
 ### COMPARISON OF FORECAST ABILIT OF... ###
 # Maximum Likelihood Estimation
 # Optimal Score Estimation
@@ -76,6 +79,9 @@ rand.idx <- sample(x = 1:NROW(d),size = NROW(d),replace = F)
 
 beta00 <- rep(0.25, (m-1)) 
 beta0 <- c(rep(0.25, (m-1)), rep(0.1,length(exo.cols))) 
+beta02 <- c(rep(0.25, (m-1)), rep(0.1,length(exo.cols2))) 
+
+
 
 pars_MLE <- matrix(NA, ncol = length(beta00), nrow = k)
 pars_MLE_cov <- matrix(NA, ncol = length(beta0), nrow = k)
@@ -91,8 +97,9 @@ pars_rps_skill_cov <- matrix(NA, ncol = length(beta0), nrow = k)
 pars_MLE_cov_A2 <- matrix(NA, ncol = length(beta0), nrow = k)
 pars_MLE_BRIER_RPS_cov_A2 <- matrix(NA, ncol = length(beta0), nrow = k)
 
+pars_MLE_cov_timeMGT <- matrix(NA, ncol = length(beta02), nrow = k)
 
-n_predictors = 16
+n_predictors = 17
 
 RPS_err = matrix(NA, ncol = k, nrow = n_predictors)
 log_err = matrix(NA, ncol = k, nrow = n_predictors)
@@ -128,6 +135,10 @@ for(i in 1:(length(ints)-1)){
   jump_MLE_cov_A2 = mle.cov.A2(m = m, s1 = d.train$`s-`, s2 = d.train$s, u = d.train$t, z = as.matrix(d.train[,exo.cols]), beta = beta0, method = "BFGS")
   jump_MLE_BRIER_RPS_cov_A2 = loglik.brier.rps.estim.cov.A2(m = m, s1 = d.train$`s-`, s2 = d.train$s, u = d.train$t, z = as.matrix(d.train[,exo.cols]), beta = beta0, method = "BFGS")
   
+  jump_MLE_cov_timeMGT = mle.cov(m = m, s1 = d.train$`s-`, s2 = d.train$s, u = d.train$t_mgt, z = as.matrix(d.train[,exo.cols2]), beta = beta02, method = "BFGS")
+  
+  
+  
   #Store estimates and loss value
   pars_MLE[i,] = jump_MLE$lambda 
   pars_MLE_cov[i,] = jump_MLE_cov$lambda
@@ -140,6 +151,8 @@ for(i in 1:(length(ints)-1)){
   pars_RPS_MLE_cov[i,] = jump_RPS_MLE_cov$lambda
   pars_MLE_cov_A2[i,] = jump_MLE_cov_A2$lambda
   pars_MLE_BRIER_RPS_cov_A2[i,] = jump_MLE_BRIER_RPS_cov_A2$lambda
+  
+  pars_MLE_cov_timeMGT[i,] = jump_MLE_cov_timeMGT$lambda
   
   #Make predictions
   preds_MLE = jump_prediction(m, s1 = d.test$`s-`, u = d.test$t, jump_MLE$lambda)
@@ -160,6 +173,9 @@ for(i in 1:(length(ints)-1)){
   preds_MLE_cov_A2 = jump_prediction_cov_A2(m, s1 = d.test$`s-`, u = d.test$t, z = as.matrix(d.test[,exo.cols]), jump_MLE_cov_A2$lambda)
   preds_MLE_BRIER_RPS_cov_A2 = jump_prediction_cov_A2(m, s1 = d.test$`s-`, u = d.test$t, z = as.matrix(d.test[,exo.cols]), jump_MLE_BRIER_RPS_cov_A2$lambda)
   
+  preds_MLE_cov_timeMGT = jump_prediction_cov(m, s1 = d.test$`s-`, u = d.test$t_mgt, z = as.matrix(d.test[,exo.cols2]), jump_MLE_cov_timeMGT$lambda)
+  
+  
   #Evaluate predictions in terms of RPS and log score and Brier score
   obs = make_Ptu_obs(m, d.test$`s`)
   log_err[1, i] = mean(logscore_vectors(m, preds_MLE, obs))
@@ -179,6 +195,9 @@ for(i in 1:(length(ints)-1)){
   log_err[15, i] = mean(logscore_vectors(m, preds_MLE_cov_A2, obs))
   log_err[16, i] = mean(logscore_vectors(m, preds_MLE_BRIER_RPS_cov_A2, obs))
   
+  log_err[17, i] = mean(logscore_vectors(m, preds_MLE_cov_timeMGT, obs))
+  
+  
   Brier_e[1, i] = mean(BrierScore_vectors( preds_MLE, obs))
   Brier_e[2, i] = mean(BrierScore_vectors( preds_MLE_cov, obs))
   Brier_e[3, i] = mean(BrierScore_vectors( preds_BRIER, obs))
@@ -195,6 +214,9 @@ for(i in 1:(length(ints)-1)){
   Brier_e[14, i] = mean(BrierScore_vectors( preds_RPS_MLE_cov, obs))
   Brier_e[15, i] = mean(BrierScore_vectors( preds_MLE_cov_A2, obs))
   Brier_e[16, i] = mean(BrierScore_vectors( preds_MLE_BRIER_RPS_cov_A2, obs))
+  
+  Brier_e[17, i] = mean(BrierScore_vectors( preds_MLE_cov_timeMGT, obs))
+  
   
   RPS_err[1, i] = mean(rps_vectors(m, preds_MLE, obs))
   RPS_err[2, i] = mean(rps_vectors(m, preds_MLE_cov, obs))
@@ -213,6 +235,8 @@ for(i in 1:(length(ints)-1)){
   RPS_err[15, i] = mean(rps_vectors(m, preds_MLE_cov_A2, obs))
   RPS_err[16, i] = mean(rps_vectors(m, preds_MLE_BRIER_RPS_cov_A2, obs))
   
+  RPS_err[17, i] = mean(rps_vectors(m, preds_MLE_cov_timeMGT, obs))
+  
   pred_list[[1]] = rbind(pred_list[[1]], preds_MLE)
   pred_list[[2]] = rbind(pred_list[[2]], preds_MLE_cov)
   pred_list[[3]] = rbind(pred_list[[3]], preds_BRIER)
@@ -230,6 +254,9 @@ for(i in 1:(length(ints)-1)){
   pred_list[[15]] = rbind(pred_list[[15]], preds_MLE_cov_A2)
   pred_list[[16]] = rbind(pred_list[[16]], preds_MLE_BRIER_RPS_cov_A2)
   
+  pred_list[[17]] = rbind(pred_list[[17]], preds_MLE_cov_timeMGT)
+  
+  
   pred_list[[n_predictors+1]] = rbind(pred_list[[n_predictors+1]], obs)
   
 }
@@ -237,7 +264,7 @@ for(i in 1:(length(ints)-1)){
 names = c("jump_MLE", "jump_MLE_cov", "jump_Brier", "jump_Brier_cov", "jump_RPS","jump_RPS_cov",
           "Uniform", "Persistence", "Empirical", "Empirical_corr", 
           "olr", "olr_cov", "jump_Brier_MLE_cov", "jump_RPS_MLE_cov", 
-          "jump_MLE_cov_A2", "jump_MLE_BRIER_RPS_cov_A2")
+          "jump_MLE_cov_A2", "jump_MLE_BRIER_RPS_cov_A2", "timeMGT")
 errs = cbind(rowMeans(log_err),rowMeans(Brier_e),rowMeans(RPS_err))
 rownames(errs) = names
 colnames(errs) = c("Log S", "Brier", "RPS")

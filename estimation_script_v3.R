@@ -11,30 +11,33 @@
 rm(list = ls()) #clear memory
 load("defects_covs_base.RData"); D <- foo; rm(foo) #load dat
 
+
 #########################
 ### Data preparation ####
 #########################
 states <- c(1,2,3,4,5) #define states
 m <- length(states) #number of states
 track <- unique(D$Track) #define investigated tracks
-exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
+exo.cols <- c("speed.norm","profil.norm", "steel.norm", "invRad.norm")
+
 idx.remove <- 
   (D$`s-` == 4 & D$`s` == 4 & D$u > 300) | 
   (D$`s-` == 4 & D$`s` == 5 & D$u > 300) | 
   (D$`s-` == 5 & D$`s` == 5 & D$u > 300) 
 
 
-d <- D[!idx.remove, c("pos", "s-", "s", "u", exo.cols, "Track0")] #define data set of interest
-
 d$s1 = d$`s-`
 d$s2 = d$`s`
 d$t = d$u/365
+d$t_mgt = d$u/365 * d$MBT.norm
+
 z = as.matrix(d[, exo.cols])
+
+
+
 library(Rcpp)
 library(RcppEigen)
 #library(Matrix)
-
-
 #source("funcs_discrete_loglik.R")
 #source("funcs_helping.R")
 
@@ -47,8 +50,7 @@ beta0 <- c(c(0.1,0.2,0.3,0.4),
            rep(0.1,length(exo.cols)))  
 
 
-beta0 = c(c(-0.1429,0.5735,-1.0762,-0.1925,-0.0694,-0.6080,-0.8727,-0.2814,-0.0523),
-          rep(0.1,length(exo.cols)))
+#beta0 = c(c(-0.1429,0.5735,-1.0762,-0.1925,-0.0694,-0.6080,-0.8727,-0.2814,-0.0523),rep(0.1,length(exo.cols)))
 
 
 MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang", 
@@ -58,7 +60,7 @@ MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="g
 #discrete_loglik_cpp(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z )
 #discrete_loglik_eigen_cpp(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z )
 
-x = optim( par = beta0, fn = MJP_score, m = m, s1 = d$`s-`, s2 = d$s, u = d$t, z = z, generator="gerlang", 
+x = optim( par = beta0, fn = MJP_score, m = m, s1 = d$`s-`, s2 = d$s, u = d$t_mgt, z = z, generator="gerlang", 
            covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F,
            transient_dist_method = "eigenvalue_decomp", method = "BFGS", control = list(maxit = 1000)) 
 
@@ -68,17 +70,10 @@ x
 #- make revised data frame with days divided by 365. change name of s.?
 #- forecast and eval functions
 #- speed investigation of transient distribution methods vs. generator parameterizations
-
-
-
+#- investigate if t*MGT is more meaningfull time parameterization
 
 
 
 #comments: 
-# gerlang_relax seems to work fine
-# eigenvalue decomp seems to work fine for both gerlang and gerlang_relax, also with BFGS. 
 # rps and brier estimation on gerlang relax is meaningful, it just takes more iterations to reach convergence
-
-
-
-
+# sensitivity on intialization seems to be resolved

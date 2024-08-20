@@ -206,18 +206,32 @@ Eigen::MatrixXd make_Ptu_obs(int m, Eigen::VectorXd s2){
 
 /*RPS score function*/
 // [[Rcpp::export]]
-double rps_cpp(int m, Eigen::VectorXd pred, Eigen::VectorXd obs){
+double rps_cpp(int m, Eigen::VectorXd pred, Eigen::VectorXd obs) {
   double res = 0.0;
-  for(int k = 0; k < m; k++){
-    double rps = 0.0;
-    for(int i = 0; i <= k; i++){
-      rps += pred[i] - obs[i];
+  for (int k = 0; k < m; k++) {
+    double cum_pred = 0.0;
+    double cum_obs = 0.0;
+    for (int i = 0; i <= k; i++) {
+      cum_pred += pred[i];
+      cum_obs += obs[i];
     }
+    double rps = cum_pred - cum_obs;
     res += rps * rps;
   }
   return res;
 }
-}
+// double rps_cpp(int m, Eigen::VectorXd pred, Eigen::VectorXd obs){
+//   double res = 0.0;
+//   for(int k = 0; k < m; k++){
+//     double rps = 0.0;
+//     for(int i = 0; i <= k; i++){
+//       rps += pred[i] - obs[i];
+//     }
+//     res += rps * rps;
+//   }
+//   return res;
+// }
+
 
 
 /*RPS score function with vector input*/

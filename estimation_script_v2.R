@@ -577,6 +577,91 @@ p <- ggplot(dtemp, aes(x=u)) +
   annotate("text", x=Inf, y=Inf,size=text.size2, label = lab, family="serif", vjust = 1, hjust = 1) 
 p
 
+
+
+
+
+
+#############################
+### Plot of survival func ###
+#############################
+library(expm)
+
+beta0 <- c(rep(0.25, (m-1)), rep(0.1,length(exo.cols)))  
+res3 <- mle.cov(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, 
+                z = as.matrix(d[,exo.cols]), beta = beta0, 
+                pvalues.bin =  T, method = "BFGS")
+
+
+# res3
+# base.foo <- 1/exp(res3$lambda[1:(m-1)])*365
+# exo.foo <- apply(sweep((d[,exo.cols]), 2, res3$lambda[m:(m-1+length(exo.cols))], "*"), 
+#                  MARGIN = 2, quantile, probs = 0.5)
+# 
+# 
+# base.foo
+# base.foo/exp(sum(exo.foo))
+# sum(base.foo/exp(sum(exo.foo)))/365
+
+lambda = exp(res3$lambda[1:(m-1)])
+exo = res3$lambda[m:(m-1+length(exo.cols))]
+
+#begin loop
+results <- data.frame()
+for(i in 1:NROW(d)){
+  impact = exp(sum(d[i, exo.cols] * exo))
+  A = construct.A3(m,lambda) * impact
+  Q = A[1:(m-1), 1:(m-1)]
+  
+  time <- seq(0, 40, length.out = 41)
+  pi <- c(1, 0, 0, 0)
+  
+  survival_function <- function(t) {
+    exp_Qt <- expm::expm(Q * t)
+    1 - pi %*% exp_Qt %*% rep(1, nrow(Q))
+  }
+  
+  survival_values <- sapply(time, survival_function)
+  temp_df <- data.frame(time = time, survival = survival_values, Q_id = as.factor(i))
+  results <- rbind(results, temp_df)
+  
+}
+
+#choose an appriopiate subset of survival functions evenly distributed over degradation speed
+foo.res = results[which(results$time == 10),]
+foo.res <- (foo.res[order(foo.res$survival),])
+foo.idx = floor(seq(6,NROW(foo.res), length.out = 50))
+chosenQ = foo.res[foo.idx,"Q_id"] 
+idx = results$Q_id %in% chosenQ
+
+
+#create shading data
+curve1_id <- chosenQ[1]
+curve2_id <- chosenQ[length(chosenQ)]
+curve1_data <- results[results$Q_id == curve1_id, ]
+curve2_data <- results[results$Q_id == curve2_id, ]
+shading_data <- merge(curve1_data, curve2_data, by = "time", suffixes = c("_1", "_2"))
+library(dplyr)
+shading_data <- shading_data %>%
+  rename(ymin = survival_2, ymax = survival_1)
+
+
+p <- ggplot() +
+  geom_line(data = results[idx,], aes(x = time, y = survival, color = Q_id), size = 0.5) +
+  geom_ribbon(data = shading_data, aes(x = time, ymin = ymin, ymax = ymax), 
+              fill = "gray", alpha = 0.5) +
+  labs(title = "Survival Functions for Different Phase-Type Distributions",
+       x = "Time",
+       y = "Survival Probability") +
+  guides(color = "none") +  # Remove the legend
+  theme_minimal() +
+  scale_color_manual(values = rep("black", length(unique(results$Q_id[idx]))))
+
+p
+
+#plot needs a rescaled x-axis so it fits the actual time in years
+
+
 ############################
 ### Data scenarios notes ###
 ############################
