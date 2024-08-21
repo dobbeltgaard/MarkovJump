@@ -613,7 +613,7 @@ for(i in 1:NROW(d)){
   A = construct.A3(m,lambda) * impact
   Q = A[1:(m-1), 1:(m-1)]
   
-  time <- seq(0, 40, length.out = 41)
+  time <- seq(0, 40, length.out = 81)
   pi <- c(1, 0, 0, 0)
   
   survival_function <- function(t) {
@@ -630,9 +630,17 @@ for(i in 1:NROW(d)){
 #choose an appriopiate subset of survival functions evenly distributed over degradation speed
 foo.res = results[which(results$time == 10),]
 foo.res <- (foo.res[order(foo.res$survival),])
-foo.idx = floor(seq(6,NROW(foo.res), length.out = 50))
+foo.idx = floor(sort(c(6,10,20,40,seq(1,NROW(foo.res), length.out = 100))))
 chosenQ = foo.res[foo.idx,"Q_id"] 
 idx = results$Q_id %in% chosenQ
+
+
+library(dplyr)
+
+# Compute average survival function
+avg_survival <- results %>%
+  group_by(time) %>%
+  summarize(avg_survival = mean(survival, na.rm = TRUE))
 
 
 #create shading data
@@ -646,20 +654,25 @@ shading_data <- shading_data %>%
   rename(ymin = survival_2, ymax = survival_1)
 
 
+text.size = 12
 p <- ggplot() +
-  geom_line(data = results[idx,], aes(x = time, y = survival, color = Q_id), size = 0.5) +
-  geom_ribbon(data = shading_data, aes(x = time, ymin = ymin, ymax = ymax), 
-              fill = "gray", alpha = 0.5) +
-  labs(title = "Survival Functions for Different Phase-Type Distributions",
-       x = "Time",
-       y = "Survival Probability") +
+  geom_line(data = results[idx,], aes(x = time, y = survival, color = Q_id), size = 0.001, alpha=0.8) +
+  geom_ribbon(data = shading_data, aes(x = time, ymin = ymin, ymax = ymax), fill = "gray", alpha = 0.5) +
+  geom_line(data = avg_survival, aes(x = time, y = avg_survival), color = "#F8766D", size = 1.5, linetype = "dashed") +
+  labs(x = "Time [years]",
+       y = "Probability") +
   guides(color = "none") +  # Remove the legend
   theme_minimal() +
-  scale_color_manual(values = rep("black", length(unique(results$Q_id[idx]))))
+  scale_color_manual(values = rep("black", length(unique(results$Q_id[idx]))))+
+  theme(text = element_text(size = text.size, family = "serif"), 
+        panel.background = element_rect(fill = "white", color = "black"), 
+        panel.grid.minor = element_line(color = "lightgray"),
+        legend.key=element_blank(),legend.position = "none"
+  )
 
 p
 
-#plot needs a rescaled x-axis so it fits the actual time in years
+ggsave("survival_funcs.pdf", p, width = 18, height = 10, units = "cm")
 
 
 ############################
