@@ -660,7 +660,7 @@ p <- ggplot() +
   geom_ribbon(data = shading_data, aes(x = time, ymin = ymin, ymax = ymax), fill = "gray", alpha = 0.5) +
   geom_line(data = avg_survival, aes(x = time, y = avg_survival), color = "#F8766D", size = 1.5, linetype = "dashed") +
   labs(x = "Time [years]",
-       y = "Probability") +
+       y = "Failure probability") +
   guides(color = "none") +  # Remove the legend
   theme_minimal() +
   scale_color_manual(values = rep("black", length(unique(results$Q_id[idx]))))+
