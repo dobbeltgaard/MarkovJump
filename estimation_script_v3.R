@@ -36,22 +36,56 @@ beta0 <- c(c(0.1,0.2,0.3,0.4),
            #c(0.1,0.2,0.3,0.4, 0.2,0.2,0.3,0.4,0.1,9),
            rep(0.1,length(exo.cols)))  
 
-
-
-
+head(d)
 MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang", 
                covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F, 
           transient_dist_method = "uniformization")
+x = 
+  optim( par = beta0, fn = MJP_score, m = m, s1 = d$s1, s2 = d$s2, u = d$t, z = z, 
+         generator="gerlang", covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F, 
+         transient_dist_method = "eigenvalue_decomp", 
+         method = "BFGS", control = list(maxit = 1000)) 
+pred = 
+  MJP_predict(m = m, s1 = d$s1, u = d$t, pars = x$par, z = z, generator = "gerlang",
+              covs_bin = T, transient_dist_method = "eigenvalue_decomp")
+obs = make_Ptu_obs(m, d$s2)
+mean(logscore_vectors(m, pred, obs))
 
 
-x = optim( par = beta0, fn = MJP_score, m = m, s1 = d$`s-`, s2 = d$s, u = d$t, z = z, generator="gerlang", covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F, transient_dist_method = "eigenvalue_decomp", method = "BFGS", control = list(maxit = 1000)) 
 
-x
+
+
+#EMPIRICAL DISTRIBUTION PREDICTORS
+naive.empirical.pred = function(x){return(as.vector(table(x)/length(x)))}
+corr.empirical.pred = function(m, idx, naive){
+  if(idx > 1){
+    prob = sum(naive[1:(idx-1)])
+    naive[1:(idx-1)] = 0
+    naive[idx:m] = naive[idx:m] + prob/(m-idx+1) 
+  } 
+  return(naive)
+}
+
+
+
+#INITIALIZE
+set.seed(123)
+k <- 10
+ints = seq(1, NROW(d), ceiling(NROW(d)/k)-1)
+ints[length(ints)] = NROW(d)
+rand.idx <- sample(x = 1:NROW(d),size = NROW(d),replace = F)
+
+beta00 <- rep(0.25, (m-1)) 
+beta0 <- c(rep(0.25, (m-1)), rep(0.1,length(exo.cols))) 
+beta02 <- c(rep(0.25, (m-1)), rep(0.1,length(exo.cols2))) 
+
+
+PARS = list() 
+
+
+
 
 #todo
-#- make revised data frame with days divided by 365. change name of s.?
-#- forecast and eval functions
-#- speed investigation of transient distribution methods vs. generator parameterizations
 #- investigate if t*MGT is more meaningfull time parameterization
 
 
