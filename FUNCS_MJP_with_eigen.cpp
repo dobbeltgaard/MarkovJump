@@ -567,6 +567,28 @@ Eigen::MatrixXd MJP_predict(int m,
 /* FUNCTIONS: Evaluation functions */
 /* ******************************* */
 
+// Predict probability vector with uniform distribution
+// [[Rcpp::export]]
+Eigen::MatrixXd uniform_prediction(int m, Eigen::VectorXd s1){
+  int n = s1.size();
+  Eigen::RowVectorXd Pt(m);
+  Eigen::MatrixXd solution(n,m);
+  int start_idx = 0;
+  for(int i = 0; i < n; i++){
+    start_idx = int(s1(i)-1);
+    Pt.setZero();
+    for(int j = 0; j < m; j++){
+      if(j >= start_idx){
+        Pt(j) = int(1);
+      }
+    }
+    solution.row(i) = Pt / Pt.sum();
+  }
+  return solution;
+}
+
+
+
 // Create observation vectors
 // [[Rcpp::export]]
 Eigen::MatrixXd make_Ptu_obs(int m, Eigen::VectorXd s2){
