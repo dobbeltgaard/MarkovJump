@@ -14,11 +14,7 @@ library(Rcpp)
 library(RcppEigen)
 sourceCpp("FUNCS_MJP_with_eigen.cpp")
 library("bench")
-
-#source("funcs_discrete_loglik.R")
-#source("funcs_forecasting.R")
-#source("funcs_helping.R")
-source("score_functions_implementations_R.R")
+source("speed_testing/score_functions_implementations_R.R")
 
 
 
