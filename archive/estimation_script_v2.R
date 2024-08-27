@@ -7,11 +7,11 @@ rm(list = ls()) #clear memory
 
 library(RcppEigen); library(Rcpp)
 
-source("funcs_diagonalization.R")
-source("funcs_discrete_loglik.R")
-source("funcs_forecasting.R")
-source("funcs_helping.R")
-source("funcs_mcem.R")
+source("archive/funcs_diagonalization.R")
+source("archive/funcs_discrete_loglik.R")
+source("archive/funcs_forecasting.R")
+source("archive/funcs_helping.R")
+source("archive/funcs_mcem.R")
 
 
 load("defects_covs_base.RData"); D <- foo; rm(foo) #load dat
@@ -59,7 +59,7 @@ sum(base.foo/exp(sum(exo.foo)))/365
 
 
 #RPS estimation
-source("funcs_rps.R")
+source("archive/funcs_rps.R")
 
 exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
 beta0 <- c(rep(0.25, (m-1)), rep(0.1,length(exo.cols)))  
@@ -88,7 +88,7 @@ z = as.matrix(d[,exo.cols]);
 beta0 <- c(-0.5,1.02,-0.3,0.2,0.5,0.6,0.7,0.8,0.9)
 beta0 <- x$par
 
-sourceCpp("funcs_discrete_loglik.cpp")
+sourceCpp("archive/funcs_discrete_loglik.cpp")
 
 discrete_loglik_eigen_grad_cpp(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z, pars = beta0)
 pracma::grad(f = discrete_loglik_eigen_cpp, x0 = beta0, m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = z)

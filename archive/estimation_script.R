@@ -1,10 +1,11 @@
 rm(list = ls()) #clear memory
 
-source("funcs_diagonalization.R")
-source("funcs_discrete_loglik.R")
-source("funcs_forecasting.R")
-source("funcs_helping.R")
-source("funcs_mcem.R")
+library(Rcpp);library(RcppEigen)
+source("archive/funcs_diagonalization.R")
+source("archive/funcs_discrete_loglik.R")
+source("archive/funcs_forecasting.R")
+source("archive/funcs_helping.R")
+source("archive/funcs_mcem.R")
 
 
 load("defects_covs_base.RData"); D <- foo; rm(foo) #load dat

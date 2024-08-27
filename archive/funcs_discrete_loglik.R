@@ -58,7 +58,7 @@ log.lik.cov2 <- function(m, s1, s2, u, z, beta, states, A_param = NULL, weight =
 }
 
 
-sourceCpp("funcs_discrete_loglik.cpp")
+sourceCpp("archive/funcs_discrete_loglik.cpp")
 log.lik.cov3 <- function(m, s1, s2, u, z, beta){
   log.lik <- 0
   if (length(beta) == length(unique(beta))) {
