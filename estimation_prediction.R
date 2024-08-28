@@ -140,12 +140,16 @@ rownames(RPS_err) = c(names(PARS)[1:(length(parameterizations)*length(scores)*2)
 rownames(Brier_e) = c(names(PARS)[1:(length(parameterizations)*length(scores)*2)], baselines)
 
 errs = cbind(rowMeans(log_err),rowMeans(Brier_e),rowMeans(RPS_err))
+errs
+
 
 # write.csv(PARS, file  = "results/estimated_model_pars.csv")
 # write.csv(PREDS, file  = "results/model_preditions.csv")
-# write.csv(log_err, file  = "results/log_score.csv")
-# write.csv(Brier_e, file  = "results/brier_score.csv")
-# write.csv(RPS_err, file  = "results/rps_score.csv")
+write.csv(log_err, file  = "results/log_score.csv", row.names = T)
+write.csv(Brier_e, file  = "results/brier_score.csv", row.names = T)
+write.csv(RPS_err, file  = "results/rps_score.csv", row.names = T)
+saveRDS(PARS, file = "results/estimated_model_pars.Rdata")
+saveRDS(PREDS, file = "results/model_predictions.Rdata")
 
 
 #comments: 

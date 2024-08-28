@@ -144,10 +144,13 @@ bench::mark(
 #########################
 ## Monte Carlo EM algo ##
 #########################
+source("archive/funcs_mcem.R")
 beta0 <- c(rep(0.25, (m-1)), rep(0.1,length(exo.cols)))  
 res4 <- MCEM(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = as.matrix(d[,exo.cols]), 
              beta0 = beta0, states = states, iters = 10, step.size = NULL, n.samples = NULL )
 
+res5 <- MCEM(m = m, s1 = d$`s-`, s2 = d$s, u = d$u/365, z = as.matrix(d[,exo.cols]), 
+             beta0 = beta0, states = states, iters = 5, step.size = NULL, n.samples = NULL )
 
 
 #saveRDS(res4, file = "MCEM_estimates.rds")

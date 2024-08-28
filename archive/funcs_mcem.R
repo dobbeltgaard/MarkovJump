@@ -222,7 +222,7 @@ gradient.full.log.lik.cov3 <- function(m, N, R, z, pars, A_param = NULL, weight 
   exp.covs.effect.R <- as.vector(exp.covs.effect) * R[, 1:(m - 1)] # exp(covariate effect) multiplied with holding time
   z.exp.covs.effect <- z * as.vector(exp.covs.effect)
   exp.base.R <- sweep(R[, 1:(m - 1)], MARGIN = 2, exp.base, "*")
-  gr1 <- colSums(N) - exp.base * colSums(exp.covs.effect.R)
+  gr1 <- colSums(N)/exp.base - colSums(exp.covs.effect.R)
   gr2 <- colSums(z * rowSums(N))
   gr2 <- gr2 - colSums(z.exp.covs.effect * rowSums(exp.base.R))
   return(-c(gr1, gr2)) # return negative gradient
