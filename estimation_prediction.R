@@ -45,7 +45,7 @@ PARS = list()
 log_bin = F; rps_bin = F; brier_bin = F;
 parameterizations = c("gerlang", "gerlang_relax", "free_upper_tri") 
 scores = c("log", "rps", "brier", "all")
-baselines = c("uniform", "persistence", "empirical_dist", "empirical_dist_corr", "olr", "olr_cov")
+baselines = c("uniform", "persistence", "empirical_dist", "empirical_dist_corr", "olr", "olr_cov", "obs")
 n_predictors = length(parameterizations)*length(scores)*2 + length(baselines) #number of predictors = number of mjp models + reference predictors
 log_err = matrix(NA, ncol = k, nrow = n_predictors)
 RPS_err = matrix(NA, ncol = k, nrow = n_predictors)
@@ -124,9 +124,9 @@ for(i in 1:k){
     if(j == "olr_cov"){ 
       if(i == 1){ PARS[[j]] = olr_cov$coefficients} else { PARS[[j]] = rbind(PARS[[j]],olr_cov$coefficients)} #store model estimates
       pred = predict(olr_cov, newdata = d.test, type = "p"); }
+    if(j == "obs"){ pred = obs; }
     
-      
-    if(i == 1){ PREDS[[j]] = pred} else { PREDS[[j]] = rbind(PREDS[[j]],pred)} #store model estimates
+    if(i == 1){ PREDS[[j]] = pred} else { PREDS[[j]] = rbind(PREDS[[j]],pred)} 
     log_err[count, i] = mean(logscore_vectors(m, pred, obs))
     RPS_err[count, i] = mean(rps_vectors(m, pred, obs))
     Brier_e[count, i] = mean(BrierScore_vectors(m, pred, obs))

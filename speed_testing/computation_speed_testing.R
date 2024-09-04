@@ -45,7 +45,8 @@ time_implementation_transient_dist <-
   MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang", covs_bin = T, likelihood_bin = F, rps_bin = T, brier_bin = F, transient_dist_method = "eigenvalue_decomp"),
   MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang", covs_bin = T, likelihood_bin = F, rps_bin = F, brier_bin = T, transient_dist_method = "eigenvalue_decomp"),
   
-  , relative = F, check = F)
+
+  , relative = T, check = F)
 
 time_implementation_transient_dist
 library(kableExtra)
