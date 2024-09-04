@@ -1,4 +1,2 @@
 # MarkovJump
-Markov Jump process assuming generalized Erlang for degradation modeling
-
-The densities are allowed to be regressed on covariates.
+Markov Jump process (continuous time Markov chain with finite state space) with covariate dependence for degradation modeling. 
