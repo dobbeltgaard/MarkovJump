@@ -78,39 +78,73 @@ zero_bin_obs = function(col1, col2, obs){
 ####################
 ### THE TRIPTYCH ###
 ####################
+library(ggplot2)
+m = 5; int1 = m-1; int2 = m; 
+
 
 ### Reliability diagrams ###
 source("binary_eval_funcs/reliability_diag.R")
-m = 5; int1 = m-1; int2 = m; 
-
-rd = ReliabilityDiagram2(bin_predictions(int1,int2,pred_list[["gerlang_TRUE_all"]]), zero_bin_obs(int1,int2,pred_list[["obs"]]), plot = T, plot.refin = F, attributes = T)
-rd = ReliabilityDiagram2(bin_predictions(int1,int2,pred_list[["gerlang_relax_TRUE_all"]]), zero_bin_obs(int1,int2,pred_list[["obs"]]), plot = T, plot.refin = F, attributes = T)
-rd = ReliabilityDiagram2(bin_predictions(int1,int2,pred_list[["free_upper_tri_TRUE_all"]]), zero_bin_obs(int1,int2,pred_list[["obs"]]), plot = T, plot.refin = F, attributes = T)
-rd = ReliabilityDiagram2(bin_predictions(int1,int2,pred_list[["olr_cov"]]), zero_bin_obs(int1,int2,pred_list[["obs"]]), plot = T, plot.refin = F, attributes = T)
-rd = ReliabilityDiagram2(bin_predictions(int1,int2,pred_list[["ensemble"]]), zero_bin_obs(int1,int2,pred_list[["obs"]]), plot = T, plot.refin = F, attributes = T)
-
+pdf(file = "figures/reliability_diagram_empirical_corr.pdf",width = 5, height = 4) 
+par(mar = c(4, 4, 1, 1))
+rd1 = ReliabilityDiagram2(bin_predictions(int1,int2,pred_list[["empirical_dist_corr"]]), zero_bin_obs(int1,int2,pred_list[["obs"]]), plot = T, plot.refin = F, attributes = T, bins = 10)
+dev.off()
+pdf(file = "figures/reliability_diagram_olr_cov.pdf",width = 5, height = 4) 
+par(mar = c(4, 4, 1, 1))
+rd2 = ReliabilityDiagram2(bin_predictions(int1,int2,pred_list[["olr_cov"]]), zero_bin_obs(int1,int2,pred_list[["obs"]]), plot = T, plot.refin = F, attributes = T, bins = 10)
+dev.off()
+pdf(file = "figures/reliability_diagram_mjp_free.pdf",width = 5, height = 4) 
+par(mar = c(4, 4, 1, 1))
+rd3 = ReliabilityDiagram2(bin_predictions(int1,int2,pred_list[["free_upper_tri_TRUE_all"]]), zero_bin_obs(int1,int2,pred_list[["obs"]]), plot = T, plot.refin = F, attributes = T, bins = 10)
+dev.off()
+pdf(file = "figures/reliability_diagram_ensemble.pdf",width = 5, height = 4) 
+par(mar = c(4, 4, 1, 1))
+rd4 = ReliabilityDiagram2(bin_predictions(int1,int2,pred_list[["ensemble"]]), zero_bin_obs(int1,int2,pred_list[["obs"]]), plot = T, plot.refin = F, attributes = T, bins = 10)
+dev.off()
 
 ### ROC curves ###
 library("ROSE")
-rc = roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["empirical_dist_corr"]]))
-roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["uniform"]]), add.roc = T)
-roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["free_upper_tri_TRUE_all"]]), add.roc = T)
-roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["olr_cov"]]), add.roc = T)
-roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["ensemble"]]), add.roc = T)
-roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["ensemble2"]]), add.roc = T)
+rc0 = roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["empirical_dist"]]), n.thresholds = 200)
+rc1 = roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["empirical_dist_corr"]]),add.roc = T, n.thresholds = 200)
+rc2 = roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["olr_cov"]]), add.roc = T, n.thresholds = 200)
+rc3 = roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["free_upper_tri_TRUE_all"]]), add.roc = T, n.thresholds = 200)
+rc4 = roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["ensemble"]]), add.roc = T, n.thresholds = 200)
+nams = c(paste("Corr. empirical dist. = ", format(round(rc1$auc, 2), nsmall = 2)), 
+         paste("OLR w. cov. = ", format(round(rc2$auc, 2), nsmall = 2)),
+         paste("MJP w. covs. = ", format(round(rc3$auc, 2), nsmall = 2)),
+         paste("Ensemble = ", format(round(rc4$auc, 2), nsmall = 2))
+        )
+RC1 = data.frame(rc1$false.positive.rate,rc1$true.positive.rate, rep(nams[1], length(rc1$true.positive.rate)) ); colnames(RC1) = c("false.positive.rate", "true.positive.rate", "group");
+RC2 = data.frame(rc2$false.positive.rate,rc2$true.positive.rate, rep(nams[2], length(rc2$true.positive.rate)) ); colnames(RC2) = c("false.positive.rate", "true.positive.rate", "group");
+RC3 = data.frame(rc3$false.positive.rate,rc3$true.positive.rate, rep(nams[3], length(rc3$true.positive.rate)) ); colnames(RC3) = c("false.positive.rate", "true.positive.rate", "group");
+RC4 = data.frame(rc4$false.positive.rate,rc4$true.positive.rate, rep(nams[4], length(rc4$true.positive.rate)) ); colnames(RC4) = c("false.positive.rate", "true.positive.rate", "group");
+combined_data <- rbind(RC1, RC2, RC3, RC4)
+combined_data$group = factor(combined_data$group, levels = c(nams[1],nams[2], nams[3], nams[4]))
+text.size = 12
+pdf(file = "figures/ROCs.pdf",width = 9, height = 4.5) 
+ggplot(combined_data, aes(x = false.positive.rate, y = true.positive.rate, color = group)) +
+  geom_line(linewidth = 0.75) +
+  scale_x_continuous(limits = c(0, 1)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(x = "False Positive Rate", y = "True Positive Rate", color = "Group") +
+  theme_minimal() + 
+  theme(text = element_text(size = text.size, family = "serif"), 
+        panel.background = element_rect(fill = "white", color = "black"), 
+        panel.grid.minor = element_line(color = "lightgray"),
+        legend.key=element_blank(),legend.position = "right",
+  ) + 
+  geom_abline(intercept = 0, slope = 1, linetype = 2) + 
+  guides(color=guide_legend(title="Forecasts and AUC"))
+dev.off()
 
-plot(rc$false.positive.rate, rc$true.positive.rate, type = "l")
 
 
 ### Murphy diagrams ###
 source("binary_eval_funcs/murphy_diag.R")
-md = murphydiagram(f1 = bin_predictions(int1,int2,pred_list[["free_upper_tri_TRUE_all"]]), f2 = bin_predictions(int1,int2,pred_list[["olr_cov"]]),  y = bin_predictions(int1,int2,pred_list[["obs"]]))
-murphydiagram(f1 = bin_predictions(int1,int2,pred_list[["olr_cov"]]), f2 = bin_predictions(int1,int2,pred_list[["ensemble"]]),  y = bin_predictions(int1,int2,pred_list[["obs"]]))
+md1 = murphydiagram(f1 = bin_predictions(int1,int2,pred_list[["free_upper_tri_TRUE_all"]]), f2 = bin_predictions(int1,int2,pred_list[["olr_cov"]]),  y = bin_predictions(int1,int2,pred_list[["obs"]]))
+md2 = murphydiagram(f1 = bin_predictions(int1,int2,pred_list[["olr_cov"]]), f2 = bin_predictions(int1,int2,pred_list[["ensemble"]]),  y = bin_predictions(int1,int2,pred_list[["obs"]]))
 
 
-
-
-
+sum(md1$tsep == md2$tsep)
 
 
 

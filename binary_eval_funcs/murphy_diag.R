@@ -153,7 +153,7 @@ murphydiagram <- function(f1, f2, y, functional = "expectile", alpha = 0.5, labe
           cex.axis = cex.gen, xlim = xx, ylim = c(0, 1.2*max(df[,2:3])), col = colors)
   abline(h = 0, lty = 2)
   if (!is.null(labels)) legend("top", labels, col = colors, lwd = 4, bty = "n", horiz = TRUE, cex = 1.2)
-  
+  return(list(tsep = tseq, y = df[,2:3]))
 }
 
 murphydiagram_diff <- function(f1, f2, y, functional = "expectile", alpha = 0.5, equally_spaced = FALSE, lag_truncate = 0, conf_level = 0.95){
