@@ -12,9 +12,9 @@ rm(list = ls()) #clear memory
 
 ### Read data and define state space and covariates ###
 d = read.csv("defect_data.csv")
-states <- c(1,2,3,4,5) #define states
-m <- length(states) #number of states
-track <- unique(d$Track) #define investigated tracks
+states <- c(1,2,3,4,5)
+m <- length(states) 
+track <- unique(d$Track)
 exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
 
 ### Read libaries ###
@@ -45,7 +45,7 @@ PARS = list()
 log_bin = F; rps_bin = F; brier_bin = F;
 parameterizations = c("gerlang", "gerlang_relax", "free_upper_tri") 
 scores = c("log", "rps", "brier", "all")
-baselines = c("uniform", "persistence", "empirical_dist", "empirical_dist_corr", "olr", "olr_cov", "obs")
+baselines = c("uniform", "persistence", "empirical_dist", "empirical_dist_corr", "olr", "olr_cov","opr", "opr_cov","ocllr","ocllr_cov", "obs")
 n_predictors = length(parameterizations)*length(scores)*2 + length(baselines) #number of predictors = number of mjp models + reference predictors
 log_err = matrix(NA, ncol = k, nrow = n_predictors)
 RPS_err = matrix(NA, ncol = k, nrow = n_predictors)
@@ -104,6 +104,11 @@ for(i in 1:k){
   #Estimate multinomial ordinal regression
   olr = MASS::polr(as.factor(s2) ~ as.factor(s1) + t, data = d.train, method = "logistic")
   olr_cov = MASS::polr(as.factor(s2) ~ as.factor(s1) + t + MBT.norm + speed.norm + profil.norm + steel.norm + invRad.norm, data = d.train, method = "logistic")
+  opr = MASS::polr(as.factor(s2) ~ as.factor(s1) + t, data = d.train, method = "probit")
+  opr_cov = MASS::polr(as.factor(s2) ~ as.factor(s1) + t + MBT.norm + speed.norm + profil.norm + steel.norm + invRad.norm, data = d.train, method = "probit")
+  ocllr = MASS::polr(as.factor(s2) ~ as.factor(s1) + t, data = d.train, method = "cloglog")
+  ocllr_cov = MASS::polr(as.factor(s2) ~ as.factor(s1) + t + MBT.norm + speed.norm + profil.norm + steel.norm + invRad.norm, data = d.train, method = "cloglog")
+  
   for(j in baselines){
     count = count + 1;
     #Make predictions
@@ -124,8 +129,19 @@ for(i in 1:k){
     if(j == "olr_cov"){ 
       if(i == 1){ PARS[[j]] = olr_cov$coefficients} else { PARS[[j]] = rbind(PARS[[j]],olr_cov$coefficients)} #store model estimates
       pred = predict(olr_cov, newdata = d.test, type = "p"); }
+    if(j == "opr"){ 
+      if(i == 1){ PARS[[j]] = opr$coefficients} else { PARS[[j]] = rbind(PARS[[j]],opr$coefficients)} #store model estimates
+      pred = predict(opr, newdata = d.test, type = "p"); }
+    if(j == "opr_cov"){ 
+      if(i == 1){ PARS[[j]] = opr_cov$coefficients} else { PARS[[j]] = rbind(PARS[[j]],opr_cov$coefficients)} #store model estimates
+      pred = predict(opr_cov, newdata = d.test, type = "p"); }
+    if(j == "ocllr"){ 
+      if(i == 1){ PARS[[j]] = ocllr$coefficients} else { PARS[[j]] = rbind(PARS[[j]],ocllr$coefficients)} #store model estimates
+      pred = predict(ocllr, newdata = d.test, type = "p"); }
+    if(j == "ocllr_cov"){ 
+      if(i == 1){ PARS[[j]] = ocllr_cov$coefficients} else { PARS[[j]] = rbind(PARS[[j]],ocllr_cov$coefficients)} #store model estimates
+      pred = predict(ocllr_cov, newdata = d.test, type = "p"); }
     if(j == "obs"){ pred = obs; }
-    
     if(i == 1){ PREDS[[j]] = pred} else { PREDS[[j]] = rbind(PREDS[[j]],pred)} 
     log_err[count, i] = mean(logscore_vectors(m, pred, obs))
     RPS_err[count, i] = mean(rps_vectors(m, pred, obs))

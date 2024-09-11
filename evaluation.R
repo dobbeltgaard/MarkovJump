@@ -11,6 +11,10 @@ pred_list[["ensemble2"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_
 #rps = read.csv("results/rps_score.csv")
 #brier = read.csv("results/brier_score.csv")
 
+
+#######################
+### Forecast Scores ###
+#######################
 ### Cross validation errors ###
 m = 5; k = 10; 
 log_err = matrix(NA, ncol = k, nrow = length(names(pred_list)))
@@ -30,42 +34,102 @@ for(i in 1:k){
 rownames(log_err) = names(pred_list)
 rownames(RPS_err) = names(pred_list)
 rownames(Brier_e) = names(pred_list)
-errs = cbind(rowMeans(log_err),rowMeans(Brier_e),rowMeans(RPS_err))
-errs
+errs = cbind(rowMeans(RPS_err),rowMeans(log_err),rowMeans(Brier_e))
+namfoo = c("_log", "_all", "uniform", "dist_corr", "persistence", "olr", "opr", "ocllr", "ensemble")
+idx = rowSums(sapply(namfoo, FUN = grepl, x = rownames(errs))) > 0
+foo = errs[idx, ]
+nams =
+  c("persistence", "uniform", "empirical_dist_corr", 
+    "olr", "olr_cov", "opr", "opr_cov", "ocllr", "ocllr_cov", 
+    "gerlang_FALSE_all", "gerlang_TRUE_all", "gerlang_relax_FALSE_all", "gerlang_relax_TRUE_all", "free_upper_tri_FALSE_all", "free_upper_tri_TRUE_all",
+    "ensemble", "ensemble2")
+nams_idx = rep(NA, length(nams));for(i in 1:length(nams)){nams_idx[i] = which(nams[i] == rownames(foo))}
+library(kableExtra)
+naive = expand.grid(
+  Covariates = c("No"), #covariates
+  Model = c("Näive predictors"), #näive,olr,mjp 
+  param = c("Persistence", "Uniform distribution", "Empirical distribution")
+)
+regression = expand.grid(
+  Covariates = c("No","Yes"), #covariates
+  Model = c("Ordered multinomial regression"), #näive,olr,mjp 
+  param = c("Logistic link", "Probit link", "Cloglog link")
+)
+mjp = expand.grid(
+  Covariates = c("No","Yes"), #covariates
+  Model = c("Markov jump process"), #näive,olr,mjp 
+  param = c("Generalized Erlang, $\\bm{A}'$", "Parameterized upper, $\\bm{A}''$", "Free upper, $\\bm{A}'''$")
+)
+ensemble = expand.grid(
+  Covariates = c("Yes"), #covariates
+  Model = c("Ensemble"), #näive,olr,mjp 
+  param = c("MJP + OLR", "Näive + MJP + OLR")
+)
+collapse_rows_dt = rbind(naive, regression, mjp,ensemble)
+collapse_rows_dt <- collapse_rows_dt[c("Model", "param", "Covariates")]
+collapse_rows_dt$RPS = foo[nams_idx, 1]
+collapse_rows_dt$LogS = foo[nams_idx, 2]
+collapse_rows_dt$Brier = foo[nams_idx, 3]
+colnames(collapse_rows_dt) = c("Method", "Model", "Covariates", "RPS", "Log S.", "Brier S.")
+row_group_label_fonts <- list(
+  list(bold = T, italic = F),
+  list(bold = F, italic = F)
+)
+kableExtra::kbl(collapse_rows_dt,booktabs = T, align = c("l","l","c","c","c","c"), linesep = '', format = "latex",escape = FALSE, digits = 3) %>%
+  column_spec(1, bold=T) %>%
+  collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts)
 
+
+##############################
 ### Estimated coefficients ###
-library(tidyr)
-library(dplyr)
+##############################
+library(kableExtra)
 par_list = readRDS("results/estimated_model_pars.Rdata")
-mat = par_list[["free_upper_tri_TRUE_all"]]
-mat = mat[, (ncol(mat)-4):ncol(mat)]
-
-M = NULL
-for(i in names(par_list)){
-  if(grepl("TRUE",i) & !grepl("brier",i) & !grepl("rps",i)){
+nams = c("olr_cov", "opr_cov", "ocllr_cov", "gerlang_TRUE_all", "gerlang_relax_TRUE_all", "free_upper_tri_TRUE_all")
+exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
+count = 0; k = 10;  
+for(i in nams){
   mat = par_list[[i]]
   mat = mat[, (ncol(mat)-4):ncol(mat)]
-  
-  if(is.null(M)){ M = mat} else {M = rbind(M, mat)}
-  }
+  if(count == 0){ estim = apply(mat, MARGIN = 2, FUN = quantile, probs = c(0.05, 0.5, 0.95)); NAMS = rep(i, 3);} else { estim = rbind(estim, apply(mat, MARGIN = 2, FUN = quantile, probs = c(0.05, 0.5, 0.95))); NAMS = c(NAMS, rep(i,3))}
+  count = count + 1
 }
-df <- as.data.frame(M)
-colnames(df) <- c("Var1", "Var2", "Var3", "Var4", "Var5")
-df_long <- pivot_longer(df, cols = everything(), names_to = "Variable", values_to = "Value")
-ggplot(df_long, aes(x = Variable, y = Value)) +
-  geom_boxplot() +
-  theme_minimal()
+df = as.data.frame(round(estim,digits=2)); 
+df$X = NAMS
+df$quantiles = rep(c("5%", "50%", "95%"), length(nams))
+get_quantile_strings = function(df, colname){
+  quants = paste(df[df$quantiles == "5%",colname], df[df$quantiles == "95%",colname], sep = "; ")
+  sep_brackets1 = rep("[", length(quants)); sep_brackets2 = rep("]", length(quants)); 
+  return(paste(df[df$quantiles == "50%",colname], 
+               paste(paste(sep_brackets1, quants, sep = ""), sep_brackets2, sep = "")))
+}
+foo = sapply(exo.cols,FUN = get_quantile_strings, df = df)
+row.names(foo) = nams
+colnames(foo) = c("Tonnage", "Line speed", "Rail profile", "Steel hardness", "Curvature")
+foo = as.data.frame((foo))
+foo$Model = NA
+foo[grepl("cov", rownames(foo) ), "Model"] = "Ordered multinomial regression"
+foo[!grepl("cov", rownames(foo) ), "Model"] = "Markov jump process"
+foo$param = NA
+foo[grepl("cov", rownames(foo) ), "param"] = c("Logistic link", "Probit link", "Cloglog link")
+foo[!grepl("cov", rownames(foo) ), "param"] = c("Generalized Erlang, $\\bm{A}'$", "Parameterized upper, $\\bm{A}''$", "Free upper, $\\bm{A}'''$")
 
-
-
-
+foo = foo[, c("Model", "param","Tonnage", "Line speed", "Rail profile", "Steel hardness", "Curvature")]
+rownames(foo) = 1:NROW(foo)
+colnames(foo) = c("param", "Model","Tonnage", "Line speed", "Rail profile", "Steel hardness", "Curvature")
+row_group_label_fonts <- list(
+  list(bold = T, italic = F),
+  list(bold = F, italic = F)
+)
+kableExtra::kbl(foo,booktabs = T, align = "l", linesep = '', format = "latex",escape = FALSE) %>%
+  column_spec(1, bold=T) %>%
+  collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts)
 
 
 ####################
 ### THE TRIPTYCH ###
 ####################
 #i.e. binary evaluation
-
 #How good are the respective models to forecast 0 or 1 events?
 bin_predictions = function(col1, col2, preds){ #convert multicategorial predictions into binary for event in col1 to col2
   if(col1 == col2){
