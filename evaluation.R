@@ -67,15 +67,25 @@ ensemble = expand.grid(
 )
 collapse_rows_dt = rbind(naive, regression, mjp,ensemble)
 collapse_rows_dt <- collapse_rows_dt[c("Model", "param", "Covariates")]
+
+npars = rep(0,length(nams)); count = 0;
+for(i in nams[1:(length(nams)-2)]){
+  count = count + 1
+  if(count > 3){npars[count] = (NCOL(par_list[[i]])); }
+  
+}
+npars[length(nams)-1] =  NCOL(par_list[["free_upper_tri_TRUE_all"]]) + NCOL(par_list[["olr_cov"]])
+npars[length(nams)] =  NCOL(par_list[["free_upper_tri_TRUE_all"]]) + NCOL(par_list[["olr_cov"]])
+collapse_rows_dt$npars = npars
 collapse_rows_dt$RPS = foo[nams_idx, 1]
 collapse_rows_dt$LogS = foo[nams_idx, 2]
 collapse_rows_dt$Brier = foo[nams_idx, 3]
-colnames(collapse_rows_dt) = c("Method", "Model", "Covariates", "RPS", "Log S.", "Brier S.")
+colnames(collapse_rows_dt) = c("Method", "Model", "Covariates", "\\# Parameters", "RPS", "Log S.", "Brier S.")
 row_group_label_fonts <- list(
   list(bold = T, italic = F),
   list(bold = F, italic = F)
 )
-kableExtra::kbl(collapse_rows_dt,booktabs = T, align = c("l","l","c","c","c","c"), linesep = '', format = "latex",escape = FALSE, digits = 3) %>%
+kableExtra::kbl(collapse_rows_dt,booktabs = T, align = c("l","l","c","c","c","c","c"), linesep = '', format = "latex",escape = FALSE, digits = 3) %>%
   column_spec(1, bold=T) %>%
   collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts)
 
