@@ -33,6 +33,14 @@ time_implementation_transient_dist <-
   rps.score.cov(m = m, s1 = d$s1, s2 = d$s2, u = d$t, z = z, beta = beta0, states = states),
   brier.score.cov(m = m, s1 = d$s1, s2 = d$s2, u = d$t, z = z, beta = beta0, states = states),
   
+  log.lik.cov(m = m, s1 = d$s1, s2 = d$s2, u = d$t, z = z, beta = beta0, states = states, A_param = "A2"),
+  rps.score.cov(m = m, s1 = d$s1, s2 = d$s2, u = d$t, z = z, beta = beta0, states = states, A_param = "A2"),
+  brier.score.cov(m = m, s1 = d$s1, s2 = d$s2, u = d$t, z = z, beta = beta0, states = states, A_param = "A2"),
+  
+  log.lik.cov(m = m, s1 = d$s1, s2 = d$s2, u = d$t, z = z, beta = beta0, states = states, A_param = "A3"),
+  rps.score.cov(m = m, s1 = d$s1, s2 = d$s2, u = d$t, z = z, beta = beta0, states = states, A_param = "A3"),
+  brier.score.cov(m = m, s1 = d$s1, s2 = d$s2, u = d$t, z = z, beta = beta0, states = states, A_param = "A3"),
+  
   MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang", covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F, transient_dist_method = "uniformization"),
   MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang", covs_bin = T, likelihood_bin = F, rps_bin = T, brier_bin = F, transient_dist_method = "uniformization"),
   MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang", covs_bin = T, likelihood_bin = F, rps_bin = F, brier_bin = T, transient_dist_method = "uniformization"),
@@ -45,14 +53,43 @@ time_implementation_transient_dist <-
   MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang", covs_bin = T, likelihood_bin = F, rps_bin = T, brier_bin = F, transient_dist_method = "eigenvalue_decomp"),
   MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang", covs_bin = T, likelihood_bin = F, rps_bin = F, brier_bin = T, transient_dist_method = "eigenvalue_decomp"),
   
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang_relax", covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F, transient_dist_method = "uniformization"),
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang_relax", covs_bin = T, likelihood_bin = F, rps_bin = T, brier_bin = F, transient_dist_method = "uniformization"),
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang_relax", covs_bin = T, likelihood_bin = F, rps_bin = F, brier_bin = T, transient_dist_method = "uniformization"),
+  
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang_relax", covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F, transient_dist_method = "pade"),
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang_relax", covs_bin = T, likelihood_bin = F, rps_bin = T, brier_bin = F, transient_dist_method = "pade"),
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang_relax", covs_bin = T, likelihood_bin = F, rps_bin = F, brier_bin = T, transient_dist_method = "pade"),
+  
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang_relax", covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F, transient_dist_method = "eigenvalue_decomp"),
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang_relax", covs_bin = T, likelihood_bin = F, rps_bin = T, brier_bin = F, transient_dist_method = "eigenvalue_decomp"),
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="gerlang_relax", covs_bin = T, likelihood_bin = F, rps_bin = F, brier_bin = T, transient_dist_method = "eigenvalue_decomp"),
+  
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="free_upper_tri", covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F, transient_dist_method = "uniformization"),
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="free_upper_tri", covs_bin = T, likelihood_bin = F, rps_bin = T, brier_bin = F, transient_dist_method = "uniformization"),
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="free_upper_tri", covs_bin = T, likelihood_bin = F, rps_bin = F, brier_bin = T, transient_dist_method = "uniformization"),
+  
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="free_upper_tri", covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F, transient_dist_method = "pade"),
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="free_upper_tri", covs_bin = T, likelihood_bin = F, rps_bin = T, brier_bin = F, transient_dist_method = "pade"),
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="free_upper_tri", covs_bin = T, likelihood_bin = F, rps_bin = F, brier_bin = T, transient_dist_method = "pade"),
+  
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="free_upper_tri", covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F, transient_dist_method = "eigenvalue_decomp"),
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="free_upper_tri", covs_bin = T, likelihood_bin = F, rps_bin = T, brier_bin = F, transient_dist_method = "eigenvalue_decomp"),
+  MJP_score(m = m, s1 = d$s1, s2 = d$s2, u = d$t,pars = beta0, z = z, generator="free_upper_tri", covs_bin = T, likelihood_bin = F, rps_bin = F, brier_bin = T, transient_dist_method = "eigenvalue_decomp"),
 
   , relative = T, check = F)
 
-time_implementation_transient_dist
+
+
+time_implementation_transient_dist$median
+
 library(kableExtra)
 options(knitr.table.format = "latex")
 mat = t(matrix(time_implementation_transient_dist$median, nrow = 3))
-rownames(mat) = c("r_pade", "cpp_uni", "cpp_pade", "cpp_eigen")
+rownames(mat) = c("r_pade_a1","r_pade_a2","r_pade_a3", 
+                  "cpp_uni_a1","cpp_pade_a1","cpp_eigen_a1",
+                  "cpp_uni_a2","cpp_pade_a2","cpp_eigen_a2",
+                  "cpp_uni_a3", "cpp_pade_a3", "cpp_eigen_a3")
 colnames(mat) = c("logS", "RPS", "Brier")
 
 kable(
