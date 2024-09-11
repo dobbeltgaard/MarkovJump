@@ -91,17 +91,19 @@ count = 0; k = 10;
 for(i in nams){
   mat = par_list[[i]]
   mat = mat[, (ncol(mat)-4):ncol(mat)]
-  if(count == 0){ estim = apply(mat, MARGIN = 2, FUN = quantile, probs = c(0.05, 0.5, 0.95)); NAMS = rep(i, 3);} else { estim = rbind(estim, apply(mat, MARGIN = 2, FUN = quantile, probs = c(0.05, 0.5, 0.95))); NAMS = c(NAMS, rep(i,3))}
+  if(count == 0){ estim = apply(mat, MARGIN = 2, FUN = quantile, probs = c(0, 0.5, 1)); NAMS = rep(i, 3);} else { estim = rbind(estim, apply(mat, MARGIN = 2, FUN = quantile, probs = c(0.05, 0.5, 0.95))); NAMS = c(NAMS, rep(i,3))}
   count = count + 1
 }
 df = as.data.frame(round(estim,digits=2)); 
 df$X = NAMS
-df$quantiles = rep(c("5%", "50%", "95%"), length(nams))
+df$quantiles = rep(c("0%", "50%", "100%"), length(nams))
 get_quantile_strings = function(df, colname){
-  quants = paste(df[df$quantiles == "5%",colname], df[df$quantiles == "95%",colname], sep = "; ")
+  quants = paste(df[df$quantiles == "0%",colname], df[df$quantiles == "100%",colname], sep = ", ")
   sep_brackets1 = rep("[", length(quants)); sep_brackets2 = rep("]", length(quants)); 
-  return(paste(df[df$quantiles == "50%",colname], 
-               paste(paste(sep_brackets1, quants, sep = ""), sep_brackets2, sep = "")))
+  return(#paste(df[df$quantiles == "50%",colname], 
+               paste(paste(sep_brackets1, quants, sep = ""), sep_brackets2, sep = "")
+               #)
+  )
 }
 foo = sapply(exo.cols,FUN = get_quantile_strings, df = df)
 row.names(foo) = nams
@@ -121,7 +123,7 @@ row_group_label_fonts <- list(
   list(bold = T, italic = F),
   list(bold = F, italic = F)
 )
-kableExtra::kbl(foo,booktabs = T, align = "l", linesep = '', format = "latex",escape = FALSE) %>%
+kableExtra::kbl(foo,booktabs = T, align = c("l","l","c","c","c","c","c"), linesep = '', format = "latex",escape = FALSE) %>%
   column_spec(1, bold=T) %>%
   collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts)
 
