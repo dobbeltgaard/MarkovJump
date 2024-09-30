@@ -434,7 +434,6 @@ double MJP_score(int m,
     }
   } else {  // Case: Covariates included
     int k = z.cols();
-    //Eigen::VectorXd beta_covs = pars.segment(m-1,k);
     Eigen::VectorXd beta_covs = pars.tail(k);
     for(int i = 0; i < n; i++){
       cov_time = exp( beta_covs.dot(z.row(i)) ) * u(i);
