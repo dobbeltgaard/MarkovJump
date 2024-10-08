@@ -12,6 +12,8 @@ pred_list[["ensemble2"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_
 #brier = read.csv("results/brier_score.csv")
 
 
+
+
 #######################
 ### Forecast Scores ###
 #######################
@@ -138,6 +140,163 @@ kableExtra::kbl(foo,booktabs = T, align = c("l","l","c","c","c","c","c"), linese
   collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts)
 
 
+###############################################
+### plot of transition probability matrices ###
+###############################################
+sourceCpp("FUNCS_MJP_with_eigen.cpp")
+library(Matrix)
+library(ggplot2)
+library(ggpubr)
+library(MASS)
+
+states = c("3", "2B", "2A", "1", "0")
+par_list = readRDS("results/estimated_model_pars.Rdata")
+d = read.csv("defect_data.csv")
+exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
+z = as.matrix(d[,exo.cols])
+idx = 1 #sample(1:NROW(d), size = 1)
+text.size <- 11
+ndays = 365*8
+
+#### gerlang ###
+nam = "gerlang_TRUE_all"
+m=5; 
+npars = m-1
+lambda_base = exp(par_list[[nam]][1,1:npars])
+covs = par_list[[nam]][1,(npars+1):(npars + 5)]
+lambda = lambda_base * exp(sum(covs * z[idx,]))
+sol1 = matrix(NA, nrow = ndays, ncol = m)
+count = 0
+for(t in (1:ndays)/365){
+  count = count + 1
+  A1 = as.matrix(Matrix::expm(make_A1(m, lambda)*t))
+  sol1[count, ] = c(1,0,0,0,0) %*% A1
+}
+dpp <- as.data.frame(sol1)
+colnames(dpp) <- states
+dpp$time <- 1:ndays
+dpp_long <- tidyr::gather(dpp, key = "Column", value = "Probability", -time)
+dpp_long$Column <- factor(dpp_long$Column, levels = c("3", "2B", "2A", "1", "0")) 
+p1 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)) +
+  geom_line(size = 0.75) +
+  theme(
+    text = element_text(size = text.size, family = "serif"),
+    panel.background = element_rect(fill = "white", color = "black"),
+    panel.grid.minor = element_line(color = "lightgray"),
+    legend.position = c(0.55, 0.9),
+    legend.direction = "horizontal", # Set legend direction to horizontal
+    legend.background = element_rect(fill = "transparent", color = NA), # Set transparent background
+    legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
+  ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
+
+
+#### reparameterized upper ###
+nam = "gerlang_relax_TRUE_all"
+m=5; 
+npars = m-1
+lambda_base = exp(par_list[[nam]][1,1:npars])
+covs = par_list[[nam]][1,(npars+1):(npars + 5)]
+lambda = lambda_base * exp(sum(covs * z[idx,]))
+sol1 = matrix(NA, nrow = ndays, ncol = m)
+count = 0
+for(t in (1:ndays)/365){
+  count = count + 1
+  A1 = as.matrix(Matrix::expm(make_A2(m, lambda)*t))
+  sol1[count, ] = c(1,0,0,0,0) %*% A1
+}
+dpp <- as.data.frame(sol1)
+colnames(dpp) <- states
+dpp$time <- 1:ndays
+dpp_long <- tidyr::gather(dpp, key = "Column", value = "Probability", -time)
+dpp_long$Column <- factor(dpp_long$Column, levels = c("3", "2B", "2A", "1", "0")) 
+p2 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)) +
+  geom_line(size = 0.75) +
+  theme(
+    text = element_text(size = text.size, family = "serif"),
+    panel.background = element_rect(fill = "white", color = "black"),
+    panel.grid.minor = element_line(color = "lightgray"),
+    legend.position = c(0.55, 0.9),
+    legend.direction = "horizontal", # Set legend direction to horizontal
+    legend.background = element_rect(fill = "transparent", color = NA), # Set transparent background
+    legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
+  ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
+
+
+#### free upper ###
+nam = "free_upper_tri_TRUE_all"
+m=5; 
+npars = m*(m-1)/2
+lambda_base = exp(par_list[[nam]][1,1:npars])
+covs = par_list[[nam]][1,(npars+1):(npars + 5)]
+lambda = lambda_base * exp(sum(covs * z[idx,]))
+sol1 = matrix(NA, nrow = ndays, ncol = m)
+count = 0
+for(t in (1:ndays)/365){
+  count = count + 1
+  A1 = as.matrix(Matrix::expm(make_A3(m, lambda)*t))
+  sol1[count, ] = c(1,0,0,0,0) %*% A1
+}
+dpp <- as.data.frame(sol1)
+colnames(dpp) <- states
+dpp$time <- 1:ndays
+dpp_long <- tidyr::gather(dpp, key = "Column", value = "Probability", -time)
+dpp_long$Column <- factor(dpp_long$Column, levels = c("3", "2B", "2A", "1", "0")) 
+p3 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)) +
+  geom_line(size = 0.75) +
+  theme(
+    text = element_text(size = text.size, family = "serif"),
+    panel.background = element_rect(fill = "white", color = "black"),
+    panel.grid.minor = element_line(color = "lightgray"),
+    legend.position = c(0.55, 0.9),
+    legend.direction = "horizontal", # Set legend direction to horizontal
+    legend.background = element_rect(fill = "transparent", color = NA), # Set transparent background
+    legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
+  ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
+
+
+pdf(file = "figures/trans_dist_gerlang.pdf",width = 4, height = 3) 
+p1
+dev.off()
+pdf(file = "figures/trans_dist_param_upper.pdf",width = 4, height = 3) 
+p2
+dev.off()
+pdf(file = "figures/trans_dist_free_upper.pdf",width = 4, height = 3) 
+p3
+dev.off()
+
+
+### OLR logistic ###
+olr_cov = MASS::polr(as.factor(s2) ~ as.factor(s1) + t + MBT.norm + speed.norm + profil.norm + steel.norm + invRad.norm, data = d, method = "logistic")
+d.test = d[idx, ]
+d.test$s1 = 1
+sol1 = matrix(NA, nrow = ndays, ncol = m)
+count = 0
+for(t in (1:ndays)/365){
+  count = count + 1
+  d.test$t = t
+  sol1[count, ] = predict(olr_cov, newdata = d.test, type = "p");
+}
+dpp <- as.data.frame(sol1)
+colnames(dpp) <- states
+dpp$time <- 1:ndays
+dpp_long <- tidyr::gather(dpp, key = "Column", value = "Probability", -time)
+dpp_long$Column <- factor(dpp_long$Column, levels = c("3", "2B", "2A", "1", "0")) 
+p4 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)) +
+  geom_line(size = 0.75) +
+  theme(
+    text = element_text(size = text.size, family = "serif"),
+    panel.background = element_rect(fill = "white", color = "black"),
+    panel.grid.minor = element_line(color = "lightgray"),
+    legend.position = c(0.55, 0.9),
+    legend.direction = "horizontal", # Set legend direction to horizontal
+    legend.background = element_rect(fill = "transparent", color = NA), # Set transparent background
+    legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
+  ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
+
+
+
+
+
 ####################
 ### THE TRIPTYCH ###
 ####################
@@ -164,19 +323,19 @@ m = 5; int1 = m-1; int2 = m;
 
 ### Reliability diagrams ###
 source("binary_eval_funcs/reliability_diag.R")
-pdf(file = "figures/reliability_diagram_empirical_corr.pdf",width = 5, height = 4) 
+pdf(file = "figures/reliability_diagram_empirical_corr.pdf",width = 4, height = 3.5) 
 par(mar = c(4, 4, 1, 1))
 rd1 = ReliabilityDiagram2(bin_predictions(int1,int2,pred_list[["empirical_dist_corr"]]), zero_bin_obs(int1,int2,pred_list[["obs"]]), plot = T, plot.refin = F, attributes = T, bins = 10)
 dev.off()
-pdf(file = "figures/reliability_diagram_olr_cov.pdf",width = 5, height = 4) 
+pdf(file = "figures/reliability_diagram_olr_cov.pdf",width = 4, height = 3.5) 
 par(mar = c(4, 4, 1, 1))
 rd2 = ReliabilityDiagram2(bin_predictions(int1,int2,pred_list[["olr_cov"]]), zero_bin_obs(int1,int2,pred_list[["obs"]]), plot = T, plot.refin = F, attributes = T, bins = 10)
 dev.off()
-pdf(file = "figures/reliability_diagram_mjp_free.pdf",width = 5, height = 4) 
+pdf(file = "figures/reliability_diagram_mjp_free.pdf",width = 4, height = 3.5) 
 par(mar = c(4, 4, 1, 1))
 rd3 = ReliabilityDiagram2(bin_predictions(int1,int2,pred_list[["free_upper_tri_TRUE_all"]]), zero_bin_obs(int1,int2,pred_list[["obs"]]), plot = T, plot.refin = F, attributes = T, bins = 10)
 dev.off()
-pdf(file = "figures/reliability_diagram_ensemble.pdf",width = 5, height = 4) 
+pdf(file = "figures/reliability_diagram_ensemble.pdf",width = 4, height = 3.5) 
 par(mar = c(4, 4, 1, 1))
 rd4 = ReliabilityDiagram2(bin_predictions(int1,int2,pred_list[["ensemble"]]), zero_bin_obs(int1,int2,pred_list[["obs"]]), plot = T, plot.refin = F, attributes = T, bins = 10)
 dev.off()
@@ -188,9 +347,9 @@ rc1 = roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1
 rc2 = roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["olr_cov"]]), add.roc = T, n.thresholds = 200)
 rc3 = roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["free_upper_tri_TRUE_all"]]), add.roc = T, n.thresholds = 200)
 rc4 = roc.curve(zero_bin_obs(int1,int2,pred_list[["obs"]]), bin_predictions(int1,int2,pred_list[["ensemble"]]), add.roc = T, n.thresholds = 200)
-nams = c(paste("Empirical dist. = ", format(round(rc1$auc, 3), nsmall = 2)), 
-         paste("OLR with covs. = ", format(round(rc2$auc, 3), nsmall = 2)),
-         paste("MJP with covs. = ", format(round(rc3$auc, 3), nsmall = 2)),
+nams = c(paste("Empi. dist. = ", format(round(rc1$auc, 3), nsmall = 2)), 
+         paste("Cumu. link = ", format(round(rc2$auc, 3), nsmall = 2)),
+         paste("MJP = ", format(round(rc3$auc, 3), nsmall = 2)),
          paste("Ensemble = ", format(round(rc4$auc, 3), nsmall = 2))
         )
 RC1 = data.frame(rc1$false.positive.rate,rc1$true.positive.rate, rep(nams[1], length(rc1$true.positive.rate)) ); colnames(RC1) = c("false.positive.rate", "true.positive.rate", "group");
@@ -199,10 +358,11 @@ RC3 = data.frame(rc3$false.positive.rate,rc3$true.positive.rate, rep(nams[3], le
 RC4 = data.frame(rc4$false.positive.rate,rc4$true.positive.rate, rep(nams[4], length(rc4$true.positive.rate)) ); colnames(RC4) = c("false.positive.rate", "true.positive.rate", "group");
 combined_data <- rbind(RC1, RC2, RC3, RC4)
 combined_data$group = factor(combined_data$group, levels = c(nams[1],nams[2], nams[3], nams[4]))
-text.size = 13
-pdf(file = "figures/ROCs.pdf",width = 6, height = 4.8) 
+text.size = 11
+pdf(file = "figures/ROCs.pdf",width = 4, height = 3) 
 ggplot(combined_data, aes(x = false.positive.rate, y = true.positive.rate, color = group)) +
   geom_line(linewidth = 0.75) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +
   scale_x_continuous(limits = c(0, 1)) +
   scale_y_continuous(limits = c(0, 1)) +
   labs(x = "False Positive Rate", y = "True Positive Rate", color = "Group") +
@@ -210,10 +370,11 @@ ggplot(combined_data, aes(x = false.positive.rate, y = true.positive.rate, color
   theme(text = element_text(size = text.size, family = "serif"), 
                         panel.background = element_rect(fill = "white", color = "black"), 
                         panel.grid.minor = element_line(color = "lightgray"),
-                        legend.position = c(0.8, 0.6),  # Moves the legend closer to the bottom
+                        legend.position = c(0.75, 0.25),  # Moves the legend closer to the bottom
                         legend.direction = "horizontal",
-                        legend.background = element_rect(fill = "white", color = "black", size = 0.25, linetype = "solid"),  # Black border and white background
-  ) + 
+                        legend.background = element_rect(fill = "transparent", color = NA),  # Set transparent background for legend
+                        legend.key = element_rect(fill = "transparent", color = NA)
+        ) + 
   guides(color = guide_legend(title = "", ncol = 1))
 dev.off()
 
@@ -225,9 +386,9 @@ a1 = sum(md1$y[c(-1),1] * diff(md1$tsep))
 a2 =sum(md1$y[c(-1),2] * diff(md1$tsep))
 a3 =sum(md2$y[c(-1),1] * diff(md2$tsep))
 a4 =sum(md2$y[c(-1),2] * diff(md2$tsep))
-nams = c(paste("Empirical dist. = ", format(round(a1, 3), nsmall = 2)), 
-         paste("OLR with covs. = ", format(round(a2, 3), nsmall = 2)),
-         paste("MJP with covs. = ", format(round(a3, 3), nsmall = 2)),
+nams = c(paste("Empi. dist. = ", format(round(a1, 3), nsmall = 2)), 
+         paste("Cumu. link = ", format(round(a2, 3), nsmall = 2)),
+         paste("MJP = ", format(round(a3, 3), nsmall = 2)),
          paste("Ensemble = ", format(round(a4, 3), nsmall = 2))
 )
 MD1 = data.frame(md1$tsep,md1$y[,1], rep(nams[1], length(md1$y[,1])) ); colnames(MD1) = c("par", "val", "group");
@@ -236,8 +397,8 @@ MD3 = data.frame(md2$tsep,md2$y[,1], rep(nams[3], length(md2$y[,1])) ); colnames
 MD4 = data.frame(md2$tsep,md2$y[,2], rep(nams[4], length(md2$y[,2])) ); colnames(MD4) = c("par", "val", "group");
 combined_data <- rbind(MD1, MD2, MD3, MD4)
 combined_data$group = factor(combined_data$group, levels = c(nams[1],nams[2], nams[3], nams[4]))
-text.size = 13
-pdf(file = "figures/muprhy.pdf",width = 6, height = 4.8) 
+text.size = 11
+pdf(file = "figures/muprhy.pdf",width = 4, height = 3) 
 ggplot(combined_data, aes(x = par, y = val, color = group)) +
   geom_line(linewidth = 0.75) +
   labs(x = expression(omega), y = expression(paste("Empirical score, ", S(omega),"")), color = "Group") +
@@ -245,9 +406,10 @@ ggplot(combined_data, aes(x = par, y = val, color = group)) +
   theme(text = element_text(size = text.size, family = "serif"), 
         panel.background = element_rect(fill = "white", color = "black"), 
         panel.grid.minor = element_line(color = "lightgray"),
-        legend.position = c(0.8, 0.6),  # Moves the legend closer to the bottom
+        legend.position = c(0.75, 0.25),  # Moves the legend closer to the bottom
         legend.direction = "horizontal",
-        legend.background = element_rect(fill = "white", color = "black", size = 0.25, linetype = "solid"),  # Black border and white background
+        legend.background = element_rect(fill = "transparent", color = NA),  # Set transparent background for legend
+        legend.key = element_rect(fill = "transparent", color = NA)
   ) + 
   guides(color = guide_legend(title = "", ncol = 1))
 dev.off()

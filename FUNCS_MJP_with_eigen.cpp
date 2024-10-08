@@ -25,8 +25,8 @@ using namespace std;
 /* FUNCTIONS to parameterize the generator */
 /* --------------------------------------- */
 // function to construct generalized Erlang distribution
-// [[Rcpp::export]]
 // #construct A matrix as generalized Erlang
+// [[Rcpp::export]]
 Eigen::MatrixXd make_A1(int m, const Eigen::VectorXd& lambda){
   Eigen::MatrixXd A = Eigen::MatrixXd::Zero(m, m); //init A
   for(int i = 0; i < (m-1); i++){ //iterate through rows
@@ -36,6 +36,7 @@ Eigen::MatrixXd make_A1(int m, const Eigen::VectorXd& lambda){
   return A;
 }
 
+// [[Rcpp::export]]
 Eigen::MatrixXd make_A2(int m, const Eigen::VectorXd& lambda) {
   Eigen::MatrixXd A = make_A1(m, lambda);
   for (int i = 0; i < m; ++i) {
