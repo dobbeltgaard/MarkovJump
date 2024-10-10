@@ -148,6 +148,7 @@ library(Matrix)
 library(ggplot2)
 library(ggpubr)
 library(MASS)
+library(reshape2)
 
 states = c("3", "2B", "2A", "1", "0")
 par_list = readRDS("results/estimated_model_pars.Rdata")
@@ -188,6 +189,27 @@ p1 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)
     legend.background = element_rect(fill = "transparent", color = NA), # Set transparent background
     legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
   ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
+colnames(A1) = 1:5
+rownames(A1) = 5:1
+longData<-melt(A1)
+longData<-longData[longData$value!=0,]
+p11 = ggplot(longData, aes(x = Var2, y = Var1)) + 
+  geom_raster(aes(fill = value)) + 
+  geom_text(aes(label = sprintf("%.5f", value)), color = "black", size = 3, family = "serif") +  # Add 'family = "serif"' for serif font
+  scale_fill_gradient(low = "grey90", high = "#F8766D", guide = "none") +  # Remove legend with 'guide = "none"'
+  scale_y_discrete(limits = c("0", "1", "2A", "2B", "3")) +
+  scale_x_discrete(limits = c("3", "2B", "2A", "1", "0")) +
+  theme(
+    axis.text.x = element_text(size = 9, angle = 0, vjust = 0.3),
+    axis.text.y = element_text(size = 9),
+    plot.title = element_text(size = 11),
+    text = element_text(size = text.size, family = "serif"),  # Ensure overall text is serif
+    panel.background = element_rect(fill = "white", color = "black"),
+    panel.grid.minor = element_line(color = "lightgray")
+  ) + 
+  xlab("To class") + 
+  ylab("From class")
+
 
 
 #### reparameterized upper ###
@@ -220,6 +242,26 @@ p2 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)
     legend.background = element_rect(fill = "transparent", color = NA), # Set transparent background
     legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
   ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
+colnames(A1) = 1:5
+rownames(A1) = 5:1
+longData<-melt(A1)
+longData<-longData[longData$value!=0,]
+p22 = ggplot(longData, aes(x = Var2, y = Var1)) + 
+  geom_raster(aes(fill = value)) + 
+  geom_text(aes(label = sprintf("%.5f", value)), color = "black", size = 3, family = "serif") +  # Add 'family = "serif"' for serif font
+  scale_fill_gradient(low = "grey90", high = "#F8766D", guide = "none") +  # Remove legend with 'guide = "none"'
+  scale_y_discrete(limits = c("0", "1", "2A", "2B", "3")) +
+  scale_x_discrete(limits = c("3", "2B", "2A", "1", "0")) +
+  theme(
+    axis.text.x = element_text(size = 9, angle = 0, vjust = 0.3),
+    axis.text.y = element_text(size = 9),
+    plot.title = element_text(size = 11),
+    text = element_text(size = text.size, family = "serif"),  # Ensure overall text is serif
+    panel.background = element_rect(fill = "white", color = "black"),
+    panel.grid.minor = element_line(color = "lightgray")
+  ) + 
+  xlab("To class") + 
+  ylab("From class")
 
 
 #### free upper ###
@@ -252,6 +294,26 @@ p3 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)
     legend.background = element_rect(fill = "transparent", color = NA), # Set transparent background
     legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
   ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
+colnames(A1) = 1:5
+rownames(A1) = 5:1
+longData<-melt(A1)
+longData<-longData[longData$value!=0,]
+p33 = ggplot(longData, aes(x = Var2, y = Var1)) + 
+  geom_raster(aes(fill = value)) + 
+  geom_text(aes(label = sprintf("%.5f", value)), color = "black", size = 3, family = "serif") +  # Add 'family = "serif"' for serif font
+  scale_fill_gradient(low = "grey90", high = "#F8766D", guide = "none") +  # Remove legend with 'guide = "none"'
+  scale_y_discrete(limits = c("0", "1", "2A", "2B", "3")) +
+  scale_x_discrete(limits = c("3", "2B", "2A", "1", "0")) +
+  theme(
+    axis.text.x = element_text(size = 9, angle = 0, vjust = 0.3),
+    axis.text.y = element_text(size = 9),
+    plot.title = element_text(size = 11),
+    text = element_text(size = text.size, family = "serif"),  # Ensure overall text is serif
+    panel.background = element_rect(fill = "white", color = "black"),
+    panel.grid.minor = element_line(color = "lightgray")
+  ) + 
+  xlab("To class") + 
+  ylab("From class")
 
 
 pdf(file = "figures/trans_dist_gerlang.pdf",width = 4, height = 3) 
@@ -262,6 +324,16 @@ p2
 dev.off()
 pdf(file = "figures/trans_dist_free_upper.pdf",width = 4, height = 3) 
 p3
+dev.off()
+
+pdf(file = "figures/tpm_gerlang.pdf",width = 4, height = 3) 
+p11
+dev.off()
+pdf(file = "figures/tpm_param_upper.pdf",width = 4, height = 3) 
+p22
+dev.off()
+pdf(file = "figures/tpm_free_upper.pdf",width = 4, height = 3) 
+p33
 dev.off()
 
 
