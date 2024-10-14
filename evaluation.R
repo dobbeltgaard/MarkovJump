@@ -365,6 +365,162 @@ p4 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)
     legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
   ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
 
+##########################################
+### Multicategory reliability diagrams ###
+##########################################
+
+forecast_category <- function(forecast, quantiles) {
+  cumulative <- cumsum(forecast)
+  res = sapply(quantiles, function(q) which(cumulative >= q)[1])
+  return(res)
+}
+compute_reliability <- function(obs, z, q, qmin, qmax) {
+  if(obs > z){
+    p = 0
+  } else if(obs < z){
+    p = 1
+  } else if(obs == z){
+    if(qmax != qmin){
+      p = (q-qmin) / (qmax - qmin) 
+    } else{
+      p = 0.5
+    }
+  }
+  return(p)
+}
+multi.reliable = function(obs, y, quantiles){
+  L = length(quantiles)
+  forecast_quantile_matrix <- t(apply(y, 1, forecast_category, quantiles = quantiles))
+  Cq = matrix(NA, nrow = NROW(y), ncol = L)
+  for(i in 1:NROW(y)){
+    Q = which(forecast_quantile_matrix[i,] == obs[i])
+    qmin = quantiles[min(Q)]
+    qmax = quantiles[max(Q)]
+    for(j in 1:L){
+      Cq[i,j] = compute_reliability(obs[i], forecast_quantile_matrix[i,j],quantiles[j], qmin = qmin, qmax = qmax)
+    }
+  }
+  Cqave = colMeans(Cq)
+  return(Cqave)
+}
+make_boots = function(obs, y, quantiles, iters){
+  res = matrix(NA, nrow = iters, ncol = length(quantiles))
+  for(i in 1:iters){
+    idx = sample(1:NROW(obs), replace = T, size = NROW(obs) )
+    res[i,] = multi.reliable(obs[idx], y[idx, ], quantiles)
+  }
+  return(apply(res, 2, quantile,c(0.1,0.9))
+)
+}
+
+nams = c("persistence","uniform","empirical_dist_corr", 
+         "olr_cov", "free_upper_tri_TRUE_all", "ensemble")
+
+relia.mat = matrix(NA, nrow = length(nams), ncol = 10)
+relia.mat10 = matrix(NA, nrow = length(nams), ncol = 10)
+relia.mat90 = matrix(NA, nrow = length(nams), ncol = 10)
+
+for(i in 1:length(nams)){
+  foo = pred_list[[nams[i]]]
+  r = multi.reliable(OBS, foo, seq(0.05, 0.95, by = 0.1))
+  rb = make_boots(OBS, foo, seq(0.05, 0.95, by = 0.1), 200)
+  relia.mat[i, ] = r
+  relia.mat10[i, ] = rb[1,]
+  relia.mat90[i, ] = rb[2,]
+}
+
+
+foo1 = pred_list[["ensemble"]]
+obs = pred_list[["obs"]]
+OBS = apply(obs, 1, which.max)
+foo2 = pred_list[["free_upper_tri_TRUE_all"]]
+
+
+x1 = multi.reliable(OBS, foo1, seq(0.05, 0.95, by = 0.1))
+b1 = make_boots(OBS, foo1, seq(0.05, 0.95, by = 0.1), 200)
+b1
+# iters = 50
+# res = matrix(NA, nrow = iters, ncol = length(quantiles))
+# for(i in 1:iters){
+#   idx = sample(1:NROW(OBS), replace = T, size = NROW(OBS) )
+#   res[i,] = multi.reliable(OBS[idx], foo1[idx, ], quantiles)
+# }
+
+
+x2 = multi.reliable(OBS, foo2, seq(0.05, 0.95, by = 0.1))
+
+
+plot(seq(0.05, 0.95, by = 0.1), x1, type = "l")
+lines(seq(0.05, 0.95, by = 0.1), x2, col = 2)
+
+# Install necessary packages (if not installed)
+# install.packages("ggplot2")
+# install.packages("boot")
+
+library(ggplot2)
+library(boot)
+
+# Function to compute multicategory reliability diagrams
+compute_MCRD <- function(observed, forecast_matrix, quantiles = seq(0.05, 0.95, by = 0.1), n_bootstrap = 200) {
+  
+  N <- length(observed)
+  J <- ncol(forecast_matrix)
+  reliability <- numeric(length(quantiles))
+  error_bars <- matrix(NA, nrow = length(quantiles), ncol = 2)
+  
+  forecast_category <- function(forecast, quantiles) {
+    # Convert forecast probabilities into category numbers at specified quantiles
+    cumulative <- cumsum(forecast)
+    sapply(quantiles, function(q) which(cumulative >= q)[1])
+  }
+  
+  # Convert all forecasts into quantile-based categories
+  forecast_quantile_matrix <- t(apply(forecast_matrix, 1, forecast_category, quantiles = quantiles))
+  
+  # Function to compute reliability for a single quantile
+  compute_reliability <- function(forecast_category, observed, quantile) {
+    z_iq <- forecast_category
+    Cq <- mean(observed < z_iq) + 0.5 * mean(observed == z_iq)  # Eq 1 and 2 from the paper
+    return(Cq)
+  }
+  
+  # Compute reliability for each quantile
+  for (i in 1:length(quantiles)) {
+    reliability[i] <- compute_reliability(forecast_quantile_matrix[,i], observed, quantiles[i])
+    
+    # Bootstrap for error bars
+    bootstrap_results <- boot(data = observed, statistic = function(data, indices) {
+      compute_reliability(forecast_quantile_matrix[indices,i], data[indices], quantiles[i])
+    }, R = n_bootstrap)
+    
+    error_bars[i, ] <- boot.ci(bootstrap_results, type = "perc")$percent[4:5]
+  }
+  
+  # Plot the MCRD
+  df <- data.frame(Quantile = quantiles, Reliability = reliability, 
+                   Lower = error_bars[,1], Upper = error_bars[,2])
+  print(reliability)
+  ggplot(df, aes(x = Quantile, y = Reliability)) +
+    geom_line(color = "blue") +
+    geom_ribbon(aes(ymin = Lower, ymax = Upper), alpha = 0.2) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+    labs(title = "Multicategory Reliability Diagram", x = "Forecast Quantiles", y = "Observed Frequencies") +
+    theme_minimal()
+}
+
+# Example usage
+# observed = vector of observed categories (e.g., integers)
+# forecast_matrix = matrix of forecast probabilities for each category
+
+observed <- c(2, 1, 3, 3, 1)  # Example observed categories
+forecast_matrix <- matrix(c(0.7, 0.2, 0.1, 
+                            0.8, 0.1, 0.1,
+                            0.6, 0.3, 0.1,
+                            0.9, 0.05, 0.05,
+                            0.75, 0.2, 0.05), nrow = 5, byrow = TRUE)
+
+# Compute and plot MCRD
+compute_MCRD(OBS, pred_list[["olr"]])
 
 
 
