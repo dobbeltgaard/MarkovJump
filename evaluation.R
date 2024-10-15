@@ -143,6 +143,8 @@ kableExtra::kbl(foo,booktabs = T, align = c("l","l","c","c","c","c","c"), linese
 ###############################################
 ### plot of transition probability matrices ###
 ###############################################
+library(Rcpp)
+library(RcppEigen)
 sourceCpp("FUNCS_MJP_with_eigen.cpp")
 library(Matrix)
 library(ggplot2)
@@ -195,8 +197,8 @@ longData<-melt(A1)
 longData<-longData[longData$value!=0,]
 p11 = ggplot(longData, aes(x = Var2, y = Var1)) + 
   geom_raster(aes(fill = value)) + 
-  geom_text(aes(label = sprintf("%.5f", value)), color = "black", size = 3, family = "serif") +  # Add 'family = "serif"' for serif font
-  scale_fill_gradient(low = "grey90", high = "#F8766D", guide = "none") +  # Remove legend with 'guide = "none"'
+  geom_text(aes(label = sprintf("%.5f", value)), color = "white", size = 3, family = "serif") +  
+  scale_fill_gradient(low = "grey60", high = "black", guide = "none") + 
   scale_y_discrete(limits = c("0", "1", "2A", "2B", "3")) +
   scale_x_discrete(limits = c("3", "2B", "2A", "1", "0")) +
   theme(
@@ -210,7 +212,7 @@ p11 = ggplot(longData, aes(x = Var2, y = Var1)) +
   xlab("To class") + 
   ylab("From class")
 
-
+p11
 
 #### reparameterized upper ###
 nam = "gerlang_relax_TRUE_all"
@@ -248,8 +250,8 @@ longData<-melt(A1)
 longData<-longData[longData$value!=0,]
 p22 = ggplot(longData, aes(x = Var2, y = Var1)) + 
   geom_raster(aes(fill = value)) + 
-  geom_text(aes(label = sprintf("%.5f", value)), color = "black", size = 3, family = "serif") +  # Add 'family = "serif"' for serif font
-  scale_fill_gradient(low = "grey90", high = "#F8766D", guide = "none") +  # Remove legend with 'guide = "none"'
+  geom_text(aes(label = sprintf("%.5f", value)), color = "white", size = 3, family = "serif") +  
+  scale_fill_gradient(low = "grey60", high = "black", guide = "none") + 
   scale_y_discrete(limits = c("0", "1", "2A", "2B", "3")) +
   scale_x_discrete(limits = c("3", "2B", "2A", "1", "0")) +
   theme(
@@ -300,8 +302,8 @@ longData<-melt(A1)
 longData<-longData[longData$value!=0,]
 p33 = ggplot(longData, aes(x = Var2, y = Var1)) + 
   geom_raster(aes(fill = value)) + 
-  geom_text(aes(label = sprintf("%.5f", value)), color = "black", size = 3, family = "serif") +  # Add 'family = "serif"' for serif font
-  scale_fill_gradient(low = "grey90", high = "#F8766D", guide = "none") +  # Remove legend with 'guide = "none"'
+  geom_text(aes(label = sprintf("%.5f", value)), color = "white", size = 3, family = "serif") +  
+  scale_fill_gradient(low = "grey60", high = "black", guide = "none") + 
   scale_y_discrete(limits = c("0", "1", "2A", "2B", "3")) +
   scale_x_discrete(limits = c("3", "2B", "2A", "1", "0")) +
   theme(
@@ -368,6 +370,9 @@ p4 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)
 ##########################################
 ### Multicategory reliability diagrams ###
 ##########################################
+library(reshape2)
+library(ggplot2)
+library(cowplot)
 
 forecast_category <- function(forecast, quantiles) {
   cumulative <- cumsum(forecast)
@@ -394,133 +399,150 @@ multi.reliable = function(obs, y, quantiles){
   Cq = matrix(NA, nrow = NROW(y), ncol = L)
   for(i in 1:NROW(y)){
     Q = which(forecast_quantile_matrix[i,] == obs[i])
-    qmin = quantiles[min(Q)]
-    qmax = quantiles[max(Q)]
+    if(length(Q) > 0) {
+      qmin = quantiles[min(Q)]
+      qmax = quantiles[max(Q)]
+    } else {
+      qmin = NA
+      qmax = NA
+    }
     for(j in 1:L){
       Cq[i,j] = compute_reliability(obs[i], forecast_quantile_matrix[i,j],quantiles[j], qmin = qmin, qmax = qmax)
     }
   }
   Cqave = colMeans(Cq)
-  return(Cqave)
+  
+  forecast_diff_matrix <- forecast_quantile_matrix - obs
+  abs_error_matrix = abs(forecast_diff_matrix)
+  ave_cat_err = mean(colMeans(abs_error_matrix))
+  
+  return(list(
+    Cq = Cqave, 
+    ave_cat_err = ave_cat_err
+  ))
 }
 make_boots = function(obs, y, quantiles, iters){
   res = matrix(NA, nrow = iters, ncol = length(quantiles))
+  err = matrix(NA, nrow = iters, ncol = length(quantiles))
   for(i in 1:iters){
     idx = sample(1:NROW(obs), replace = T, size = NROW(obs) )
-    res[i,] = multi.reliable(obs[idx], y[idx, ], quantiles)
+    res[i,] = multi.reliable(obs[idx], y[idx, ], quantiles)$Cq
+    forecast_quantile_matrix <- t(apply(y[idx, ], 1, forecast_category, quantiles = quantiles))
+    forecast_diff_matrix <- forecast_quantile_matrix - obs[idx]
+    abs_error_matrix = abs(forecast_diff_matrix)
+    err[i, ] = colMeans(abs_error_matrix)
   }
-  return(apply(res, 2, quantile,c(0.1,0.9))
-)
+  return(list(
+    Cq = apply(res, 2, quantile,c(0.1,0.9)), 
+    quan_cat_err = apply(err, 2, quantile,c(0.1,0.9)) 
+    ) )
 }
 
-nams = c("persistence","uniform","empirical_dist_corr", 
-         "olr_cov", "free_upper_tri_TRUE_all", "ensemble")
 
-relia.mat = matrix(NA, nrow = length(nams), ncol = 10)
-relia.mat10 = matrix(NA, nrow = length(nams), ncol = 10)
-relia.mat90 = matrix(NA, nrow = length(nams), ncol = 10)
+checkerboard_plot = function(obs, y, quantiles){
+  forecast_quantile_matrix <- t(apply(y, 1, forecast_category, quantiles = quantiles))
+  forecast_diff_matrix <- forecast_quantile_matrix - obs
+  diff_df <- data.frame(forecast_diff_matrix)
+  colnames(diff_df) = quantiles
+  diff_df$Observation <- obs
+  diff_df$ID <- 1:nrow(diff_df)  # Create an ID for each observation
+  diff_df_long <- melt(diff_df, id.vars = c("ID", "Observation"), variable.name = "Quantile", value.name = "Forecast_Diff")
+  text.size=10
+
+  diff_df_long$Quantile <- as.numeric(as.character(diff_df_long$Quantile))
+  
+  p1 = ggplot(diff_df_long, aes(x = Quantile, y = Forecast_Diff)) +
+    geom_tile(aes(fill = after_stat(count)), color = "white", stat = "bin2d", binwidth =  c(length(quantiles)/100, 1)) +
+    scale_fill_gradient(low = "white", high = "black") +
+    labs(x = "Forecast quantiles", y = "Category error") +
+    scale_x_continuous(breaks = seq(min(diff_df_long$Quantile), max(diff_df_long$Quantile), by = 0.4)) + # Adjust 'by' as needed
+    theme(
+      legend.position = "none", 
+      text = element_text(size = text.size, family = "serif"),  
+      panel.background = element_rect(fill = NA, color = NA),  
+      plot.background = element_rect(fill = NA, color = NA),  
+      panel.grid.minor = element_blank(),  
+      panel.grid.major = element_blank(),
+      panel.border = element_rect(color = "black", fill = NA, linewidth = .5)
+    )
+  return(p1)
+}
+
+
+reliability_plot = function(Cq, CqCI, quantiles ){
+  data <- data.frame(
+    Time = quantiles,
+    Value = r$Cq,
+    Lower = rb$Cq[1,],
+    Upper = rb$Cq[2,]
+  )
+  text.size = 11
+  p2 = ggplot(data, aes(x = Time, y = Value)) +
+    geom_abline(slope = 1, intercept = 0, color = "black", linetype = "dashed") +  
+    geom_line(color = "black") +                
+    geom_point(color = "black", size = 0.5) + 
+    #xlim(0,1) + 
+    ylim(0,1) +
+    #geom_ribbon(aes(ymin = Lower, ymax = Upper), fill = "black", alpha = 0.2) +  
+    geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0.05, color = "black") +
+    labs(x = "Quantile of forecast distribution", 
+         y = "Observations below forecast quantile") +
+    theme(
+      legend.position = "none", 
+      text = element_text(size = text.size, family = "serif"),  
+      panel.background = element_rect(fill = "white", color = "black"),
+      panel.grid.minor = element_blank(),  
+      panel.grid.major = element_blank(),  
+      plot.background = element_rect(fill = "white", color = NA)
+    ) +
+    scale_x_continuous(breaks = quantiles) + 
+    annotate("text", x = 0.25, y = 1, 
+             label = paste("Average category error =", format(round(r$ave_cat_err,2), nsmall = 2)), 
+             size = 3.5, hjust = 0.5, color = "black", family = "serif") +  
+    annotate("text", x = 0.25, y = 0.925, 
+             label = paste0("CI 90% = [", format(round(rowMeans(rb$quan_cat_err)[1],2), nsmall = 2), ", ", format(round(rowMeans(rb$quan_cat_err)[2],2), nsmall = 2), "]"), 
+             size = 3.5, hjust = 0.5, color = "black", family = "serif")
+  return(p2)
+}
+
+
+pred_list = readRDS("results/model_predictions.Rdata")
+pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_all"]] )/2#+ pred_list[["empirical_dist_corr"]])/3
+
+
+
+nams = c("gerlang_relax_TRUE_all")#,"empirical_dist_corr","olr_cov", "free_upper_tri_TRUE_all", "ensemble")
 
 for(i in 1:length(nams)){
-  foo = pred_list[[nams[i]]]
-  r = multi.reliable(OBS, foo, seq(0.05, 0.95, by = 0.1))
-  rb = make_boots(OBS, foo, seq(0.05, 0.95, by = 0.1), 200)
-  relia.mat[i, ] = r
-  relia.mat10[i, ] = rb[1,]
-  relia.mat90[i, ] = rb[2,]
+  obs = pred_list[["obs"]]
+  OBS = apply(obs, 1, which.max)
+  y = pred_list[[nams[i]]]
+  quantiles = seq(0.05, 0.95, by = 0.1)
+  iters = 200
+  text.size = 11
+  
+  r = multi.reliable(OBS, y,quantiles)
+  rb = make_boots(OBS, y, quantiles, iters)
+  
+  p1 = checkerboard_plot(OBS, y, quantiles)
+  p2 = reliability_plot(r, rb, quantiles)
+  p3 = ggdraw() + draw_plot(p2) + draw_plot(p1, x = 0.6, y = 0.15, width = .35, height = .5)
+  
+  nfil = paste0("figures/reliability_diag_", nams[i],".pdf")
+  pdf(file = nfil,width = 4, height = 3) 
+  print(p3)
+  dev.off()
+  graphics.off()
+  
+  print(nams[i])
 }
 
 
-foo1 = pred_list[["ensemble"]]
-obs = pred_list[["obs"]]
-OBS = apply(obs, 1, which.max)
-foo2 = pred_list[["free_upper_tri_TRUE_all"]]
 
 
-x1 = multi.reliable(OBS, foo1, seq(0.05, 0.95, by = 0.1))
-b1 = make_boots(OBS, foo1, seq(0.05, 0.95, by = 0.1), 200)
-b1
-# iters = 50
-# res = matrix(NA, nrow = iters, ncol = length(quantiles))
-# for(i in 1:iters){
-#   idx = sample(1:NROW(OBS), replace = T, size = NROW(OBS) )
-#   res[i,] = multi.reliable(OBS[idx], foo1[idx, ], quantiles)
-# }
 
 
-x2 = multi.reliable(OBS, foo2, seq(0.05, 0.95, by = 0.1))
 
-
-plot(seq(0.05, 0.95, by = 0.1), x1, type = "l")
-lines(seq(0.05, 0.95, by = 0.1), x2, col = 2)
-
-# Install necessary packages (if not installed)
-# install.packages("ggplot2")
-# install.packages("boot")
-
-library(ggplot2)
-library(boot)
-
-# Function to compute multicategory reliability diagrams
-compute_MCRD <- function(observed, forecast_matrix, quantiles = seq(0.05, 0.95, by = 0.1), n_bootstrap = 200) {
-  
-  N <- length(observed)
-  J <- ncol(forecast_matrix)
-  reliability <- numeric(length(quantiles))
-  error_bars <- matrix(NA, nrow = length(quantiles), ncol = 2)
-  
-  forecast_category <- function(forecast, quantiles) {
-    # Convert forecast probabilities into category numbers at specified quantiles
-    cumulative <- cumsum(forecast)
-    sapply(quantiles, function(q) which(cumulative >= q)[1])
-  }
-  
-  # Convert all forecasts into quantile-based categories
-  forecast_quantile_matrix <- t(apply(forecast_matrix, 1, forecast_category, quantiles = quantiles))
-  
-  # Function to compute reliability for a single quantile
-  compute_reliability <- function(forecast_category, observed, quantile) {
-    z_iq <- forecast_category
-    Cq <- mean(observed < z_iq) + 0.5 * mean(observed == z_iq)  # Eq 1 and 2 from the paper
-    return(Cq)
-  }
-  
-  # Compute reliability for each quantile
-  for (i in 1:length(quantiles)) {
-    reliability[i] <- compute_reliability(forecast_quantile_matrix[,i], observed, quantiles[i])
-    
-    # Bootstrap for error bars
-    bootstrap_results <- boot(data = observed, statistic = function(data, indices) {
-      compute_reliability(forecast_quantile_matrix[indices,i], data[indices], quantiles[i])
-    }, R = n_bootstrap)
-    
-    error_bars[i, ] <- boot.ci(bootstrap_results, type = "perc")$percent[4:5]
-  }
-  
-  # Plot the MCRD
-  df <- data.frame(Quantile = quantiles, Reliability = reliability, 
-                   Lower = error_bars[,1], Upper = error_bars[,2])
-  print(reliability)
-  ggplot(df, aes(x = Quantile, y = Reliability)) +
-    geom_line(color = "blue") +
-    geom_ribbon(aes(ymin = Lower, ymax = Upper), alpha = 0.2) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-    labs(title = "Multicategory Reliability Diagram", x = "Forecast Quantiles", y = "Observed Frequencies") +
-    theme_minimal()
-}
-
-# Example usage
-# observed = vector of observed categories (e.g., integers)
-# forecast_matrix = matrix of forecast probabilities for each category
-
-observed <- c(2, 1, 3, 3, 1)  # Example observed categories
-forecast_matrix <- matrix(c(0.7, 0.2, 0.1, 
-                            0.8, 0.1, 0.1,
-                            0.6, 0.3, 0.1,
-                            0.9, 0.05, 0.05,
-                            0.75, 0.2, 0.05), nrow = 5, byrow = TRUE)
-
-# Compute and plot MCRD
-compute_MCRD(OBS, pred_list[["olr"]])
 
 
 
