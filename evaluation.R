@@ -507,12 +507,8 @@ reliability_plot = function(Cq, CqCI, quantiles ){
 
 
 pred_list = readRDS("results/model_predictions.Rdata")
-pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_all"]] )/2#+ pred_list[["empirical_dist_corr"]])/3
-
-
-
-nams = c("gerlang_relax_TRUE_all")#,"empirical_dist_corr","olr_cov", "free_upper_tri_TRUE_all", "ensemble")
-
+pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_all"]] )/2
+nams = c("empirical_dist_corr","olr_cov", "free_upper_tri_TRUE_all", "ensemble")
 for(i in 1:length(nams)){
   obs = pred_list[["obs"]]
   OBS = apply(obs, 1, which.max)
@@ -536,15 +532,6 @@ for(i in 1:length(nams)){
   
   print(nams[i])
 }
-
-
-
-
-
-
-
-
-
 
 
 ####################
