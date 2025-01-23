@@ -127,6 +127,9 @@ Dtot$`s-` <- convert.to.num.inv(Dtot$s1)
 Dtot$`s` <- convert.to.num.inv(Dtot$s2)
 states <- c("3", "2B", "2A", "1", "0") #define states
 plist <- list(); text.size <- 14; text.size2 = 5; 
+
+#plist <- list(); text.size <- 16; text.size2 = 7;text.size3 = 18; 
+
 icount <- 0; jcount <- 0; pcount <- 0; sum = 0;
 for(i in states){
   icount <- icount + 1
@@ -151,9 +154,9 @@ for(i in states){
         ) + 
         scale_y_continuous(labels = scales::percent) +
         scale_x_continuous(breaks = 
-                             c(300,600,900,1200), limits = c(0,1200) ) +
-        labs(x = "Trans. times [days]", y = "Freqency") + 
-        annotate("text", x=Inf, y=Inf,size=text.size2, label = lab, family="serif", vjust = 1, hjust = 1) +
+                             c(300,600,900), limits = c(0,1200) ) +
+        labs(x = "Observation Interval [days]", y = "Relative Freq.") + 
+        annotate("text", x=Inf, y=Inf,size=text.size2, label = lab, family="serif", vjust = 1, hjust = 1, fontface =2) +
         annotate("text", x=Inf, y=Inf,size=text.size2, label = lab2, family="serif", vjust = 2.5, hjust = 1) 
       
       # if(icount < 6){
@@ -178,6 +181,39 @@ for(i in states){
 p1 <- grid.arrange(grobs = plist, ncol = m, nrow = m,widths = rep(1, m), heights = rep(1, m))
 sum
 
+#ggsave("hists_u.pdf", p1, width = 15, height = 12, units = "in")
 ggsave("hists_u.pdf", p1, width = 15, height = 10, units = "in")
+
+
+### Interval censored data idea ###
+
+library(ggplot2)
+
+# Data frame for the horizontal steps and the points
+df_lines <- data.frame(
+  t_start = c(0, 1, 2, 3),
+  t_end = c(1, 2, 3, 4),
+  N_t = c(1, 2, 3, 4)
+)
+
+# Data frame for points (open/closed circles)
+df_points <- data.frame(
+  t = c(0, 2, 2, 3, 3, 4, 4, 5),
+  N_t = c(1, 1, 2, 2, 3, 3, 4, 4),
+  point_type = c("open", "closed", "open", "closed", "open", "closed", "closed", "open")
+)
+
+# Plot
+ggplot() +
+  #geom_segment(data = df_lines, aes(x = t_start, xend = t_end, y = N_t, yend = N_t), size = 1) +
+  geom_point(data = df_points, aes(x = t, y = N_t, shape = point_type, fill = point_type), size = 4, color = "black") +
+  scale_shape_manual(values = c(open = 21, closed = 16)) +  # Open and closed points
+  scale_fill_manual(values = c(open = "white", closed = "black")) +
+  #scale_y_continuous(breaks = seq(0, 4, by = 1), limits = c(0, 4)) +
+  #scale_x_continuous(breaks = c(0, 1, 2, 3, 4), labels = c("S1", "S2", "S3", "S4")) +
+  theme_minimal() +
+  labs(x = "t", y = "N(t)") +
+  theme(panel.grid = element_blank(),  # Remove grid
+        axis.line = element_line(size = 0.8))  # Make axis lines thicker
 
 
