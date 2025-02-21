@@ -217,3 +217,102 @@ ggplot() +
         axis.line = element_line(size = 0.8))  # Make axis lines thicker
 
 
+
+################################
+### PLOT OF COVARIATE FACTOR ###
+################################
+rm(list = ls()) #clear memory
+
+setwd("C:/Users/atbd/COWI/A235142 - Predictive maintanance ph.d project (1502) - Documents/Publication/Transition rates of Norwegian rail defects/Material")
+
+load("Processed_data/covariates_all_tracks_V2.RData"); D <- foo; rm(foo) #load dat
+source("funcs.R") #define functions from another R file
+
+res3 <- readRDS("loglik_estimates.rds")
+
+library(ggplot2)
+library(gridExtra)
+library("stringr")
+
+res2 <- res3
+d <- D
+
+load("Processed_data/defects_covs_base_V2.RData"); D <- foo; rm(foo) #load dat
+
+
+states <- c(1,2,3,4,5) #define states
+#states <- c(2,3,4,5)
+m <- length(states) #number of states
+track <- unique(D$Track) #define investigated tracks
+exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", 
+              "invRad.norm")#, , "dist.to.station.trans") #covariate space
+#idx <- D$Track0 %in% track #choose all tracks 
+#idx <- Dtot$Track0 == "nord" #select single tracks
+
+idx.remove <- 
+  (D$`s-` == 4 & D$`s` == 4 & D$u > 300) | 
+  (D$`s-` == 4 & D$`s` == 5 & D$u > 300) | 
+  (D$`s-` == 5 & D$`s` == 5 & D$u > 300) 
+
+
+d2 <- D[!idx.remove, c("pos", "s-", "s", "u", exo.cols, "Track0")] #define data set of interest
+
+
+
+m <- 5
+exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", 
+              "invRad.norm")
+colnames(d)
+unique(d$Track0)
+tracks <- c("garde", "roa", "roro", "solor")
+tracks.anonym = c("Line G", "Line Q", "Line R", "Line S")
+#tracks <- c("dramm", "garde")
+plist <- list(); pcount <- 0
+for(j in tracks){
+  pcount <- pcount + 1
+  dp <- d[d$Track0 == j & d$pos < 150,]
+  x <- matrix(NA,ncol = 1, nrow = NROW(dp))
+  
+  for(i in 1:NROW(dp)){
+    x[i] <- exp(sum(res2$lambda[m:length(res2$lambda)] * dp[i, exo.cols]))
+  }
+  
+  dp$lambda_exo <- x[,1]
+  
+  order <- order(dp[, "pos"])
+  dp.sorted <- dp[order,]
+  
+  dp2 <- d2[d2$Track0 == j & d2$pos < 150 & d2$pos < max(dp.sorted$pos), ]
+  
+  ave <- round(mean(x),2)
+  
+  text.size <- 14
+  text.size2 = 5
+  pl1 <-  ggplot() + 
+    geom_line(data = dp.sorted, aes(x = pos, y = lambda_exo), linewidth = .75, color = "black") +
+    #geom_point(data = dp2, aes(x = pos, y = min(dp.sorted$lambda_exo), color = s )) +
+    xlab("Position [km]") +  ylab(expression(paste("exp{ ",Sigma[i]^p, beta[i], z[i], " }"))) + 
+    theme(text = element_text(size = text.size, family = "serif"), 
+          #panel.background = element_rect(fill = "grey95"),
+          panel.background = element_rect(fill = "white", color = "black"), 
+          #panel.grid.major = element_line(color = "gray"),
+          panel.grid.minor = element_line(color = "lightgray")
+          #panel.border = element_rect(color = "grey")
+    ) + coord_cartesian(ylim = c(0.75, 2.05)) +
+    annotate("text", x=max(dp$pos), y=2, size=text.size2, label = str_to_title(tracks.anonym[pcount]), 
+             family="serif", vjust = 1, hjust = 1) #+ 
+  #annotate("text", x=min(dp$pos), y=max(x), size=text.size/2.5, label = paste0("Average = ", ave), 
+  #         family="serif", vjust = 1, hjust = 0)
+  
+  plist[[pcount]] <- pl1
+}
+
+
+p1 = grid.arrange(grobs = plist, ncol = 2, nrow = 2)
+
+setwd("C:/Users/atbd/OneDrive - Danmarks Tekniske Universitet/MarkovJump/figures")
+
+ggsave("exo_factor_trans_rates_2x2.pdf", p1, width = 10, height = 5, units = "in")
+
+
+
