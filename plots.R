@@ -25,17 +25,27 @@ library(expm)
 
 
 z = as.matrix(d[, exo.cols])
-beta0 <- c(c(0.1,0.2,0.3,0.4),
+beta0 <- c(rep(0.25,m-1),
            rep(0.1,length(exo.cols)))
 
-res3 =
-  optim( par = beta0, fn = MJP_score, m = m, s1 = d$s1, s2 = d$s2, u = d$t, z = z,
-         generator="gerlang", covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F,
-         transient_dist_method = "eigenvalue_decomp",
+res3 = optim( par = beta0, fn = MJP_score, m = m, s1 = d$s1, s2 = d$s2, u = d$t, z = z,
+         generator="gerlang", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, likelihood_bin = T, rps_bin = F, brier_bin = F,
+         transient_dist_method = "uniformization",
          method = "BFGS", control = list(maxit = 1000))
 
 lambda = exp(res3$par[1:(m-1)])
 exo = res3$par[m:(m-1+length(exo.cols))]
+
+res3 = optim( par = beta0, fn = MJP_score, m = m, s1 = d$s1, s2 = d$s2, u = d$t, z = z,
+              generator="gerlang_relax", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, likelihood_bin = T, rps_bin = T, brier_bin = T,
+              transient_dist_method = "uniformization",
+              method = "BFGS", control = list(maxit = 1000))
+
+
+#cov_cont = apply(X = z, MARGIN = 1, FUN = function(x) sum(x*exo))
+#d[order(cov_cont, decreasing = TRUE)[1:10], exo.cols]
+#d[order(cov_cont, decreasing = FALSE)[1:10], exo.cols]
+
 
 #begin loop
 results <- data.frame()
@@ -223,7 +233,7 @@ ggplot() +
 ################################
 rm(list = ls()) #clear memory
 
-setwd("C:/Users/atbd/COWI/A235142 - Predictive maintanance ph.d project (1502) - Documents/Publication/Transition rates of Norwegian rail defects/Material")
+setwd("C:/Users/askbi/COWI/A235142 - Predictive maintanance ph.d project (1502) - Documents/Publication/Transition rates of Norwegian rail defects/Material")
 
 load("Processed_data/covariates_all_tracks_V2.RData"); D <- foo; rm(foo) #load dat
 source("funcs.R") #define functions from another R file
@@ -282,6 +292,10 @@ for(j in tracks){
   order <- order(dp[, "pos"])
   dp.sorted <- dp[order,]
   
+  #dp.sorted[order(dp.sorted$lambda_exo, decreasing = TRUE)[1:5], c("lambda_exo","Track0", "curve.rad", "speed", "profil", "steel", "MBT")]
+  #dp.sorted[order(dp.sorted$lambda_exo, decreasing = FALSE)[1:5], c("lambda_exo", "Track0", "curve.rad", "speed", "profil", "steel", "MBT")]
+  
+  
   dp2 <- d2[d2$Track0 == j & d2$pos < 150 & d2$pos < max(dp.sorted$pos), ]
   
   ave <- round(mean(x),2)
@@ -306,6 +320,11 @@ for(j in tracks){
   
   plist[[pcount]] <- pl1
 }
+
+
+
+
+
 
 
 p1 = grid.arrange(grobs = plist, ncol = 2, nrow = 2)

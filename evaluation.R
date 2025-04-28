@@ -4,9 +4,9 @@ rm(list = ls()) #clear memory
 library(Rcpp)
 library(RcppEigen)
 sourceCpp("FUNCS_MJP_with_eigen.cpp")
-pred_list = readRDS("results/model_predictions.Rdata")
-pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_all"]] )/2#+ pred_list[["empirical_dist_corr"]])/3
-pred_list[["ensemble2"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_all"]] + pred_list[["empirical_dist_corr"]])/3
+pred_list = readRDS("results/model_predictions_V2.Rdata")
+pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] )/2#+ pred_list[["empirical_dist_corr"]])/3
+pred_list[["ensemble2"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_corr"]])/3
 #logs = read.csv("results/log_score.csv")
 #rps = read.csv("results/rps_score.csv")
 #brier = read.csv("results/brier_score.csv")
@@ -28,7 +28,7 @@ for(i in 1:k){
     count = count + 1;
     pred = pred_list[[j]]
     obs = pred_list[["obs"]]
-    log_err[count, i] = mean(logscore_vectors(m, pred, obs))
+    log_err[count, i] = -mean(logscore_vectors(m, pred, obs))
     RPS_err[count, i] = mean(rps_vectors(m, pred, obs))
     Brier_e[count, i] = mean(BrierScore_vectors(m, pred, obs))
   }
@@ -37,20 +37,28 @@ rownames(log_err) = names(pred_list)
 rownames(RPS_err) = names(pred_list)
 rownames(Brier_e) = names(pred_list)
 errs = cbind(rowMeans(RPS_err),rowMeans(log_err),rowMeans(Brier_e))
-namfoo = c("_log", "_all", "uniform", "dist_corr", "persistence", "olr", "opr", "ocllr", "ensemble")
+
+#Errors in link function combinations
+link_combinations <- gsub(".*?(exp|softplus|square)_(exp|softplus|square)_.*", "\\1_\\2", rownames(errs[1:54,]))
+rps_values <- errs[1:54, 1]
+average_rps <- tapply(rps_values, link_combinations, mean)
+print(average_rps)
+
+
+namfoo = c("softplus_softplus_all", "uniform", "dist_corr", "olr", "opr", "ocllr", "ensemble")
 idx = rowSums(sapply(namfoo, FUN = grepl, x = rownames(errs))) > 0
 foo = errs[idx, ]
 nams =
-  c("persistence", "uniform", "empirical_dist_corr", 
+  c("uniform", "empirical_dist_corr", 
     "olr", "olr_cov", "opr", "opr_cov", "ocllr", "ocllr_cov", 
-    "gerlang_FALSE_all", "gerlang_TRUE_all", "gerlang_relax_FALSE_all", "gerlang_relax_TRUE_all", "free_upper_tri_FALSE_all", "free_upper_tri_TRUE_all",
+    "gerlang_FALSE_softplus_softplus_all", "gerlang_TRUE_softplus_softplus_all", "gerlang_relax_FALSE_softplus_softplus_all", "gerlang_relax_TRUE_softplus_softplus_all", "free_upper_tri_FALSE_softplus_softplus_all", "free_upper_tri_TRUE_softplus_softplus_all",
     "ensemble", "ensemble2")
 nams_idx = rep(NA, length(nams));for(i in 1:length(nams)){nams_idx[i] = which(nams[i] == rownames(foo))}
 library(kableExtra)
 naive = expand.grid(
   Covariates = c("No"), #covariates
-  Model = c("Näive predictors"), #näive,olr,mjp 
-  param = c("Persistence", "Uniform distribution", "Empirical distribution")
+  Model = c("Naïve predictors"), #näive,olr,mjp 
+  param = c("Uniform distribution", "Empirical distribution")
 )
 regression = expand.grid(
   Covariates = c("No","Yes"), #covariates
@@ -65,19 +73,20 @@ mjp = expand.grid(
 ensemble = expand.grid(
   Covariates = c("Yes"), #covariates
   Model = c("Ensemble"), #näive,olr,mjp 
-  param = c("MJP + OLR", "Näive + MJP + OLR")
+  param = c("MJP + OLR", "Naïve + MJP + OLR")
 )
 collapse_rows_dt = rbind(naive, regression, mjp,ensemble)
 collapse_rows_dt <- collapse_rows_dt[c("Model", "param", "Covariates")]
 
+par_list  = pred_list
 npars = rep(0,length(nams)); count = 0;
 for(i in nams[1:(length(nams)-2)]){
   count = count + 1
   if(count > 3){npars[count] = (NCOL(par_list[[i]])); }
   
 }
-npars[length(nams)-1] =  NCOL(par_list[["free_upper_tri_TRUE_all"]]) + NCOL(par_list[["olr_cov"]])
-npars[length(nams)] =  NCOL(par_list[["free_upper_tri_TRUE_all"]]) + NCOL(par_list[["olr_cov"]])
+npars[length(nams)-1] =  NCOL(par_list[["free_upper_tri_TRUE_softplus_softplus_all"]]) + NCOL(par_list[["olr_cov"]])
+npars[length(nams)] =  NCOL(par_list[["free_upper_tri_TRUE_softplus_softplus_all"]]) + NCOL(par_list[["olr_cov"]])
 collapse_rows_dt$npars = npars
 collapse_rows_dt$RPS = foo[nams_idx, 1]
 collapse_rows_dt$LogS = foo[nams_idx, 2]

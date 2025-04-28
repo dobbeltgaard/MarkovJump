@@ -17,6 +17,10 @@ m <- length(states)
 track <- unique(d$Track)
 exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
 
+#D = d[, c("s1", "s2", "t", "MBT", "speed", "plus.speed", "profil", "steel", "curve.rad", "Track0")]
+#write.csv(D, file ="C:/Users/askbi/OneDrive - COWI/Documents - A235142 - Predictive maintanance ph.d project (1502)/Teaching/01666 Fagprojekt/defect_data.csv", row.names = F)
+
+
 ### Read libaries ###
 library(MASS)
 library(Rcpp)
@@ -44,9 +48,10 @@ PREDS = list()
 PARS = list()
 log_bin = F; rps_bin = F; brier_bin = F;
 parameterizations = c("gerlang", "gerlang_relax", "free_upper_tri") 
-scores = c("log", "rps", "brier", "all")
+scores = c("all") #c("log", "rps", "brier", "all")
+links = c("exp", "softplus", "square")
 baselines = c("uniform", "persistence", "empirical_dist", "empirical_dist_corr", "olr", "olr_cov","opr", "opr_cov","ocllr","ocllr_cov", "obs")
-n_predictors = length(parameterizations)*length(scores)*2 + length(baselines) #number of predictors = number of mjp models + reference predictors
+n_predictors = length(parameterizations)*length(scores)*2*length(links)^2 + length(baselines) #number of predictors = number of mjp models + reference predictors
 log_err = matrix(NA, ncol = k, nrow = n_predictors)
 RPS_err = matrix(NA, ncol = k, nrow = n_predictors)
 Brier_e = matrix(NA, ncol = k, nrow = n_predictors)
@@ -74,26 +79,31 @@ for(i in 1:k){
     for(cov in c(F, T)){
       if(cov ){ beta = c(beta_base, rep(0.1,length(exo.cols))); } 
       if(!cov){ beta = beta_base; }
-      
-      for(score in scores){
-        count = count + 1
-        if(score == "log" | score == "all"){log_bin = T}
-        if(score == "rps" | score == "all"){rps_bin = T}
-        if(score == "brier" | score == "all"){brier_bin = T}
         
-        #Estimate and store model pars
-        foo = optim( par = beta, fn = MJP_score, m = m, s1 = d.train$s1, s2 = d.train$s2, u = d.train$t, z = as.matrix(d.train[,exo.cols]), generator = gen, covs_bin = cov, likelihood_bin = log_bin, rps_bin = rps_bin, brier_bin = brier_bin, transient_dist_method = "eigenvalue_decomp", method = "BFGS", control = list(maxit = 1000)) #estimate model 
-        nam = paste(gen,cov,score,sep = "_") #name of specific estimation
-        if(i == 1){ PARS[[nam]] = foo$par} else { PARS[[nam]] = rbind(PARS[[nam]],foo$par)} #store model estimates
-        
-        #Make and store predictions and compute error scores
-        pred = MJP_predict(m = m, s1 = d.test$s1, u = d.test$t, pars = foo$par, z = as.matrix(d.test[,exo.cols]), generator = gen, covs_bin = cov, transient_dist_method = "eigenvalue_decomp")
-        if(i == 1){ PREDS[[nam]] = pred} else { PREDS[[nam]] = rbind(PREDS[[nam]],pred)} #store predictions
-        log_err[count, i] = mean(logscore_vectors(m, pred, obs))
-        RPS_err[count, i] = mean(rps_vectors(m, pred, obs))
-        Brier_e[count, i] = mean(BrierScore_vectors(m, pred, obs))
-        
-        log_bin = F; rps_bin = F; brier_bin = F; #reset score bools
+      for(baselink in links){
+        for(covslink in links){
+          
+            for(score in scores){
+              if(score == "log" | score == "all"){log_bin = T}
+              if(score == "rps" | score == "all"){rps_bin = T}
+              if(score == "brier" | score == "all"){brier_bin = T}
+            count = count + 1
+            #Estimate and store model pars
+            nam = paste(gen,cov,baselink,covslink,score,sep = "_") #name of specific estimation
+            print(nam)
+            foo = optim( par = beta, fn = MJP_score, m = m, s1 = d.train$s1, s2 = d.train$s2, u = d.train$t, z = as.matrix(d.train[,exo.cols]), generator = gen, link_type_base = baselink, link_type_covs = covslink, covs_bin = cov, likelihood_bin = log_bin, rps_bin = rps_bin, brier_bin = brier_bin, transient_dist_method = "pade", method = "BFGS", control = list(maxit = 1000)) #estimate model 
+            if(i == 1){ PARS[[nam]] = foo$par} else { PARS[[nam]] = rbind(PARS[[nam]],foo$par)} #store model estimates
+            
+            #Make and store predictions and compute error scores
+            pred = MJP_predict(m = m, s1 = d.test$s1, u = d.test$t, pars = foo$par, z = as.matrix(d.test[,exo.cols]), generator = gen, link_type_base = baselink, link_type_covs = covslink, covs_bin = cov, transient_dist_method = "pade")
+            if(i == 1){ PREDS[[nam]] = pred} else { PREDS[[nam]] = rbind(PREDS[[nam]],pred)} #store predictions
+            log_err[count, i] = mean(logscore_vectors(m, pred, obs))
+            RPS_err[count, i] = mean(rps_vectors(m, pred, obs))
+            Brier_e[count, i] = mean(BrierScore_vectors(m, pred, obs))
+            
+            log_bin = F; rps_bin = F; brier_bin = F; #reset score bools
+          }
+        }
       }
     }
   }
@@ -151,9 +161,9 @@ for(i in 1:k){
   cat("Fold ", i, "runtime:", runtime, "\n") #approx 3.5 mins per fold
 }
 
-rownames(log_err) = c(names(PARS)[1:(length(parameterizations)*length(scores)*2)], baselines)
-rownames(RPS_err) = c(names(PARS)[1:(length(parameterizations)*length(scores)*2)], baselines)
-rownames(Brier_e) = c(names(PARS)[1:(length(parameterizations)*length(scores)*2)], baselines)
+rownames(log_err) = c(names(PARS)[1:(length(parameterizations)*length(scores)*2*length(links)^2)], baselines)
+rownames(RPS_err) = c(names(PARS)[1:(length(parameterizations)*length(scores)*2*length(links)^2)], baselines)
+rownames(Brier_e) = c(names(PARS)[1:(length(parameterizations)*length(scores)*2*length(links)^2)], baselines)
 
 errs = cbind(rowMeans(log_err),rowMeans(Brier_e),rowMeans(RPS_err))
 errs
@@ -161,11 +171,11 @@ errs
 
 # write.csv(PARS, file  = "results/estimated_model_pars.csv")
 # write.csv(PREDS, file  = "results/model_preditions.csv")
-write.csv(log_err, file  = "results/log_score.csv", row.names = T)
-write.csv(Brier_e, file  = "results/brier_score.csv", row.names = T)
-write.csv(RPS_err, file  = "results/rps_score.csv", row.names = T)
-saveRDS(PARS, file = "results/estimated_model_pars.Rdata")
-saveRDS(PREDS, file = "results/model_predictions.Rdata")
+write.csv(log_err, file  = "results/log_score_V2.csv", row.names = T)
+write.csv(Brier_e, file  = "results/brier_score_V2.csv", row.names = T)
+write.csv(RPS_err, file  = "results/rps_score_V2.csv", row.names = T)
+saveRDS(PARS, file = "results/estimated_model_pars_V2.Rdata")
+saveRDS(PREDS, file = "results/model_predictions_V2.Rdata")
 
 
 #comments: 

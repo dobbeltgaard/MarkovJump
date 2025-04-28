@@ -310,6 +310,29 @@ Eigen::RowVectorXd transient_dist_Uni(int m, const Eigen::RowVectorXd& Pt, const
 }
 
 
+Eigen::ArrayXd exp_vec(const Eigen::ArrayXd& x) {
+  return x.exp();
+}
+
+Eigen::ArrayXd soft_plus_vec(const Eigen::ArrayXd& x) {
+  return (x.exp() + 1).log();
+}
+
+Eigen::ArrayXd square_vec(const Eigen::ArrayXd& x) {
+  return x.square();
+}
+
+double exp_double(double x){
+  return exp(x);
+}
+double soft_plus_double(double x){
+  return log(exp(x)+1);
+}
+double square_double(double x){
+  return pow(x,2);
+}
+
+
 /* ********************************************************** */
 /* FUNCTION: SCORE for Markov jump process given partial data */
 /* ********************************************************** */
@@ -322,6 +345,8 @@ double MJP_score(int m,
                  const Eigen::VectorXd& pars,
                  const Eigen::MatrixXd& z,
                  const string& generator = "gerlang",
+                 const string& link_type_base = "exp",
+                 const string& link_type_covs = "exp",
                  bool covs_bin = true,
                  bool likelihood_bin = false,
                  bool rps_bin = false,
@@ -347,13 +372,31 @@ double MJP_score(int m,
   int start_idx = 0;
   int end_idx = 0;
   bool eigen_solver_good = true;
+  
+  /* Determine which link to use */
+  std::function<Eigen::ArrayXd(const Eigen::ArrayXd&)> link_function_base;
+  if (link_type_base == "exp") {
+    link_function_base = exp_vec;
+  } else if (link_type_base == "softplus") {
+    link_function_base = soft_plus_vec;
+  } else if (link_type_base == "square") {
+    link_function_base = square_vec;
+  }
+  std::function<double(const double&)> link_function_covs;
+  if (link_type_covs == "exp") {
+    link_function_covs = exp_double;
+  } else if (link_type_covs == "softplus") {
+    link_function_covs = soft_plus_double;
+  } else if (link_type_covs == "square") {
+    link_function_covs = square_double;
+  }
 
   /* Determine which parameterization to use */
   std::function<Eigen::MatrixXd(int, const Eigen::VectorXd&)> make_A;
   if (to_lowercase(generator) == "gerlang") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A1(m, lambda); };
     lambda_base.resize(int(m-1));
-    lambda_base = pars.segment(0,m-1).array().exp(); 
+    lambda_base = link_function_base(pars.segment(0,m-1).array()); 
     U = eigenspace_U(m, lambda_base);
     U_inv = eigenspace_U_inv(m, lambda_base);
     A = make_A(m, lambda_base);
@@ -363,7 +406,7 @@ double MJP_score(int m,
   } else if (to_lowercase(generator) == "gerlang_relax") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A2(m, lambda); };
     lambda_base.resize(int(m-1));
-    lambda_base = pars.segment(0,m-1).array().exp(); 
+    lambda_base = link_function_base(pars.segment(0,m-1).array()); 
     A = make_A(m, lambda_base);
     Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
     Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal(); 
@@ -375,7 +418,7 @@ double MJP_score(int m,
   } else if (to_lowercase(generator) == "free_upper_tri") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A3(m, lambda); };
     lambda_base.resize(int(m*(m-1)/2));
-    lambda_base = pars.segment(0,int(m*(m-1)/2)).array().exp(); 
+    lambda_base = link_function_base(pars.segment(0,int(m*(m-1)/2)).array()); 
     A = make_A(m, lambda_base);
     Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
     Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal(); 
@@ -437,7 +480,7 @@ double MJP_score(int m,
     int k = z.cols();
     Eigen::VectorXd beta_covs = pars.tail(k);
     for(int i = 0; i < n; i++){
-      cov_time = exp( beta_covs.dot(z.row(i)) ) * u(i);
+      cov_time = link_function_covs( beta_covs.dot(z.row(i)) ) * u(i);
       start_idx = int(s1(i)-1);
       end_idx = int(s2(i)-1);
       Pt.setZero();
@@ -464,6 +507,8 @@ Eigen::MatrixXd MJP_predict(int m,
                             const Eigen::VectorXd& pars,
                             const Eigen::MatrixXd& z,
                             const string& generator = "gerlang",
+                            const string& link_type_base = "exp",
+                            const string& link_type_covs = "exp",
                             bool covs_bin = true,
                             const string& transient_dist_method = "pade",
                             double eps = 2^(-52)){
@@ -485,12 +530,30 @@ Eigen::MatrixXd MJP_predict(int m,
   int start_idx = 0;
   bool eigen_solver_good = true;
   
+  /* Determine which link to use */
+  std::function<Eigen::ArrayXd(const Eigen::ArrayXd&)> link_function_base;
+  if (link_type_base == "exp") {
+    link_function_base = exp_vec;
+  } else if (link_type_base == "softplus") {
+    link_function_base = soft_plus_vec;
+  } else if (link_type_base == "square") {
+    link_function_base = square_vec;
+  }
+  std::function<double(const double&)> link_function_covs;
+  if (link_type_covs == "exp") {
+    link_function_covs = exp_double;
+  } else if (link_type_covs == "softplus") {
+    link_function_covs = soft_plus_double;
+  } else if (link_type_covs == "square") {
+    link_function_covs = square_double;
+  }
+  
   /* Determine which parameterization to use */
   std::function<Eigen::MatrixXd(int, const Eigen::VectorXd&)> make_A;
   if (to_lowercase(generator) == "gerlang") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A1(m, lambda); };
     lambda_base.resize(int(m-1));
-    lambda_base = pars.segment(0,m-1).array().exp(); 
+    lambda_base = link_function_base(pars.segment(0,m-1).array()); 
     U = eigenspace_U(m, lambda_base);
     U_inv = eigenspace_U_inv(m, lambda_base);
     A = make_A(m, lambda_base);
@@ -500,7 +563,7 @@ Eigen::MatrixXd MJP_predict(int m,
   } else if (to_lowercase(generator) == "gerlang_relax") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A2(m, lambda); };
     lambda_base.resize(int(m-1));
-    lambda_base = pars.segment(0,m-1).array().exp(); 
+    lambda_base = link_function_base(pars.segment(0,m-1).array()); 
     A = make_A(m, lambda_base);
     Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
     Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal(); 
@@ -512,7 +575,7 @@ Eigen::MatrixXd MJP_predict(int m,
   } else if (to_lowercase(generator) == "free_upper_tri") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A3(m, lambda); };
     lambda_base.resize(int(m*(m-1)/2));
-    lambda_base = pars.segment(0,int(m*(m-1)/2)).array().exp(); 
+    lambda_base = link_function_base(pars.segment(0,int(m*(m-1)/2)).array()); 
     A = make_A(m, lambda_base);
     Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
     Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal(); 
@@ -550,7 +613,7 @@ Eigen::MatrixXd MJP_predict(int m,
     int k = z.cols();
     Eigen::VectorXd beta_covs = pars.tail(k);
     for(int i = 0; i < n; i++){
-      cov_time = exp( beta_covs.dot(z.row(i)) ) * u(i);
+      cov_time = link_function_covs( beta_covs.dot(z.row(i)) ) * u(i);
       start_idx = int(s1(i)-1);
       Pt.setZero();
       Pt( start_idx) = 1 ;
