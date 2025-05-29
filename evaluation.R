@@ -4,9 +4,11 @@ rm(list = ls()) #clear memory
 library(Rcpp)
 library(RcppEigen)
 sourceCpp("FUNCS_MJP_with_eigen.cpp")
-pred_list = readRDS("results/model_predictions_V2.Rdata")
+pred_list = readRDS("results/model_predictions_V3.Rdata")
 pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] )/2#+ pred_list[["empirical_dist_corr"]])/3
-pred_list[["ensemble2"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_corr"]])/3
+pred_list[["ensemble2"]] =(pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/2
+pred_list[["ensemble3"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/3
+
 #logs = read.csv("results/log_score.csv")
 #rps = read.csv("results/rps_score.csv")
 #brier = read.csv("results/brier_score.csv")
@@ -37,7 +39,7 @@ rownames(log_err) = names(pred_list)
 rownames(RPS_err) = names(pred_list)
 rownames(Brier_e) = names(pred_list)
 errs = cbind(rowMeans(RPS_err),rowMeans(log_err),rowMeans(Brier_e))
-
+errs
 #Errors in link function combinations
 link_combinations <- gsub(".*?(exp|softplus|square)_(exp|softplus|square)_.*", "\\1_\\2", rownames(errs[1:54,]))
 rps_values <- errs[1:54, 1]
@@ -515,9 +517,12 @@ reliability_plot = function(Cq, CqCI, quantiles ){
 }
 
 
-pred_list = readRDS("results/model_predictions.Rdata")
-pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_all"]] )/2
-nams = c("empirical_dist_corr","olr_cov", "free_upper_tri_TRUE_all", "ensemble")
+pred_list = readRDS("results/model_predictions_V3.Rdata")
+pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] )/2#+ pred_list[["empirical_dist_corr"]])/3
+pred_list[["ensemble2"]] =(pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/2
+pred_list[["ensemble3"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/3
+#pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_all"]] )/2
+nams = c("empirical_dist_smart","olr_cov", "free_upper_tri_TRUE_softplus_softplus_all", "ensemble2")
 for(i in 1:length(nams)){
   obs = pred_list[["obs"]]
   OBS = apply(obs, 1, which.max)
@@ -659,3 +664,84 @@ ggplot(combined_data, aes(x = par, y = val, color = group)) +
   ) + 
   guides(color = guide_legend(title = "", ncol = 1))
 dev.off()
+
+
+################################################
+### TESTING SENSITIVITY ON INITIAL CONDITION ###
+################################################
+
+rm(list = ls()) #clear memory
+d = read.csv("defect_data.csv")
+states <- c(1,2,3,4,5)
+m <- length(states) 
+track <- unique(d$Track)
+exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
+
+library(MASS)
+library(Rcpp)
+library(RcppEigen)
+sourceCpp("FUNCS_MJP_with_eigen.cpp")
+library(TMB)
+compile("FUNCS_MJP_with_TMB.cpp")
+dyn.load(dynlib("FUNCS_MJP_with_TMB"))
+
+library(lhs)
+N <- 5
+npar <- 25
+set.seed(123)
+initial_points <- randomLHS(N, npar)
+
+gen = "free_upper_tri"; covslink = "softplus"; cov = T; log_bin = T; rps_bin = T; brier_bin = T
+results <- vector("list", N)
+
+for (i in 1:N) {
+  init <- initial_points[i, ]
+  time_taken <- system.time(
+    opt_res <- tryCatch(
+      optim( par = init, fn = MJP_score, m = m, s1 = d$s1, s2 = d$s2, u = d$t, z = as.matrix(d[,exo.cols]), generator = gen, link_type_base = covslink, link_type_covs = covslink, covs_bin = cov, likelihood_bin = log_bin, rps_bin = rps_bin, brier_bin = brier_bin, transient_dist_method = "pade", method = "BFGS", control = list(maxit = 1000)),
+      error = function(e) NULL
+    )
+  )
+  if (!is.null(opt_res)) {results[[i]] <- list(par = opt_res$par,value = opt_res$value,convergence = opt_res$convergence,counts = opt_res$counts,time = time_taken[["elapsed"]])} 
+  else {results[[i]] <- list(par = rep(NA, npar),value = NA,convergence = NA,counts = NA,time = NA)}
+}
+df <- do.call(rbind, lapply(results, function(res) {
+  data.frame(
+    t(res$par),
+    objective = res$value,
+    convergence = res$convergence,
+    time = res$time
+  )
+}))
+
+library(dplyr)
+library(ggplot2)
+library(cluster)
+
+summary(df)
+
+# Clustering of parameter estimates
+param_matrix <- as.matrix(df[, !(names(df) %in% c("objective", "convergence","time"))])
+k <- 3  # Adjust number of clusters as needed
+clust <- kmeans(param_matrix, centers = k)
+df$cluster <- factor(clust$cluster)
+
+ggplot(df, aes(x = objective)) +
+  geom_histogram(bins = 40, fill = "steelblue") +
+  theme_minimal() +
+  labs(title = "Distribution of Final Objective Values")
+
+ggplot(df, aes(x = cluster, y = objective)) +
+  geom_boxplot() +
+  theme_minimal()
+
+
+
+
+
+
+
+
+
+
+
