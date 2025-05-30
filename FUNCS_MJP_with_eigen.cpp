@@ -511,10 +511,11 @@ Eigen::MatrixXd MJP_predict(int m,
                             const string& link_type_covs = "exp",
                             bool covs_bin = true,
                             const string& transient_dist_method = "pade",
-                            double eps = 2^(-52)){
-  
+                            double eps = 2^(-52), 
+                            bool warping = false){
+
   //Rcpp::Rcout << pars << std::endl;
-  
+
   /* Initialization */
   int n = u.size();
   Eigen::VectorXd lambda_base;
@@ -529,7 +530,7 @@ Eigen::MatrixXd MJP_predict(int m,
   double cov_time = 0;
   int start_idx = 0;
   bool eigen_solver_good = true;
-  
+
   /* Determine which link to use */
   std::function<Eigen::ArrayXd(const Eigen::ArrayXd&)> link_function_base;
   if (link_type_base == "exp") {
@@ -547,45 +548,45 @@ Eigen::MatrixXd MJP_predict(int m,
   } else if (link_type_covs == "square") {
     link_function_covs = square_double;
   }
-  
+
   /* Determine which parameterization to use */
   std::function<Eigen::MatrixXd(int, const Eigen::VectorXd&)> make_A;
   if (to_lowercase(generator) == "gerlang") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A1(m, lambda); };
     lambda_base.resize(int(m-1));
-    lambda_base = link_function_base(pars.segment(0,m-1).array()); 
+    lambda_base = link_function_base(pars.segment(0,m-1).array());
     U = eigenspace_U(m, lambda_base);
     U_inv = eigenspace_U_inv(m, lambda_base);
     A = make_A(m, lambda_base);
     for(int i; i < (m-1); i++){D(i,i) = -lambda_base(i); }
-    bool distinct_rates = are_rates_distinct(m, lambda_base, 0.00000001); 
+    bool distinct_rates = are_rates_distinct(m, lambda_base, 0.00000001);
     if (!distinct_rates) {eigen_solver_good = false;}
   } else if (to_lowercase(generator) == "gerlang_relax") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A2(m, lambda); };
     lambda_base.resize(int(m-1));
-    lambda_base = link_function_base(pars.segment(0,m-1).array()); 
+    lambda_base = link_function_base(pars.segment(0,m-1).array());
     A = make_A(m, lambda_base);
     Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
-    Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal(); 
-    Eigen::MatrixXcd U_complex = eigensolver.eigenvectors(); 
+    Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal();
+    Eigen::MatrixXcd U_complex = eigensolver.eigenvectors();
     D = D_complex.real();
-    U = U_complex.real(); 
+    U = U_complex.real();
     U_inv = U.inverse();
     if (eigensolver.info() != Eigen::Success) {eigen_solver_good = false;}
   } else if (to_lowercase(generator) == "free_upper_tri") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A3(m, lambda); };
     lambda_base.resize(int(m*(m-1)/2));
-    lambda_base = link_function_base(pars.segment(0,int(m*(m-1)/2)).array()); 
+    lambda_base = link_function_base(pars.segment(0,int(m*(m-1)/2)).array());
     A = make_A(m, lambda_base);
     Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
-    Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal(); 
-    Eigen::MatrixXcd U_complex = eigensolver.eigenvectors(); 
+    Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal();
+    Eigen::MatrixXcd U_complex = eigensolver.eigenvectors();
     D = D_complex.real();
-    U = U_complex.real(); 
+    U = U_complex.real();
     U_inv = U.inverse();
     if (eigensolver.info() != Eigen::Success) {eigen_solver_good = false;}
   }
-  
+
   /* Determine how to calculate transient distribution */
   std::function<Eigen::MatrixXd(int, const Eigen::RowVectorXd&, const Eigen::MatrixXd&, double, const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&, double)> transient_dist;
   if (to_lowercase(transient_dist_method) == "uniformization") {
@@ -595,30 +596,81 @@ Eigen::MatrixXd MJP_predict(int m,
   } else if (to_lowercase(transient_dist_method) == "eigenvalue_decomp" && eigen_solver_good){
     //Rcpp::Rcout << "Using eigenvalue decomp." << std::endl;
     transient_dist = [](int m, const Eigen::RowVectorXd& Pt, const Eigen::MatrixXd& A, double eps, const Eigen::MatrixXd& U, const Eigen::MatrixXd& U_inv, const Eigen::MatrixXd& D, double cov_time) { return transient_dist_Eig(m, Pt, A, eps, U, U_inv, D, cov_time); };
-  } else { 
+  } else {
     transient_dist = [](int m, const Eigen::RowVectorXd& Pt, const Eigen::MatrixXd& A, double eps, const Eigen::MatrixXd& U, const Eigen::MatrixXd& U_inv, const Eigen::MatrixXd& D, double cov_time) { return transient_dist_Pade(m, Pt, A, eps, U, U_inv, D, cov_time); };
   }
-  
+
   /* Compute score */
   if (!covs_bin) { // Case: Covariates excluded
-    for(int i = 0; i < n; i++){
-      cov_time = u(i);
-      start_idx = int(s1(i)-1);
-      Pt.setZero();;
-      Pt(start_idx) = 1 ;
-      Ptu = transient_dist(m, Pt, A, eps, U, U_inv, D, cov_time);
-      solution.row(i) = Ptu;
+    if(!warping){
+      for(int i = 0; i < n; i++){
+        cov_time = u(i);
+        start_idx = int(s1(i)-1);
+        Pt.setZero();;
+        Pt(start_idx) = 1 ;
+        Ptu = transient_dist(m, Pt, A, eps, U, U_inv, D, cov_time);
+        solution.row(i) = Ptu;
+      } 
+    } else { // using warping
+      Eigen::VectorXd xii = pars.segment(lambda_base.size(), m-1);
+      Eigen::VectorXd xi = soft_plus_vec(xii);
+      for(int i = 0; i < n; i++){
+        start_idx = int(s1(i)-1);
+        Pt.setZero();
+        Pt(start_idx) = 1.0;
+        Eigen::VectorXd mu = Eigen::VectorXd::Zero(m);
+        int K = 500;
+        double delta = u(i) / double(K);
+        Eigen::RowVectorXd p = Pt;
+        for (int step = 0; step < K; ++step) {
+          for (int j = 0; j < m; ++j) mu(j) += delta * p(j);
+          p = (p + delta * (p * A)).eval();
+        }
+        double tau_eff = mu.head(m - 1).dot(xi);
+        Ptu = Pt;
+        for (int step = 0; step < K; ++step) {
+          Ptu = (Ptu + (tau_eff / K) * (Ptu * A)).eval();  // Euler over tau_eff
+        }
+        solution.row(i) = Ptu;
+      }
     }
   } else {  // Case: Covariates included
     int k = z.cols();
     Eigen::VectorXd beta_covs = pars.tail(k);
-    for(int i = 0; i < n; i++){
-      cov_time = link_function_covs( beta_covs.dot(z.row(i)) ) * u(i);
-      start_idx = int(s1(i)-1);
-      Pt.setZero();
-      Pt( start_idx) = 1 ;
-      Ptu = transient_dist(m, Pt, A, eps, U, U_inv, D, cov_time);
-      solution.row(i) = Ptu;
+    if(!warping){
+      for(int i = 0; i < n; i++){
+        cov_time = link_function_covs( beta_covs.dot(z.row(i)) ) * u(i);
+        start_idx = int(s1(i)-1);
+        Pt.setZero();
+        Pt( start_idx) = 1 ;
+        Ptu = transient_dist(m, Pt, A, eps, U, U_inv, D, cov_time);
+        solution.row(i) = Ptu;
+      }
+    } else { // using warping
+      Eigen::VectorXd xii = pars.segment(lambda_base.size(), m-1);
+      Eigen::VectorXd xi = soft_plus_vec(xii);
+      for(int i = 0; i < n; i++){
+        start_idx = int(s1(i)-1);
+        Pt.setZero();
+        Pt(start_idx) = 1.0;
+        
+        Eigen::VectorXd mu = Eigen::VectorXd::Zero(m);
+        int K = 500;
+        double delta = u(i) / double(K);
+        Eigen::RowVectorXd p = Pt;
+        for (int step = 0; step < K; ++step) {
+          for (int j = 0; j < m; ++j) mu(j) += delta * p(j);
+          p = (p + delta * (p * A)).eval();
+        }
+        double tau_deg = mu.head(m - 1).dot(xi);
+        double cov_scaling = link_function_covs(z.row(i).dot(beta_covs));
+        double tau_eff = tau_deg * cov_scaling;
+        Ptu = Pt;
+        for (int step = 0; step < K; ++step) {
+          Ptu = (Ptu + (tau_eff / K) * (Ptu * A)).eval();  // Euler over tau_eff
+        }
+        solution.row(i) = Ptu;
+      }
     }
   }
   return solution;
