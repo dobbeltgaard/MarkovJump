@@ -1,14 +1,6 @@
 #include <TMB.hpp>
 using namespace atomic;
 
-// template<class Type>
-// vector<Type> softplus(const vector<Type> &x) {
-//   vector<Type> res(x.size());
-//   for (int i = 0; i < x.size(); ++i) {
-//     res(i) = log(exp(x(i)) + 1); 
-//   }
-//   return res;
-// }
 
 template<class Type>
 vector<Type> softplus(const vector<Type>& v) {
@@ -100,37 +92,57 @@ Type rps_score(const vector<Type> &pred, const vector<Type> &obs) {
 }
 
 
+// template<class Type>
+// vector<Type> compute_conditional_sojourn(
+//     const matrix<Type>& A,
+//     int s1, int s2,
+//     Type tau,
+//     int K = 30)
+// {
+//   int m = A.rows();
+//   Type delta = tau / Type(K);
+//   matrix<Type> Ptau = atomic::expm(matrix<Type>(A * tau));
+//   Type denom = Ptau(s1, s2);
+//   vector<Type> mu(m);
+//   mu.setZero();
+// 
+//   Type safe_denom = denom + Type(1e-12);
+// 
+//   for (int k = 0; k < K; ++k) {
+//     Type t = delta * Type(k);
+//     matrix<Type> At = atomic::expm(matrix<Type>(A * t));
+//     matrix<Type> Atau_t = atomic::expm( matrix<Type> (A * (tau - t)));
+// 
+//     for (int j = 0; j < m; ++j) {
+//       matrix<Type> Ej(m, m);
+//       Ej.setZero();
+//       Ej(j, j) = Type(1.0);
+//       matrix<Type> W = At * Ej * Atau_t;
+//       mu(j) += W(s1, s2) * delta;
+//     }
+//   }
+// 
+//   mu /= safe_denom;
+//   return mu;
+// }
+
+
 template<class Type>
-vector<Type> compute_conditional_sojourn(
-    const matrix<Type>& A,
-    int s1, int s2,
-    Type tau,
-    int K = 30)
-{
-  int m = A.rows();
-  Type delta = tau / Type(K);
-  matrix<Type> Ptau = atomic::expm(matrix<Type>(A * tau));
-  Type denom = Ptau(s1, s2);
+vector<Type> expected_sojourn(int m, Type u, int s1, matrix<Type> A, Type dt = Type(0.005)) {
   vector<Type> mu(m);
   mu.setZero();
 
-  Type safe_denom = denom + Type(1e-12);
+  vector<Type> p(m);
+  p.setZero();
+  p(s1) = Type(1.0);
+  matrix<Type> At = A.transpose();
 
+  int K = CppAD::Integer(u / dt);
   for (int k = 0; k < K; ++k) {
-    Type t = delta * Type(k);
-    matrix<Type> At = atomic::expm(matrix<Type>(A * t));
-    matrix<Type> Atau_t = atomic::expm( matrix<Type> (A * (tau - t)));
-
-    for (int j = 0; j < m; ++j) {
-      matrix<Type> Ej(m, m);
-      Ej.setZero();
-      Ej(j, j) = Type(1.0);
-      matrix<Type> W = At * Ej * Atau_t;
-      mu(j) += W(s1, s2) * delta;
-    }
+    mu += p;
+    p += dt * (At*p);
   }
-
-  mu /= safe_denom;
+  mu *= dt;
   return mu;
 }
 
@@ -145,6 +157,9 @@ Type objective_function<Type>::operator() () {
   DATA_INTEGER(m);
   DATA_INTEGER(generator_type); // 0=A1, 1=A2, 2=A3
   DATA_INTEGER(cov_type);       // 0=no covs, 1=covs
+  DATA_INTEGER(use_log_score);
+  DATA_INTEGER(use_rps_score);
+  DATA_INTEGER(use_brier_score);
   PARAMETER_VECTOR(theta);
   int n = s1.size();
   
@@ -168,8 +183,10 @@ Type objective_function<Type>::operator() () {
     error("Invalid generator_type");
   }
   
-  vector<Type> xii = theta.segment(lambda_len, m-1); 
-  vector<Type> xi = softplus(xii);
+  vector<Type> xii = theta.segment(lambda_len, m - 1);
+  vector<Type> xi(m);
+  xi.setOnes();                           // initialize all to 1
+  xi.head(m - 1) = softplus(xii);         // overwrite first m - 1 entries
   
   if (cov_type == 0) {
     for (int i = 0; i < n; ++i) {
@@ -178,18 +195,19 @@ Type objective_function<Type>::operator() () {
       int end   = CppAD::Integer(s2(i)) - 1;
       obs(end)  = Type(1.0);
       
-      vector<Type> mu=compute_conditional_sojourn(A, start, end, u(i));  // correct
+      vector<Type> mu = expected_sojourn(m, u(i), start, A);
+      //vector<Type> mu=compute_conditional_sojourn(A, start, end, u(i));  // correct
       Type tau_eff = 0.0; 
       for (int j = 0; j < xi.size(); ++j) {tau_eff += mu(j) * xi(j);} // dot product
       
       matrix<Type> tpm = atomic::expm( matrix<Type>(A*tau_eff) ); 
       vector<Type> pred = tpm.row(start).transpose();
-      total_score += log_score(pred, obs);
-      total_score += brier_score(pred, obs);
-      total_score += rps_score(pred, obs);
+      if (use_log_score) { total_score += log_score(pred, obs);}
+      if (use_brier_score) {total_score += brier_score(pred, obs);}
+      if (use_rps_score) {total_score += rps_score(pred, obs);}
     }
   } else if (cov_type == 1) {
-    vector<Type> theta_cov = theta.segment(lambda_len + xi.size(), z.cols());
+    vector<Type> theta_cov = theta.segment(lambda_len + xii.size(), z.cols());
     for (int i = 0; i < n; ++i) {
       vector<Type> obs(m); obs.setZero();
       int start = CppAD::Integer(s1(i)) - 1;
@@ -197,16 +215,17 @@ Type objective_function<Type>::operator() () {
       Type cov_linpred = 0.0;
       for (int j = 0; j < z.cols(); ++j) {cov_linpred += z(i, j) * theta_cov(j);}
       obs(end)  = Type(1.0);
-      vector<Type> mu=compute_conditional_sojourn(A, start, end, u(i));  // correct
-      Type tau_deg = 0.0; 
-      for (int j = 0; j < xi.size(); ++j) {tau_deg += mu(j) * xi(j);} // dot product
+      //vector<Type> mu=compute_conditional_sojourn(A, start, end, u(i));  // correct
+      vector<Type> mu = expected_sojourn(m, u(i), start, A);
+      Type tau_eff = 0.0; 
+      for (int j = 0; j < xi.size(); ++j) {tau_eff += mu(j) * xi(j);} // dot product
       Type cov_scaling = log(1 + exp(cov_linpred));  // softplus
-      Type tau_eff = cov_scaling * tau_deg;  // final time warp
+      tau_eff *= cov_scaling;  // final time warp
       matrix<Type> tpm = atomic::expm( matrix<Type>(A*tau_eff) );
       vector<Type> pred = tpm.row(start).transpose();
-      total_score += log_score(pred, obs);
-      total_score += brier_score(pred, obs);
-      total_score += rps_score(pred, obs);
+      if (use_log_score) { total_score += log_score(pred, obs);}
+      if (use_brier_score) {total_score += brier_score(pred, obs);}
+      if (use_rps_score) {total_score += rps_score(pred, obs);}
     }
   }
   return total_score/ Type(n);

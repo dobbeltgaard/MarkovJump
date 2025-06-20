@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <iostream>
 
-
 #include <cmath>
 #include <boost/math/special_functions/gamma.hpp>
 #include <boost/math/distributions/poisson.hpp>
@@ -500,6 +499,21 @@ double MJP_score(int m,
 /* FUNCTION: Forecast for Markov jump process  */
 /* ******************************************* */
 
+
+
+Eigen::RowVectorXd expected_sojourn(int m, double u, Eigen::RowVectorXd p, Eigen::MatrixXd A, double dt = 0.005) {
+  Eigen::RowVectorXd mu = Eigen::RowVectorXd::Zero(m);
+  int K = static_cast<int>(u / dt);
+  for (int k = 0; k < K; k++) {
+    mu += p;
+    p += dt * (p * A).eval();
+  }
+  mu *= dt;
+  return mu;
+}
+
+
+
 // [[Rcpp::export]]
 Eigen::MatrixXd MJP_predict(int m,
                             const Eigen::VectorXd& s1,
@@ -612,25 +626,18 @@ Eigen::MatrixXd MJP_predict(int m,
         solution.row(i) = Ptu;
       } 
     } else { // using warping
-      Eigen::VectorXd xii = pars.segment(lambda_base.size(), m-1);
-      Eigen::VectorXd xi = soft_plus_vec(xii);
+      Eigen::VectorXd xii = pars.segment(lambda_base.size(), m - 1);
+      Eigen::VectorXd xi = Eigen::VectorXd::Ones(m);  // initialize with 1s
+      xi.head(m - 1) = soft_plus_vec(xii);            // overwrite first m-1 entries
       for(int i = 0; i < n; i++){
         start_idx = int(s1(i)-1);
         Pt.setZero();
         Pt(start_idx) = 1.0;
-        Eigen::VectorXd mu = Eigen::VectorXd::Zero(m);
-        int K = 500;
-        double delta = u(i) / double(K);
-        Eigen::RowVectorXd p = Pt;
-        for (int step = 0; step < K; ++step) {
-          for (int j = 0; j < m; ++j) mu(j) += delta * p(j);
-          p = (p + delta * (p * A)).eval();
-        }
-        double tau_eff = mu.head(m - 1).dot(xi);
-        Ptu = Pt;
-        for (int step = 0; step < K; ++step) {
-          Ptu = (Ptu + (tau_eff / K) * (Ptu * A)).eval();  // Euler over tau_eff
-        }
+        Eigen::RowVectorXd mu = expected_sojourn(m, u(i), Pt, A);
+        double tau_eff = 0;
+        for (int j = 0; j < m; ++j) tau_eff += mu(j) * xi(j);
+        cov_time = tau_eff; 
+        Ptu = transient_dist(m, Pt, A, eps, U, U_inv, D, cov_time);
         solution.row(i) = Ptu;
       }
     }
@@ -647,28 +654,20 @@ Eigen::MatrixXd MJP_predict(int m,
         solution.row(i) = Ptu;
       }
     } else { // using warping
-      Eigen::VectorXd xii = pars.segment(lambda_base.size(), m-1);
-      Eigen::VectorXd xi = soft_plus_vec(xii);
+      Eigen::VectorXd xii = pars.segment(lambda_base.size(), m - 1);
+      Eigen::VectorXd xi = Eigen::VectorXd::Ones(m);  // initialize with 1s
+      xi.head(m - 1) = soft_plus_vec(xii);            // overwrite first m-1 entries
       for(int i = 0; i < n; i++){
         start_idx = int(s1(i)-1);
         Pt.setZero();
         Pt(start_idx) = 1.0;
         
-        Eigen::VectorXd mu = Eigen::VectorXd::Zero(m);
-        int K = 500;
-        double delta = u(i) / double(K);
-        Eigen::RowVectorXd p = Pt;
-        for (int step = 0; step < K; ++step) {
-          for (int j = 0; j < m; ++j) mu(j) += delta * p(j);
-          p = (p + delta * (p * A)).eval();
-        }
-        double tau_deg = mu.head(m - 1).dot(xi);
-        double cov_scaling = link_function_covs(z.row(i).dot(beta_covs));
-        double tau_eff = tau_deg * cov_scaling;
-        Ptu = Pt;
-        for (int step = 0; step < K; ++step) {
-          Ptu = (Ptu + (tau_eff / K) * (Ptu * A)).eval();  // Euler over tau_eff
-        }
+        Eigen::RowVectorXd mu = expected_sojourn(m, u(i), Pt, A);
+        double tau_eff = 0;
+        for (int j = 0; j < m; ++j) tau_eff += mu(j) * xi(j);
+        cov_time = link_function_covs( beta_covs.dot(z.row(i)) ) * tau_eff; 
+        
+        Ptu = transient_dist(m, Pt, A, eps, U, U_inv, D, cov_time);
         solution.row(i) = Ptu;
       }
     }
@@ -767,71 +766,5 @@ Eigen::VectorXd BrierScore_vectors(int m, const Eigen::MatrixXd& pred, const Eig
   }
   return res;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

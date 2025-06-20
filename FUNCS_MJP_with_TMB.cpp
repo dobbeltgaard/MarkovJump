@@ -109,6 +109,9 @@ Type objective_function<Type>::operator() () {
   DATA_INTEGER(m);
   DATA_INTEGER(generator_type); // 0=A1, 1=A2, 2=A3
   DATA_INTEGER(cov_type);       // 0=no covs, 1=covs
+  DATA_INTEGER(use_log_score);
+  DATA_INTEGER(use_rps_score);
+  DATA_INTEGER(use_brier_score);
   PARAMETER_VECTOR(theta);
   int n = s1.size();
   
@@ -138,9 +141,9 @@ Type objective_function<Type>::operator() () {
       obs(end)  = Type(1.0);
       matrix<Type> tpm = atomic::expm( matrix<Type>(A*u(i)) ); 
       vector<Type> pred = tpm.row(start).transpose();
-      total_score += log_score(pred, obs);
-      total_score += brier_score(pred, obs);
-      total_score += rps_score(pred, obs);
+      if (use_log_score) { total_score += log_score(pred, obs);}
+      if (use_brier_score) {total_score += brier_score(pred, obs);}
+      if (use_rps_score) {total_score += rps_score(pred, obs);}
     }
   } else if (cov_type == 1) {
     int theta_cov_start = (generator_type == 2) ? m * (m - 1) / 2 : m - 1;
@@ -155,9 +158,9 @@ Type objective_function<Type>::operator() () {
       obs(end)  = Type(1.0);
       matrix<Type> tpm = atomic::expm( matrix<Type>(A*cov_time) ); 
       vector<Type> pred = tpm.row(start).transpose();  
-      total_score += log_score(pred, obs);
-      total_score += brier_score(pred, obs);
-      total_score += rps_score(pred, obs);
+      if (use_log_score) { total_score += log_score(pred, obs);}
+      if (use_brier_score) {total_score += brier_score(pred, obs);}
+      if (use_rps_score) {total_score += rps_score(pred, obs);}
     }
   }
   return total_score/ Type(n);
