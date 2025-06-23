@@ -1,5 +1,4 @@
 #include <TMB.hpp>
-using namespace atomic;
 
 // template<class Type>
 // vector<Type> softplus(const vector<Type> &x) {

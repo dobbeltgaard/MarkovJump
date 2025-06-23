@@ -102,6 +102,7 @@ for(i in 1:k){
       }
     for(gen in parameterizations){
       if(gen == "gerlang"){generator_type = 0; beta_base = runif(m-1,0,1); }
+      if(gen == "gerlang_relax"){generator_type = 1; beta_base = runif(m-1,0,1); }
       if(gen == "free_upper_tri"){generator_type = 2; beta_base = runif(m*(m-1)/2,0,1); }
       if(gen == "bidiagonal"){generator_type = 3; beta_base = runif(2*m-3,0,1); }
       if(gen == "tridiagonal"){generator_type = 4; beta_base = runif(3*m-6,0,1); }
@@ -326,6 +327,25 @@ pred6 = MJP_predict(m = m, s1 = d$s1, u = d$t, pars = foo$par , z = as.matrix(d[
 err_mjp6 = rps_vectors(m, pred6, obs)
 mean(err_mjp6) 
 mean(logscore_vectors(m, (pred6+pred2)/2, obs)) 
+
+
+
+#TEST
+compile("FUNCS_MJP_with_TMB.cpp")
+dyn.load(dynlib("FUNCS_MJP_with_TMB"))
+data <- list(s1 = d$s1,s2 = d$s2,u = d$t,z = as.matrix(d[, exo.cols]),m = m,generator_type = as.integer(0),cov_type = as.integer(F), use_log_score = 0,use_rps_score = 1, use_brier_score = 0)
+beta = runif(m-1 ,0,2); parameters <- list(theta = beta)
+l <- MakeADFun(data = data, parameters = parameters, DLL = "FUNCS_MJP_with_TMB", hessian=T)
+foo <- nlminb(l$par, l$fn, l$gr, l$he)
+
+
+compile("FUNCS_MJP_with_TMB_warped.cpp")
+dyn.load(dynlib("FUNCS_MJP_with_TMB_warped"))
+data <- list(s1 = d$s1,s2 = d$s2,u = d$t,z = as.matrix(d[, exo.cols]),m = m,generator_type = as.integer(0),cov_type = as.integer(F), use_log_score = 0,use_rps_score = 1, use_brier_score = 0)
+beta = runif(m-1 +m-1 ,0,2); parameters <- list(theta = beta)
+l <- MakeADFun(data = data, parameters = parameters, DLL = "FUNCS_MJP_with_TMB_warped", hessian=T)
+foo <- nlminb(l$par, l$fn, l$gr, l$he)
+
 
 
 
