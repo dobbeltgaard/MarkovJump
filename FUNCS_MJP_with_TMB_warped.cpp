@@ -59,6 +59,30 @@ matrix<Type> make_A3(int m, const vector<Type> &lambda) {
   return A;
 }
 
+// Upper bidiagonal (make_A4)
+template<class Type>
+matrix<Type> make_A4(int m, const vector<Type> &lambda) {
+  matrix<Type> A(m, m);
+  A.setZero();
+  for (int i = 0; i < m - 1; ++i) {A(i, i + 1) = lambda(i);}
+  for (int i = 0; i < m-2; ++i) {A(i, i + 2) = lambda(m-1+i);}
+  for (int i = 0; i < m; ++i) {A(i, i) = -A.row(i).sum();}
+  return A;
+}
+
+// Upper bidiagonal (make_A5)
+template<class Type>
+matrix<Type> make_A5(int m, const vector<Type> &lambda) {
+  matrix<Type> A(m, m);
+  A.setZero();
+  for (int i = 0; i < m - 1; ++i) {A(i, i + 1) = lambda(i);}
+  for (int i = 0; i < m-2; ++i) {A(i, i + 2) = lambda(m-1+i);}
+  for (int i = 0; i < m-3; ++i) {A(i, i + 3) = lambda(2*m-3+i);}
+  for (int i = 0; i < m; ++i) {A(i, i) = -A.row(i).sum();}
+  return A;
+}
+
+
 
 // Log-score
 template<class Type>
@@ -165,20 +189,32 @@ Type objective_function<Type>::operator() () {
   
   Type total_score = 0.0;
   matrix<Type> A(m, m);
-  int lambda_len = (generator_type == 2) ? m * (m - 1) / 2 : m - 1;
-  
+  int lambda_len;
   if (generator_type == 0) {
+    lambda_len = m-1;
     vector<Type> theta_base = theta.segment(0, lambda_len); 
     vector<Type> lambda = softplus(theta_base);
     A = make_A1(m, lambda);
   } else if (generator_type == 1) {
-    vector<Type> theta_base = theta.segment(0, lambda_len); 
+    lambda_len = m-1;
+    vector<Type> theta_base = theta.segment(0, lambda_len);
     vector<Type> lambda = softplus(theta_base);
     A = make_A2(m, lambda);
   } else if (generator_type == 2) {
-    vector<Type> theta_base = theta.segment(0, lambda_len); 
+    lambda_len = int(m * (m - 1) / 2);
+    vector<Type> theta_base = theta.segment(0, lambda_len);
     vector<Type> lambda = softplus(theta_base);
     A = make_A3(m, lambda);
+  } else if (generator_type == 3) {
+    lambda_len = int(2*m-3);
+    vector<Type> theta_base = theta.segment(0, lambda_len); 
+    vector<Type> lambda = softplus(theta_base);
+    A = make_A4(m, lambda);
+  } else if (generator_type == 4) {
+    lambda_len = int(3*m-6);
+    vector<Type> theta_base = theta.segment(0, lambda_len);
+    vector<Type> lambda = softplus(theta_base);
+    A = make_A5(m, lambda);
   } else {
     error("Invalid generator_type");
   }

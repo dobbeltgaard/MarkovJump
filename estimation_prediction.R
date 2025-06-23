@@ -64,7 +64,7 @@ rand.idx <- sample(x = 1:NROW(d),size = NROW(d),replace = F)
 PREDS = list()
 PARS = list()
 log_bin = F; rps_bin = F; brier_bin = F;
-parameterizations = c("gerlang", "gerlang_relax", "free_upper_tri") 
+parameterizations = c("gerlang", "free_upper_tri","bidiagonal", "tridiagonal") #c("gerlang", "gerlang_relax", "free_upper_tri") 
 scores = c("log", "rps", "all")
 links = c("softplus")#c("exp", "softplus", "square")
 baselines = c("uniform", "persistence", "empirical_dist", "empirical_dist_corr","empirical_dist_smart" , "olr", "olr_cov","opr", "opr_cov","ocllr","ocllr_cov", "obs")
@@ -102,8 +102,9 @@ for(i in 1:k){
       }
     for(gen in parameterizations){
       if(gen == "gerlang"){generator_type = 0; beta_base = runif(m-1,0,1); }
-      if(gen == "gerlang_relax"){generator_type = 1; beta_base = runif(m-1,0,1); }
       if(gen == "free_upper_tri"){generator_type = 2; beta_base = runif(m*(m-1)/2,0,1); }
+      if(gen == "bidiagonal"){generator_type = 3; beta_base = runif(2*m-3,0,1); }
+      if(gen == "tridiagonal"){generator_type = 4; beta_base = runif(3*m-6,0,1); }
       for(cov in c(F, T)){
         if(cov ){ beta = c(beta_base, xi, runif(length(exo.cols), 0,1)); } 
         if(!cov){ beta = c(beta_base,xi); }
@@ -270,9 +271,11 @@ mean(err_mjp3) #0.43352
 exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
 compile("FUNCS_MJP_with_TMB_warped.cpp")
 dyn.load(dynlib("FUNCS_MJP_with_TMB_warped"))
-data <- list(s1 = d$s1,s2 = d$s2,u = d$t,z = as.matrix(d[, exo.cols]),m = m,generator_type = as.integer(2),cov_type = as.integer(T), use_log_score = 1,use_rps_score = 0, use_brier_score = 0)
+data <- list(s1 = d$s1,s2 = d$s2,u = d$t,z = as.matrix(d[, exo.cols]),m = m,generator_type = as.integer(2),cov_type = as.integer(T), use_log_score = 0,use_rps_score = 1, use_brier_score = 0)
 beta = runif(m*(m-1)/2 + m-1 + length(exo.cols),0,2); parameters <- list(theta = beta)
 l <- MakeADFun(data = data, parameters = parameters, DLL = "FUNCS_MJP_with_TMB_warped", hessian=T)
+#foo <- optim(par = l$par, fn = l$fn, gr = l$gr, method = "BFGS", control = list(maxit = 1000))
+
 foo <- nlminb(l$par, l$fn, l$gr, l$he)
 pred4 = MJP_predict(m = m, s1 = d$s1, u = d$t, pars = foo$par , z = as.matrix(d[,exo.cols]), generator = "free_upper_tri", link_type_base = "softplus", link_type_covs = "softplus", covs_bin = T, transient_dist_method = "pade", warping=T)
 err_mjp4 = rps_vectors(m, pred4, obs)
@@ -287,19 +290,50 @@ dyn.load(dynlib("FUNCS_MJP_with_TMB_warped"))
 data <- list(s1 = d$s1,s2 = d$s2,u = d$t,z = as.matrix(d[, exo.cols]),m = m,generator_type = as.integer(1),cov_type = as.integer(T), use_log_score = 1,use_rps_score = 1, use_brier_score = 0)
 beta = runif(m-1 + m-1 + length(exo.cols),0,2); parameters <- list(theta = beta)
 l <- MakeADFun(data = data, parameters = parameters, DLL = "FUNCS_MJP_with_TMB_warped", hessian=T)
-foo <- nlminb(l$par, l$fn, l$gr, l$he)
+
+foo <- optim(par = l$par, fn = l$fn, gr = l$gr, method = "BFGS", control = list(maxit = 1000))
+#foo <- nlminb(l$par, l$fn, l$gr, l$he)
 pred4 = MJP_predict(m = m, s1 = d$s1, u = d$t, pars = foo$par , z = as.matrix(d[,exo.cols]), generator = "gerlang_relax", link_type_base = "softplus", link_type_covs = "softplus", covs_bin = T, transient_dist_method = "pade", warping=T)
 err_mjp4 = rps_vectors(m, pred4, obs)
 mean(err_mjp4) #0.4166109 (when purely RPS optimized)
 mean(logscore_vectors(m, (pred4+pred2)/2, obs)) #1.017219 (when rps+log optimized) ( 1.619893 when only rps optimized)
 
 
+#MJP (A4+Covariates+warped)
+exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
+compile("FUNCS_MJP_with_TMB_warped.cpp")
+dyn.load(dynlib("FUNCS_MJP_with_TMB_warped"))
+data <- list(s1 = d$s1,s2 = d$s2,u = d$t,z = as.matrix(d[, exo.cols]),m = m,generator_type = as.integer(3),cov_type = as.integer(T), use_log_score = 1,use_rps_score = 1, use_brier_score = 0)
+beta = runif(2*m-3 + m-1 + length(exo.cols),0,2); parameters <- list(theta = beta)
+l <- MakeADFun(data = data, parameters = parameters, DLL = "FUNCS_MJP_with_TMB_warped", hessian=T)
+foo <- nlminb(l$par, l$fn, l$gr, l$he)
+pred5 = MJP_predict(m = m, s1 = d$s1, u = d$t, pars = foo$par , z = as.matrix(d[,exo.cols]), generator = "bidiagonal", link_type_base = "softplus", link_type_covs = "softplus", covs_bin = T, transient_dist_method = "pade", warping=T)
+err_mjp5 = rps_vectors(m, pred5, obs)
+mean(err_mjp5) 
+mean(logscore_vectors(m, (pred5+pred2)/2, obs)) 
+
+
+
+#MJP (A5+Covariates+warped)
+exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
+compile("FUNCS_MJP_with_TMB_warped.cpp")
+dyn.load(dynlib("FUNCS_MJP_with_TMB_warped"))
+data <- list(s1 = d$s1,s2 = d$s2,u = d$t,z = as.matrix(d[, exo.cols]),m = m,generator_type = as.integer(4),cov_type = as.integer(T), use_log_score = 0,use_rps_score = 1, use_brier_score = 0)
+beta = runif(3*m-6 + m-1 + length(exo.cols),0,2); parameters <- list(theta = beta)
+l <- MakeADFun(data = data, parameters = parameters, DLL = "FUNCS_MJP_with_TMB_warped", hessian=T)
+foo <- nlminb(l$par, l$fn, l$gr, l$he)
+pred6 = MJP_predict(m = m, s1 = d$s1, u = d$t, pars = foo$par , z = as.matrix(d[,exo.cols]), generator = "tridiagonal", link_type_base = "softplus", link_type_covs = "softplus", covs_bin = T, transient_dist_method = "pade", warping=T)
+err_mjp6 = rps_vectors(m, pred6, obs)
+mean(err_mjp6) 
+mean(logscore_vectors(m, (pred6+pred2)/2, obs)) 
+
+
 
 
 #test covariates (if all 5 are ok) yes thats better with linespeed as well
 #test if warping is necessary. Yes that is better with warping. However, warping is more sensitive to score choice than if no warping
-#test scoring (if rps + log S is ok). No, slightly worse than naive.
-#test conditional expectation of sojourn times
+#test scoring (if rps + log S is ok). No, slightly worse than naive in terms of RPS.
+#test conditional expectation of sojourn times. Very, very slow.
 
 
 #IDEA: Use cumulative link models as benchmark.

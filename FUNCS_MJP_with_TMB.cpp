@@ -22,12 +22,8 @@ template<class Type>
 matrix<Type> make_A1(int m, const vector<Type> &lambda) {
   matrix<Type> A(m, m);
   A.setZero();
-  for (int i = 0; i < m - 1; ++i) {
-    A(i, i + 1) = lambda(i);
-  }
-  for (int i = 0; i < m; ++i) {
-    A(i, i) = -A.row(i).sum();
-  }
+  for (int i = 0; i < m - 1; ++i) {A(i, i + 1) = lambda(i);  }
+  for (int i = 0; i < m; ++i) {A(i, i) = -A.row(i).sum(); }
   return A;
 }
 
@@ -43,9 +39,7 @@ matrix<Type> make_A2(int m, const vector<Type> &lambda) {
       }
     }
   }
-  for (int i = 0; i < m; ++i) {
-    A(i, i) = -A.row(i).sum();
-  }
+  for (int i = 0; i < m; ++i) {A(i, i) = -A.row(i).sum(); }
   return A;
 }
 
@@ -61,11 +55,33 @@ matrix<Type> make_A3(int m, const vector<Type> &lambda) {
       A(i, j) = lambda(count++);
     }
   }
-  for (int i = 0; i < m; ++i) {
-    A(i, i) = -A.row(i).sum();
-  }
+  for (int i = 0; i < m; ++i) {A(i, i) = -A.row(i).sum(); }
   return A;
 }
+
+// Upper bidiagonal (make_A4)
+template<class Type>
+matrix<Type> make_A4(int m, const vector<Type> &lambda) {
+  matrix<Type> A(m, m);
+  A.setZero();
+  for (int i = 0; i < m - 1; ++i) {A(i, i + 1) = lambda(i);}
+  for (int i = 0; i < m-2; ++i) {A(i, i + 2) = lambda(m-1+i);}
+  for (int i = 0; i < m; ++i) {A(i, i) = -A.row(i).sum();}
+  return A;
+}
+
+// Upper bidiagonal (make_A5)
+template<class Type>
+matrix<Type> make_A5(int m, const vector<Type> &lambda) {
+  matrix<Type> A(m, m);
+  A.setZero();
+  for (int i = 0; i < m - 1; ++i) {A(i, i + 1) = lambda(i);}
+  for (int i = 0; i < m-2; ++i) {A(i, i + 2) = lambda(m-1+i);}
+  for (int i = 0; i < m-3; ++i) {A(i, i + 3) = lambda(2*m-3+i);}
+  for (int i = 0; i < m; ++i) {A(i, i) = -A.row(i).sum();}
+  return A;
+}
+
 
 
 // Log-score
@@ -107,7 +123,7 @@ Type objective_function<Type>::operator() () {
   DATA_VECTOR(u);
   DATA_MATRIX(z);
   DATA_INTEGER(m);
-  DATA_INTEGER(generator_type); // 0=A1, 1=A2, 2=A3
+  DATA_INTEGER(generator_type); // 0=A1, 1=A2, 2=A3, ...
   DATA_INTEGER(cov_type);       // 0=no covs, 1=covs
   DATA_INTEGER(use_log_score);
   DATA_INTEGER(use_rps_score);
@@ -129,6 +145,14 @@ Type objective_function<Type>::operator() () {
     vector<Type> theta_base = theta.segment(0, m * (m - 1) / 2); 
     vector<Type> lambda = softplus(theta_base);
     A = make_A3(m, lambda);
+  } else if (generator_type == 3) {
+    vector<Type> theta_base = theta.segment(0, 2*m-3); 
+    vector<Type> lambda = softplus(theta_base);
+    A = make_A4(m, lambda);
+  } else if (generator_type == 4) {
+    vector<Type> theta_base = theta.segment(0, 3*m-6); 
+    vector<Type> lambda = softplus(theta_base);
+    A = make_A5(m, lambda);
   } else {
     error("Invalid generator_type");
   }

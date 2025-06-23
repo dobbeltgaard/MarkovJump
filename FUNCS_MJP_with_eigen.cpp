@@ -28,10 +28,8 @@ using namespace std;
 // [[Rcpp::export]]
 Eigen::MatrixXd make_A1(int m, const Eigen::VectorXd& lambda){
   Eigen::MatrixXd A = Eigen::MatrixXd::Zero(m, m); //init A
-  for(int i = 0; i < (m-1); i++){ //iterate through rows
-    A(i, i + 1) = lambda(i); //assign elements
-  }
-  A.diagonal() = -A.rowwise().sum(); //diag elements are equal to negative total rate of transmission
+  for(int i = 0; i < (m-1); i++){ A(i, i + 1) = lambda(i); }
+  A.diagonal() = -A.rowwise().sum();
   return A;
 }
 
@@ -66,6 +64,25 @@ Eigen::MatrixXd make_A3(int m, const Eigen::VectorXd& lambda) {
   A.diagonal() = -A.rowwise().sum();
   return A;
 }
+
+Eigen::MatrixXd make_A4(int m, const Eigen::VectorXd& lambda){
+  Eigen::MatrixXd A = Eigen::MatrixXd::Zero(m, m); //init A
+  for(int i = 0; i < (m-1); i++){ A(i, i + 1) = lambda(i); }
+  for(int i = 0; i < (m-2); i++){ A(i, i + 2) = lambda(i+m-1); }
+  A.diagonal() = -A.rowwise().sum();
+  return A;
+}
+
+
+Eigen::MatrixXd make_A5(int m, const Eigen::VectorXd& lambda){
+  Eigen::MatrixXd A = Eigen::MatrixXd::Zero(m, m); //init A
+  for(int i = 0; i < (m-1); i++){ A(i, i + 1) = lambda(i); }
+  for(int i = 0; i < (m-2); i++){ A(i, i + 2) = lambda(i+m-1); }
+  for(int i = 0; i < (m-3); i++){ A(i, i + 3) = lambda(i+2*m-3); }
+  A.diagonal() = -A.rowwise().sum();
+  return A;
+}
+
 
 
 /* ----------------------------------------- */
@@ -394,17 +411,17 @@ double MJP_score(int m,
   std::function<Eigen::MatrixXd(int, const Eigen::VectorXd&)> make_A;
   if (to_lowercase(generator) == "gerlang") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A1(m, lambda); };
-    lambda_base.resize(int(m-1));
+    //lambda_base.resize(int(m-1));
     lambda_base = link_function_base(pars.segment(0,m-1).array()); 
     U = eigenspace_U(m, lambda_base);
     U_inv = eigenspace_U_inv(m, lambda_base);
     A = make_A(m, lambda_base);
-    for(int i; i < (m-1); i++){D(i,i) = -lambda_base(i); }
+    for(int i = 0; i < (m-1); i++){D(i,i) = -lambda_base(i); }
     bool distinct_rates = are_rates_distinct(m, lambda_base, 0.00000001); 
     if (!distinct_rates) {eigen_solver_good = false;}
   } else if (to_lowercase(generator) == "gerlang_relax") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A2(m, lambda); };
-    lambda_base.resize(int(m-1));
+    //lambda_base.resize(int(m-1));
     lambda_base = link_function_base(pars.segment(0,m-1).array()); 
     A = make_A(m, lambda_base);
     Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
@@ -416,8 +433,32 @@ double MJP_score(int m,
     if (eigensolver.info() != Eigen::Success) {eigen_solver_good = false;}
   } else if (to_lowercase(generator) == "free_upper_tri") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A3(m, lambda); };
-    lambda_base.resize(int(m*(m-1)/2));
+    //lambda_base.resize(int(m*(m-1)/2));
     lambda_base = link_function_base(pars.segment(0,int(m*(m-1)/2)).array()); 
+    A = make_A(m, lambda_base);
+    Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
+    Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal(); 
+    Eigen::MatrixXcd U_complex = eigensolver.eigenvectors(); 
+    D = D_complex.real();
+    U = U_complex.real(); 
+    U_inv = U.inverse();
+    if (eigensolver.info() != Eigen::Success) {eigen_solver_good = false;}
+  } else if (to_lowercase(generator) == "bidiagonal") {
+    make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A4(m, lambda); };
+    //lambda_base.resize(int(2*m-3));
+    lambda_base = link_function_base(pars.segment(0,int(2*m-3)).array()); 
+    A = make_A(m, lambda_base);
+    Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
+    Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal(); 
+    Eigen::MatrixXcd U_complex = eigensolver.eigenvectors(); 
+    D = D_complex.real();
+    U = U_complex.real(); 
+    U_inv = U.inverse();
+    if (eigensolver.info() != Eigen::Success) {eigen_solver_good = false;}
+  } else if (to_lowercase(generator) == "tridiagonal") {
+    make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A5(m, lambda); };
+    //lambda_base.resize(int(3*m-6));
+    lambda_base = link_function_base(pars.segment(0,int(3*m-6)).array()); 
     A = make_A(m, lambda_base);
     Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
     Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal(); 
@@ -567,36 +608,60 @@ Eigen::MatrixXd MJP_predict(int m,
   std::function<Eigen::MatrixXd(int, const Eigen::VectorXd&)> make_A;
   if (to_lowercase(generator) == "gerlang") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A1(m, lambda); };
-    lambda_base.resize(int(m-1));
-    lambda_base = link_function_base(pars.segment(0,m-1).array());
+    //lambda_base.resize(int(m-1));
+    lambda_base = link_function_base(pars.segment(0,m-1).array()); 
     U = eigenspace_U(m, lambda_base);
     U_inv = eigenspace_U_inv(m, lambda_base);
     A = make_A(m, lambda_base);
-    for(int i; i < (m-1); i++){D(i,i) = -lambda_base(i); }
-    bool distinct_rates = are_rates_distinct(m, lambda_base, 0.00000001);
+    for(int i = 0; i < (m-1); i++){D(i,i) = -lambda_base(i); }
+    bool distinct_rates = are_rates_distinct(m, lambda_base, 0.00000001); 
     if (!distinct_rates) {eigen_solver_good = false;}
   } else if (to_lowercase(generator) == "gerlang_relax") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A2(m, lambda); };
-    lambda_base.resize(int(m-1));
-    lambda_base = link_function_base(pars.segment(0,m-1).array());
+    //lambda_base.resize(int(m-1));
+    lambda_base = link_function_base(pars.segment(0,m-1).array()); 
     A = make_A(m, lambda_base);
     Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
-    Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal();
-    Eigen::MatrixXcd U_complex = eigensolver.eigenvectors();
+    Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal(); 
+    Eigen::MatrixXcd U_complex = eigensolver.eigenvectors(); 
     D = D_complex.real();
-    U = U_complex.real();
+    U = U_complex.real(); 
     U_inv = U.inverse();
     if (eigensolver.info() != Eigen::Success) {eigen_solver_good = false;}
   } else if (to_lowercase(generator) == "free_upper_tri") {
     make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A3(m, lambda); };
-    lambda_base.resize(int(m*(m-1)/2));
-    lambda_base = link_function_base(pars.segment(0,int(m*(m-1)/2)).array());
+    //lambda_base.resize(int(m*(m-1)/2));
+    lambda_base = link_function_base(pars.segment(0,int(m*(m-1)/2)).array()); 
     A = make_A(m, lambda_base);
     Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
-    Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal();
-    Eigen::MatrixXcd U_complex = eigensolver.eigenvectors();
+    Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal(); 
+    Eigen::MatrixXcd U_complex = eigensolver.eigenvectors(); 
     D = D_complex.real();
-    U = U_complex.real();
+    U = U_complex.real(); 
+    U_inv = U.inverse();
+    if (eigensolver.info() != Eigen::Success) {eigen_solver_good = false;}
+  } else if (to_lowercase(generator) == "bidiagonal") {
+    make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A4(m, lambda); };
+    //lambda_base.resize(int(2*m-3));
+    lambda_base = link_function_base(pars.segment(0,int(2*m-3)).array()); 
+    A = make_A(m, lambda_base);
+    Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
+    Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal(); 
+    Eigen::MatrixXcd U_complex = eigensolver.eigenvectors(); 
+    D = D_complex.real();
+    U = U_complex.real(); 
+    U_inv = U.inverse();
+    if (eigensolver.info() != Eigen::Success) {eigen_solver_good = false;}
+  } else if (to_lowercase(generator) == "tridiagonal") {
+    make_A = [](int m, const Eigen::VectorXd& lambda) { return make_A5(m, lambda); };
+    //lambda_base.resize(int(3*m-6));
+    lambda_base = link_function_base(pars.segment(0,int(3*m-6)).array()); 
+    A = make_A(m, lambda_base);
+    Eigen::EigenSolver<Eigen::MatrixXd> eigensolver(A);
+    Eigen::MatrixXcd D_complex = eigensolver.eigenvalues().asDiagonal(); 
+    Eigen::MatrixXcd U_complex = eigensolver.eigenvectors(); 
+    D = D_complex.real();
+    U = U_complex.real(); 
     U_inv = U.inverse();
     if (eigensolver.info() != Eigen::Success) {eigen_solver_good = false;}
   }
