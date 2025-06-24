@@ -1,13 +1,5 @@
 #include <TMB.hpp>
 
-// template<class Type>
-// vector<Type> softplus(const vector<Type> &x) {
-//   vector<Type> res(x.size());
-//   for (int i = 0; i < x.size(); ++i) {
-//     res(i) = log(exp(x(i)) + 1); 
-//   }
-//   return res;
-// }
 
 template<class Type>
 vector<Type> softplus(const vector<Type>& v) {
