@@ -7,8 +7,7 @@
 #either by Padé, Uniformization, or eigenvalue decomposition.
 # - The user should be able to choose whether or not to include covariates.
 
-
-rm(list = ls()) #clear memory
+rm(list = ls()); gc()
 
 d = read.csv("defect_data.csv")
 states <- c(1,2,3,4,5)
@@ -16,30 +15,19 @@ m <- length(states)
 track <- unique(d$Track)
 exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
 
-library(MASS)
-library(Rcpp)
-library(RcppEigen)
+library(MASS); library(Rcpp); library(RcppEigen); library(TMB); #library(trust)
 sourceCpp("FUNCS_MJP_with_eigen.cpp")
+tmb_nam = "FUNCS_MJP_with_TMB"
+compile(paste0(tmb_nam, ".cpp"))
+dyn.load(dynlib(tmb_nam))
+warpings = c("warp")#c("no_warp","warp") 
+#compile("FUNCS_MJP_with_TMB.cpp"); #compile("FUNCS_MJP_with_TMB_warped.cpp")
 
-#library(TMB)
-#compile("FUNCS_MJP_with_TMB_warped.cpp")
-#dyn.load(dynlib("FUNCS_MJP_with_TMB_warped"))
-
-library(TMB)
-compile("FUNCS_MJP_with_TMB.cpp")
-compile("FUNCS_MJP_with_TMB_warped.cpp")
-
-
-library(trust)
-
-
-
-
-switch_model_dll <- function(to_load) {
-  other <- if (to_load == "FUNCS_MJP_with_TMB") "FUNCS_MJP_with_TMB_warped" else "FUNCS_MJP_with_TMB"
-  if (other %in% names(getLoadedDLLs())) dyn.unload(dynlib(other))
-  if (!(to_load %in% names(getLoadedDLLs()))) dyn.load(dynlib(to_load))
-}
+# switch_model_dll <- function(to_load) {
+#   other <- if (to_load == "FUNCS_MJP_with_TMB") "FUNCS_MJP_with_TMB_warped" else "FUNCS_MJP_with_TMB"
+#   if (other %in% names(getLoadedDLLs())) dyn.unload(dynlib(other))
+#   if (!(to_load %in% names(getLoadedDLLs()))) dyn.load(dynlib(to_load))
+# }
 
 
 ### EMPIRICAL DISTRIBUTION PREDICTORS ###
@@ -57,10 +45,41 @@ smart.empirical.pred = function(s1, s2){
   trans_matrix <- prop.table(trans_counts, margin = 1)  # normalize by row
   return(as.matrix(trans_matrix))
 }
+randomwalk.empirical <- function(s1, s2) {
+  trans_counts <- table(s1, s2)
+  states <- sort(unique(c(s1, s2)))
+  m <- length(states)
+  trans_matrix <- matrix(0, m, m)
+  
+  for (i in 1:(m-1)) {
+    stay <- ifelse(i %in% rownames(trans_counts), trans_counts[i, i], 0)
+    jump <- ifelse(i %in% rownames(trans_counts), trans_counts[i, i+1], 0)
+    total <- stay + jump
+    if (total > 0) {
+      trans_matrix[i, i] <- stay / total
+      trans_matrix[i, i+1] <- jump / total
+    } else {
+      trans_matrix[i, i] <- 1
+    }
+  }
+  trans_matrix[m, m] <- 1
+  rownames(trans_matrix) <- colnames(trans_matrix) <- states
+  return(trans_matrix)
+}
+majority.pred <- function(s1, s2) {
+  majority_class <- names(sort(table(s2), decreasing = TRUE))[1]
+  states <- sort(unique(c(s1, s2)))
+  m <- length(states)
+  trans_matrix <- matrix(0, m, m)
+  col_idx <- which(states == majority_class)
+  trans_matrix[, col_idx] <- 1
+  rownames(trans_matrix) <- colnames(trans_matrix) <- states
+  return(trans_matrix)
+}
 
 
 ### INITIALIZE k-fold ###
-set.seed(123)
+set.seed(1)
 k <- 5
 ints = seq(1, NROW(d), ceiling(NROW(d)/k)-1)
 ints[length(ints)] = NROW(d)
@@ -68,11 +87,10 @@ rand.idx <- sample(x = 1:NROW(d),size = NROW(d),replace = F)
 PREDS = list()
 PARS = list()
 log_bin = F; rps_bin = F; brier_bin = F;
-parameterizations = c("gerlang", "free_upper_tri","bidiagonal", "tridiagonal") #c("gerlang", "gerlang_relax", "free_upper_tri") 
+parameterizations = c()#c("gerlang","free_upper_tri","bidiagonal", "tridiagonal") #c("gerlang", "gerlang_relax", "free_upper_tri") 
 scores = c("log", "rps", "all")
-links = c("softplus")#c("exp", "softplus", "square")
-baselines = c("uniform", "persistence", "empirical_dist", "empirical_dist_corr","empirical_dist_smart" , "olr", "olr_cov","opr", "opr_cov","ocllr","ocllr_cov", "obs")
-warpings = c("warp")#c("no_warp","warp")
+links = c("exp")#c("exp", "softplus", "square")
+baselines = c("majority","randomwalk","uniform", "persistence", "empirical_dist", "empirical_dist_corr","empirical_dist_smart" , "olr", "olr_cov","opr", "opr_cov","ocllr","ocllr_cov", "obs")
 #n_predictors = length(parameterizations)*length(scores)*2*length(links)^2 + length(baselines) #number of predictors = number of mjp models + reference predictors
 #log_err = matrix(NA, ncol = k, nrow = n_predictors)
 #RPS_err = matrix(NA, ncol = k, nrow = n_predictors)
@@ -81,7 +99,7 @@ warpings = c("warp")#c("no_warp","warp")
 if (!dir.exists("estimates")) dir.create("estimates")
 if (!dir.exists("predictions")) dir.create("predictions")
 
-for(i in 1:k){
+for(i in 1:5){
   start_time <- Sys.time()
   start = ints[i]; 
   end = ints[i+1]; 
@@ -98,40 +116,43 @@ for(i in 1:k){
   ####################################################
   count = 0
   for(gen in parameterizations){
-    if(gen == "gerlang"){generator_type = 0; beta_base = runif(m-1,0,2); }
-    if(gen == "gerlang_relax"){generator_type = 1; beta_base = runif(m-1,0,2); }
-    if(gen == "free_upper_tri"){generator_type = 2; beta_base = runif(m*(m-1)/2,0,2); }
-    if(gen == "bidiagonal"){generator_type = 3; beta_base = runif(2*m-3,0,2); }
-    if(gen == "tridiagonal"){generator_type = 4; beta_base = runif(3*m-6,0,2); }
+    if(gen == "gerlang"){generator_type = 0; beta_base = rep(-1,m-1); }
+    if(gen == "gerlang_relax"){generator_type = 1; beta_base = rep(-1,m-1); }
+    if(gen == "free_upper_tri"){generator_type = 2; beta_base = rep(-1,m*(m-1)/2); }
+    if(gen == "bidiagonal"){generator_type = 3; beta_base = rep(-1,2*m-3); }
+    if(gen == "tridiagonal"){generator_type = 4; beta_base = rep(-1,3*m-6); }
     for(cov in c(F, T)){
       for(baselink in links){
         for(covslink in links){
           for(warping in warpings){
-            if(warping == "no_warp"){ warp = F; xi = c(); switch_model_dll("FUNCS_MJP_with_TMB");}
-            if(warping == "warp"){warp = T;  xi = runif(m-1,0,2); switch_model_dll("FUNCS_MJP_with_TMB_warped");}
+            if(warping == "no_warp"){ warp = F; xi = c(); }
+            if(warping == "warp"){warp = T;  xi = rep(-1, m-1); }
             for(score in scores){
               if(score == "log" | score == "all"){log_bin = T}
               if(score == "rps" | score == "all"){rps_bin = T}
               #if(score == "brier" | score == "all"){brier_bin = T}
                 count = count + 1
                 
+                nam = paste(gen,cov,baselink,covslink,score,warping,sep = "_") #name of specific estimation
+                print(nam)
+                
                 #TMB implementation can only be used with softplus link for now!!
-                if(cov ){ beta = c(beta_base, xi, runif(length(exo.cols), 0,1)); } 
+                if(cov ){ beta = c(beta_base, xi, rep(0,length(exo.cols))); } 
                 if(!cov){ beta = c(beta_base,xi); }
                 data.train <- list(s1 = d.train$s1,s2 = d.train$s2,u = d.train$t,z = as.matrix(d.train[, exo.cols]),m = m,generator_type = generator_type,cov_type = as.integer(cov),use_log_score = as.integer(log_bin),use_rps_score = as.integer(rps_bin), use_brier_score = 0)
                 parameters <- list(theta = beta)
-                if(warping == "no_warp"){ l <- MakeADFun(data = data.train, parameters = parameters, DLL = "FUNCS_MJP_with_TMB")}
-                if(warping == "warp"){ l <- MakeADFun(data = data.train, parameters = parameters, DLL = "FUNCS_MJP_with_TMB_warped")}
                 
                 #Estimate and store model pars
-                nam = paste(gen,cov,baselink,covslink,score,warping,sep = "_") #name of specific estimation
-                print(nam)
-                #foo = optim( par = beta, fn = MJP_score, m = m, s1 = d.train$s1, s2 = d.train$s2, u = d.train$t, z = as.matrix(d.train[,exo.cols]), generator = gen, link_type_base = baselink, link_type_covs = covslink, covs_bin = cov, likelihood_bin = log_bin, rps_bin = rps_bin, brier_bin = brier_bin, transient_dist_method = "pade", method = "BFGS", control = list(maxit = 1000)) #estimate model 
-                #foo <- nlminb(l$par, l$fn, l$gr, l$he)
-                
-                objfun <- function(par) {list(value = l$fn(par),gradient = as.vector(l$gr(par)),hessian = as.matrix(l$he(par)))}
-                res <- trust(objfun,parinit = l$par,rinit = 10, rmax = 500, iterlim = 200)
-                foo = NULL; foo$par = res$argument
+                foo = NULL; foo = optim( par = beta, fn = MJP_score, m = m, s1 = d.train$s1, s2 = d.train$s2, u = d.train$t, z = as.matrix(d.train[,exo.cols]), generator = gen, link_type_base = baselink, link_type_covs = covslink, covs_bin = cov, likelihood_bin = log_bin, rps_bin = rps_bin, brier_bin = brier_bin, transient_dist_method = "eigenvalue_decomp", warping = warp, method = "BFGS", control = list(maxit = 1000)) #estimate model 
+                # if(warping == "no_warp"){ l <- MakeADFun(data = data.train, parameters = parameters, DLL = "FUNCS_MJP_with_TMB",silent = TRUE)}
+                # if(warping == "warp"){ l <- MakeADFun(data = data.train, parameters = parameters, DLL = "FUNCS_MJP_with_TMB_warped",silent = TRUE)}
+                # foo = NULL; foo <- nlminb(l$par, l$fn, l$gr, control = list(eval.max = 2000, iter.max = 2000))
+                # if(foo$convergence != 0) print("Not converged")
+                # rm(l); invisible(gc())
+                #trust optimization algo:
+                #objfun <- function(par) {list(value = l$fn(par),gradient = as.vector(l$gr(par)),hessian = as.matrix(l$he(par)))}
+                #res <- trust(objfun,parinit = l$par,rinit = 10, rmax = 500, iterlim = 200)
+                #foo = NULL; foo$par = res$argument
                 
                 write.csv(data.frame(par = foo$par), file = paste0("estimates/", nam, "_fold_", i, ".csv"), row.names = FALSE)
                 if(i == 1){ PARS[[nam]] = foo$par} else { PARS[[nam]] = rbind(PARS[[nam]],foo$par)} #store model estimates
@@ -180,6 +201,15 @@ for(i in 1:k){
       empi_foo = smart.empirical.pred(d.train$s1,d.train$s2)
       pred = empi_foo[d.test$s1, ]
     }
+    if(j == "majority"){
+      empi_foo = majority.pred(d.train$s1,d.train$s2)
+      pred = empi_foo[d.test$s1, ]
+    }
+    if(j == "randomwalk.empirical"){
+      empi_foo = randomwalk.empirical(d.train$s1,d.train$s2)
+      pred = empi_foo[d.test$s1, ]
+    }
+    
     if(j == "olr"){ 
       if(i == 1){ PARS[[j]] = olr$coefficients} else { PARS[[j]] = rbind(PARS[[j]],olr$coefficients)} #store model estimates
       pred = predict(olr, newdata = d.test, type = "p");
@@ -218,13 +248,11 @@ for(i in 1:k){
 #errs
 
 
-# write.csv(PARS, file  = "results/estimated_model_pars.csv")
-# write.csv(PREDS, file  = "results/model_preditions.csv")
-write.csv(log_err, file  = "results/log_score_V3.csv", row.names = T)
-write.csv(Brier_e, file  = "results/brier_score_V3.csv", row.names = T)
-write.csv(RPS_err, file  = "results/rps_score_V3.csv", row.names = T)
-saveRDS(PARS, file = "results/estimated_model_pars_V3.Rdata")
-saveRDS(PREDS, file = "results/model_predictions_V3.Rdata")
+#write.csv(log_err, file  = "results/log_score_V4.csv", row.names = T)
+#write.csv(Brier_e, file  = "results/brier_score_V4.csv", row.names = T)
+#write.csv(RPS_err, file  = "results/rps_score_V4.csv", row.names = T)
+#saveRDS(PARS, file = "results/estimated_model_pars_nowarp.Rdata")
+#saveRDS(PREDS, file = "results/model_predictions_nowarp.Rdata")
 
 
 #comments: 
@@ -281,12 +309,12 @@ exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm"
 compile("FUNCS_MJP_with_TMB_warped.cpp")
 dyn.load(dynlib("FUNCS_MJP_with_TMB_warped"))
 data <- list(s1 = d$s1,s2 = d$s2,u = d$t,z = as.matrix(d[, exo.cols]),m = m,generator_type = as.integer(2),cov_type = as.integer(T), use_log_score = 0,use_rps_score = 1, use_brier_score = 0)
-beta = runif(m*(m-1)/2 + m-1 + length(exo.cols),0,2); parameters <- list(theta = beta)
-l <- MakeADFun(data = data, parameters = parameters, DLL = "FUNCS_MJP_with_TMB_warped", hessian=T)
+beta = runif(m*(m-1)/2 + m-1 + length(exo.cols),0,1); parameters <- list(theta = beta)
+l <- MakeADFun(data = data, parameters = parameters, DLL = "FUNCS_MJP_with_TMB_warped")
 #foo <- optim(par = l$par, fn = l$fn, gr = l$gr, method = "BFGS", control = list(maxit = 1000))
 
-foo <- nlminb(l$par, l$fn, l$gr, l$he)
-pred4 = MJP_predict(m = m, s1 = d$s1, u = d$t, pars = foo$par , z = as.matrix(d[,exo.cols]), generator = "free_upper_tri", link_type_base = "softplus", link_type_covs = "softplus", covs_bin = T, transient_dist_method = "pade", warping=T)
+foo <- nlminb(l$par, l$fn, l$gr)
+pred4 = MJP_predict(m = m, s1 = d$s1, u = d$t, pars = foo$par , z = as.matrix(d[,exo.cols]), generator = "free_upper_tri", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, transient_dist_method = "pade", warping=T)
 err_mjp4 = rps_vectors(m, pred4, obs)
 mean(err_mjp4) #0.4166109 (when purely RPS optimized)
 mean(logscore_vectors(m, (pred4+pred2)/2, obs)) #1.017219 (when rps+log optimized) ( 1.619893 when only rps optimized)

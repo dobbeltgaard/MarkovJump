@@ -3,7 +3,8 @@
 
 template<class Type>
 vector<Type> softplus(const vector<Type>& v) {
-  return log(exp(v) + 1);
+  return exp(v); 
+  //return log(exp(v) + 1);
 }
 
 
@@ -106,78 +107,169 @@ Type rps_score(const vector<Type> &pred, const vector<Type> &obs) {
   return res;
 }
 
-
 template<class Type>
 Type objective_function<Type>::operator() () {
-  DATA_VECTOR(s1);
-  DATA_VECTOR(s2);
+  DATA_IVECTOR(s1);
+  DATA_IVECTOR(s2);
   DATA_VECTOR(u);
   DATA_MATRIX(z);
   DATA_INTEGER(m);
-  DATA_INTEGER(generator_type); // 0=A1, 1=A2, 2=A3, ...
-  DATA_INTEGER(cov_type);       // 0=no covs, 1=covs
+  DATA_INTEGER(generator_type); // 0=A1, 1=A2, 2=A3, 3=A4, 4=A5
+  DATA_INTEGER(cov_type);       // 0=no covs, 1=covs (time scaling)
   DATA_INTEGER(use_log_score);
   DATA_INTEGER(use_rps_score);
   DATA_INTEGER(use_brier_score);
   PARAMETER_VECTOR(theta);
-  int n = s1.size();
   
+  const int n = s1.size();
   Type total_score = 0.0;
+  
+  // --- Build A and compute base_len ---
+  int base_len = 0;
   matrix<Type> A(m, m);
-  if (generator_type == 0) {
-    vector<Type> theta_base = theta.segment(0, m - 1); 
-    vector<Type> lambda = softplus(theta_base);
-    A = make_A1(m, lambda);
-  } else if (generator_type == 1) {
-    vector<Type> theta_base = theta.segment(0, m - 1); 
-    vector<Type> lambda = softplus(theta_base);
-    A = make_A2(m, lambda);
-  } else if (generator_type == 2) {
-    vector<Type> theta_base = theta.segment(0, m * (m - 1) / 2); 
-    vector<Type> lambda = softplus(theta_base);
-    A = make_A3(m, lambda);
-  } else if (generator_type == 3) {
-    vector<Type> theta_base = theta.segment(0, 2*m-3); 
-    vector<Type> lambda = softplus(theta_base);
-    A = make_A4(m, lambda);
-  } else if (generator_type == 4) {
-    vector<Type> theta_base = theta.segment(0, 3*m-6); 
-    vector<Type> lambda = softplus(theta_base);
-    A = make_A5(m, lambda);
-  } else {
-    error("Invalid generator_type");
+  {
+    switch (generator_type) {
+    case 0: // A1
+    case 1: // A2
+      base_len = m - 1; {
+        vector<Type> theta_base = theta.segment(0, base_len);
+        vector<Type> lambda = softplus(theta_base);
+        A = (generator_type == 0) ? make_A1(m, lambda) : make_A2(m, lambda);
+      } break;
+    case 2: // A3
+      base_len = m * (m - 1) / 2; {
+        vector<Type> theta_base = theta.segment(0, base_len);
+        vector<Type> lambda = softplus(theta_base);
+        A = make_A3(m, lambda);
+      } break;
+    case 3: // A4
+      base_len = 2 * m - 3; {
+        vector<Type> theta_base = theta.segment(0, base_len);
+        vector<Type> lambda = softplus(theta_base);
+        A = make_A4(m, lambda);
+      } break;
+    case 4: // A5
+      base_len = 3 * m - 6; {
+        vector<Type> theta_base = theta.segment(0, base_len);
+        vector<Type> lambda = softplus(theta_base);
+        A = make_A5(m, lambda);
+      } break;
+    default:
+      error("Invalid generator_type");
+    }
   }
   
+  // --- Scoring loop ---
   if (cov_type == 0) {
     for (int i = 0; i < n; ++i) {
       vector<Type> obs(m); obs.setZero();
-      int start = CppAD::Integer(s1(i)) - 1;
-      int end   = CppAD::Integer(s2(i)) - 1;
-      obs(end)  = Type(1.0);
-      matrix<Type> tpm = atomic::expm( matrix<Type>(A*u(i)) ); 
+      int start = s1(i) - int(1);
+      int end   = s2(i) - int(1);
+      obs(end)  = Type(1);
+      
+      matrix<Type> tpm = atomic::expm( matrix<Type>(A * u(i)) );
       vector<Type> pred = tpm.row(start).transpose();
-      if (use_log_score) { total_score += log_score(pred, obs);}
-      if (use_brier_score) {total_score += brier_score(pred, obs);}
-      if (use_rps_score) {total_score += rps_score(pred, obs);}
+      
+      if (use_log_score)   total_score += log_score(pred, obs);
+      if (use_brier_score) total_score += brier_score(pred, obs);
+      if (use_rps_score)   total_score += rps_score(pred, obs);
     }
-  } else if (cov_type == 1) {
-    int theta_cov_start = (generator_type == 2) ? m * (m - 1) / 2 : m - 1;
-    vector<Type> theta_cov = theta.segment(theta_cov_start, theta.size() - theta_cov_start);
+  } else { // cov_type == 1
+    vector<Type> theta_cov = theta.segment(base_len, theta.size() - base_len);
     for (int i = 0; i < n; ++i) {
       vector<Type> obs(m); obs.setZero();
-      int start = CppAD::Integer(s1(i)) - 1;
-      int end   = CppAD::Integer(s2(i)) - 1;
+      int start = s1(i) - int(1);
+      int end   = s2(i) - int(1);
+      obs(end)  = Type(1);
+      
       Type cov_linpred = 0.0;
-      for (int j = 0; j < z.cols(); ++j) {cov_linpred += z(i, j) * theta_cov(j);}
-      Type cov_time = log(1 + exp(cov_linpred)) * u(i);
-      obs(end)  = Type(1.0);
-      matrix<Type> tpm = atomic::expm( matrix<Type>(A*cov_time) ); 
-      vector<Type> pred = tpm.row(start).transpose();  
-      if (use_log_score) { total_score += log_score(pred, obs);}
-      if (use_brier_score) {total_score += brier_score(pred, obs);}
-      if (use_rps_score) {total_score += rps_score(pred, obs);}
+      for (int j = 0; j < z.cols(); ++j) cov_linpred += z(i,j) * theta_cov(j);
+      Type cov_time = exp(cov_linpred) * u(i);  // time-scaling
+      
+      matrix<Type> tpm = atomic::expm( matrix<Type>(A * cov_time) );
+      vector<Type> pred = tpm.row(start).transpose();
+      
+      if (use_log_score)   total_score += log_score(pred, obs);
+      if (use_brier_score) total_score += brier_score(pred, obs);
+      if (use_rps_score)   total_score += rps_score(pred, obs);
     }
   }
-  return total_score/ Type(n);
+  return total_score;
 }
 
+
+
+// template<class Type>
+// Type objective_function<Type>::operator() () {
+//   DATA_VECTOR(s1);
+//   DATA_VECTOR(s2);
+//   DATA_VECTOR(u);
+//   DATA_MATRIX(z);
+//   DATA_INTEGER(m);
+//   DATA_INTEGER(generator_type); // 0=A1, 1=A2, 2=A3, ...
+//   DATA_INTEGER(cov_type);       // 0=no covs, 1=covs
+//   DATA_INTEGER(use_log_score);
+//   DATA_INTEGER(use_rps_score);
+//   DATA_INTEGER(use_brier_score);
+//   PARAMETER_VECTOR(theta);
+//   int n = s1.size();
+//   
+//   Type total_score = 0.0;
+//   matrix<Type> A(m, m);
+//   if (generator_type == 0) {
+//     vector<Type> theta_base = theta.segment(0, m - 1); 
+//     vector<Type> lambda = softplus(theta_base);
+//     A = make_A1(m, lambda);
+//   } else if (generator_type == 1) {
+//     vector<Type> theta_base = theta.segment(0, m - 1); 
+//     vector<Type> lambda = softplus(theta_base);
+//     A = make_A2(m, lambda);
+//   } else if (generator_type == 2) {
+//     vector<Type> theta_base = theta.segment(0, m * (m - 1) / 2); 
+//     vector<Type> lambda = softplus(theta_base);
+//     A = make_A3(m, lambda);
+//   } else if (generator_type == 3) {
+//     vector<Type> theta_base = theta.segment(0, 2*m-3); 
+//     vector<Type> lambda = softplus(theta_base);
+//     A = make_A4(m, lambda);
+//   } else if (generator_type == 4) {
+//     vector<Type> theta_base = theta.segment(0, 3*m-6); 
+//     vector<Type> lambda = softplus(theta_base);
+//     A = make_A5(m, lambda);
+//   } else {
+//     error("Invalid generator_type");
+//   }
+//   
+//   if (cov_type == 0) {
+//     for (int i = 0; i < n; ++i) {
+//       vector<Type> obs(m); obs.setZero();
+//       int start = CppAD::Integer(s1(i)) - 1;
+//       int end   = CppAD::Integer(s2(i)) - 1;
+//       obs(end)  = Type(1.0);
+//       matrix<Type> tpm = atomic::expm( matrix<Type>(A*u(i)) ); 
+//       vector<Type> pred = tpm.row(start).transpose();
+//       if (use_log_score) { total_score += log_score(pred, obs);}
+//       if (use_brier_score) {total_score += brier_score(pred, obs);}
+//       if (use_rps_score) {total_score += rps_score(pred, obs);}
+//     }
+//   } else if (cov_type == 1) {
+//     int theta_cov_start = lambda.size(); 
+//     vector<Type> theta_cov = theta.segment(theta_cov_start, theta.size() - theta_cov_start);
+//     for (int i = 0; i < n; ++i) {
+//       vector<Type> obs(m); obs.setZero();
+//       int start = CppAD::Integer(s1(i)) - 1;
+//       int end   = CppAD::Integer(s2(i)) - 1;
+//       Type cov_linpred = 0.0;
+//       for (int j = 0; j < z.cols(); ++j) {cov_linpred += z(i, j) * theta_cov(j);}
+//       Type cov_time = exp(cov_linpred) * u(i); //log(1 + exp(cov_linpred)) * u(i);
+//       obs(end)  = Type(1.0);
+//       matrix<Type> tpm = atomic::expm( matrix<Type>(A*cov_time) ); 
+//       vector<Type> pred = tpm.row(start).transpose();  
+//       if (use_log_score) { total_score += log_score(pred, obs);}
+//       if (use_brier_score) {total_score += brier_score(pred, obs);}
+//       if (use_rps_score) {total_score += rps_score(pred, obs);}
+//     }
+//   }
+//   return total_score; /// Type(n);
+// }
+// 

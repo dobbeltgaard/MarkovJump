@@ -1,9 +1,9 @@
 #include <TMB.hpp>
 
-
 template<class Type>
 vector<Type> softplus(const vector<Type>& v) {
-  return log(exp(v) + 1);
+  return exp(v); 
+  //return log(exp(v) + 1);
 }
 
 
@@ -69,7 +69,7 @@ matrix<Type> make_A4(int m, const vector<Type> &lambda) {
   return A;
 }
 
-// Upper bidiagonal (make_A5)
+// Upper tridiagonal (make_A5)
 template<class Type>
 matrix<Type> make_A5(int m, const vector<Type> &lambda) {
   matrix<Type> A(m, m);
@@ -173,8 +173,8 @@ vector<Type> expected_sojourn(int m, Type u, int s1, matrix<Type> A, Type dt = T
 
 template<class Type>
 Type objective_function<Type>::operator() () {
-  DATA_VECTOR(s1);
-  DATA_VECTOR(s2);
+  DATA_IVECTOR(s1);
+  DATA_IVECTOR(s2);
   DATA_VECTOR(u);
   DATA_MATRIX(z);
   DATA_INTEGER(m);
@@ -226,8 +226,8 @@ Type objective_function<Type>::operator() () {
   if (cov_type == 0) {
     for (int i = 0; i < n; ++i) {
       vector<Type> obs(m); obs.setZero();
-      int start = CppAD::Integer(s1(i)) - 1;
-      int end   = CppAD::Integer(s2(i)) - 1;
+      int start = s1(i) - int(1);
+      int end   = s2(i) - int(1);
       obs(end)  = Type(1.0);
       
       vector<Type> mu = expected_sojourn(m, u(i), start, A);
@@ -245,8 +245,8 @@ Type objective_function<Type>::operator() () {
     vector<Type> theta_cov = theta.segment(lambda_len + xii.size(), z.cols());
     for (int i = 0; i < n; ++i) {
       vector<Type> obs(m); obs.setZero();
-      int start = CppAD::Integer(s1(i)) - 1;
-      int end   = CppAD::Integer(s2(i)) - 1;
+      int start = s1(i) - int(1);
+      int end   = s2(i) - int(1);
       Type cov_linpred = 0.0;
       for (int j = 0; j < z.cols(); ++j) {cov_linpred += z(i, j) * theta_cov(j);}
       obs(end)  = Type(1.0);
@@ -254,7 +254,7 @@ Type objective_function<Type>::operator() () {
       vector<Type> mu = expected_sojourn(m, u(i), start, A);
       Type tau_eff = 0.0; 
       for (int j = 0; j < xi.size(); ++j) {tau_eff += mu(j) * xi(j);} // dot product
-      Type cov_scaling = log(1 + exp(cov_linpred));  // softplus
+      Type cov_scaling = exp(cov_linpred); //log(1 + exp(cov_linpred));  // softplus
       tau_eff *= cov_scaling;  // final time warp
       matrix<Type> tpm = atomic::expm( matrix<Type>(A*tau_eff) );
       vector<Type> pred = tpm.row(start).transpose();
@@ -263,7 +263,7 @@ Type objective_function<Type>::operator() () {
       if (use_rps_score) {total_score += rps_score(pred, obs);}
     }
   }
-  return total_score/ Type(n);
+  return total_score; /// Type(n);
 }
 
 

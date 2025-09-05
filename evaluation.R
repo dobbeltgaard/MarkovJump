@@ -1,26 +1,52 @@
+library(here)
+here::i_am("evaluation.R")
 
-
-rm(list = ls()) #clear memory
+rm(list = ls()); gc() #clear memory
 library(Rcpp)
 library(RcppEigen)
+library(dplyr); library(kableExtra)
 sourceCpp("FUNCS_MJP_with_eigen.cpp")
-pred_list = readRDS("results/model_predictions_V3.Rdata")
-pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] )/2#+ pred_list[["empirical_dist_corr"]])/3
-pred_list[["ensemble2"]] =(pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/2
-pred_list[["ensemble3"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/3
+# pred_list = readRDS("results/model_predictions_V3.Rdata")
+# pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] )/2#+ pred_list[["empirical_dist_corr"]])/3
+# pred_list[["ensemble2"]] =(pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/2
+# pred_list[["ensemble3"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/3
 
 #logs = read.csv("results/log_score.csv")
 #rps = read.csv("results/rps_score.csv")
 #brier = read.csv("results/brier_score.csv")
 
+files <- list.files("predictions", pattern = "\\.csv$", full.names = TRUE)
+file_names <- basename(files)
+base_names <- sub("_fold_\\d+\\.csv$", "", file_names)
+fold_numbers <- as.integer(sub(".*_fold_(\\d+)\\.csv$", "\\1", file_names))
+file_info <- data.frame(file = files,name = file_names,base = base_names,fold = fold_numbers,stringsAsFactors = FALSE)
+file_info <- file_info[order(file_info$base, file_info$fold), ]
+predictor_list <- split(file_info, file_info$base)
+predictor_data <- lapply(predictor_list, function(group) {
+  out <- lapply(seq_len(nrow(group)), function(i) {df <- read.csv(group$file[i]); df;})
+  names(out) <- paste0("fold_", group$fold)
+  out
+})
+pred_list = predictor_data
+#pred_list[["ensemble"]] = pred_list[["empirical_dist_smart"]]
 
+predictor_names <- names(pred_list)[grepl("_all_",names(pred_list)) | grepl("^o", names(pred_list)) | grepl("uniform", names(pred_list))]
+pred_list[["ensemble_all"]] <- vector("list", length = length(pred_list[[ predictor_names[1] ]]))
 
+for(i in seq_along(pred_list[["ensemble_all"]])) {
+  preds_i <- lapply(predictor_names, function(name) pred_list[[name]][[i]])
+  pred_list[["ensemble_all"]][[i]] <- Reduce("+", preds_i) / length(preds_i)
+}
+
+for(i in 1:5){
+  pred_list[["ensemble"]][[i]] = 1/2*(pred_list[["tridiagonal_TRUE_exp_exp_all_warp"]][[i]] + pred_list[["olr_cov"]][[i]])
+  }
 
 #######################
 ### Forecast Scores ###
 #######################
 ### Cross validation errors ###
-m = 5; k = 10; 
+m = 5; k = 5; 
 log_err = matrix(NA, ncol = k, nrow = length(names(pred_list)))
 RPS_err = matrix(NA, ncol = k, nrow = length(names(pred_list)))
 Brier_e = matrix(NA, ncol = k, nrow = length(names(pred_list)))
@@ -28,8 +54,8 @@ for(i in 1:k){
   count = 0; 
   for(j in names(pred_list)){
     count = count + 1;
-    pred = pred_list[[j]]
-    obs = pred_list[["obs"]]
+    pred = as.matrix(pred_list[[j]][[i]])
+    obs = as.matrix(pred_list[["obs"]][[i]])
     log_err[count, i] = -mean(logscore_vectors(m, pred, obs))
     RPS_err[count, i] = mean(rps_vectors(m, pred, obs))
     Brier_e[count, i] = mean(BrierScore_vectors(m, pred, obs))
@@ -38,29 +64,39 @@ for(i in 1:k){
 rownames(log_err) = names(pred_list)
 rownames(RPS_err) = names(pred_list)
 rownames(Brier_e) = names(pred_list)
-errs = cbind(rowMeans(RPS_err),rowMeans(log_err),rowMeans(Brier_e))
-errs
+errs = cbind(rowMeans(RPS_err),rowMeans(log_err))
+errs[grepl("_all_", rownames(errs)) | !grepl("_exp", rownames(errs)),1:2]
+
 #Errors in link function combinations
-link_combinations <- gsub(".*?(exp|softplus|square)_(exp|softplus|square)_.*", "\\1_\\2", rownames(errs[1:54,]))
-rps_values <- errs[1:54, 1]
-average_rps <- tapply(rps_values, link_combinations, mean)
-print(average_rps)
+# link_combinations <- gsub(".*?(exp|softplus|square)_(exp|softplus|square)_.*", "\\1_\\2", rownames(errs[1:54,]))
+# rps_values <- errs[1:54, 1]
+# average_rps <- tapply(rps_values, link_combinations, mean)
+# print(average_rps)
 
 
-namfoo = c("softplus_softplus_all", "uniform", "dist_corr", "olr", "opr", "ocllr", "ensemble")
+namfoo = c("exp_exp_all", "uniform", "olr", "opr", "ocllr", "ensemble")
 idx = rowSums(sapply(namfoo, FUN = grepl, x = rownames(errs))) > 0
 foo = errs[idx, ]
 nams =
-  c("uniform", "empirical_dist_corr", 
+  c("uniform", 
     "olr", "olr_cov", "opr", "opr_cov", "ocllr", "ocllr_cov", 
-    "gerlang_FALSE_softplus_softplus_all", "gerlang_TRUE_softplus_softplus_all", "gerlang_relax_FALSE_softplus_softplus_all", "gerlang_relax_TRUE_softplus_softplus_all", "free_upper_tri_FALSE_softplus_softplus_all", "free_upper_tri_TRUE_softplus_softplus_all",
-    "ensemble", "ensemble2")
+    "gerlang_FALSE_exp_exp_all_no_warp", "gerlang_TRUE_exp_exp_all_no_warp",
+    "gerlang_relax_FALSE_exp_exp_all_no_warp", "gerlang_relax_TRUE_exp_exp_all_no_warp",
+    "bidiagonal_FALSE_exp_exp_all_no_warp", "bidiagonal_TRUE_exp_exp_all_no_warp",
+    "tridiagonal_FALSE_exp_exp_all_no_warp", "tridiagonal_TRUE_exp_exp_all_no_warp",
+    "free_upper_tri_FALSE_exp_exp_all_no_warp", "free_upper_tri_TRUE_exp_exp_all_no_warp",
+    "gerlang_FALSE_exp_exp_all_warp", "gerlang_TRUE_exp_exp_all_warp",
+    "bidiagonal_FALSE_exp_exp_all_warp", "bidiagonal_TRUE_exp_exp_all_warp",
+    "tridiagonal_FALSE_exp_exp_all_warp", "tridiagonal_TRUE_exp_exp_all_warp",
+    "free_upper_tri_FALSE_exp_exp_all_warp", "free_upper_tri_TRUE_exp_exp_all_warp",
+    "ensemble", "ensemble_all"
+    )
 nams_idx = rep(NA, length(nams));for(i in 1:length(nams)){nams_idx[i] = which(nams[i] == rownames(foo))}
 library(kableExtra)
 naive = expand.grid(
   Covariates = c("No"), #covariates
   Model = c("Naïve predictors"), #näive,olr,mjp 
-  param = c("Uniform distribution", "Empirical distribution")
+  param = c("Uniform distribution")
 )
 regression = expand.grid(
   Covariates = c("No","Yes"), #covariates
@@ -70,35 +106,42 @@ regression = expand.grid(
 mjp = expand.grid(
   Covariates = c("No","Yes"), #covariates
   Model = c("Markov jump process"), #näive,olr,mjp 
-  param = c("Generalized Erlang, $\\bm{A}'$", "Parameterized upper, $\\bm{A}''$", "Free upper, $\\bm{A}'''$")
+  param = c("Generalized Erlang, $\\bm{A}'$", "Parameterized upper, $\\bm{A}''$", "Bi","Tri", "Free upper, $\\bm{A}'''$")
+)
+mjp_warp = expand.grid(
+  Covariates = c("No","Yes"), #covariates
+  Model = c("Markov jump process WARP"), #näive,olr,mjp 
+  param = c("Generalized Erlang, $\\bm{A}'$", "Bi","Tri", "Free upper, $\\bm{A}'''$")
 )
 ensemble = expand.grid(
   Covariates = c("Yes"), #covariates
   Model = c("Ensemble"), #näive,olr,mjp 
   param = c("MJP + OLR", "Naïve + MJP + OLR")
 )
-collapse_rows_dt = rbind(naive, regression, mjp,ensemble)
+collapse_rows_dt = rbind(naive, regression, mjp,mjp_warp ,ensemble)
 collapse_rows_dt <- collapse_rows_dt[c("Model", "param", "Covariates")]
 
-par_list  = pred_list
+#par_list  = pred_list
 npars = rep(0,length(nams)); count = 0;
-for(i in nams[1:(length(nams)-2)]){
+for(i in head(nams,-2)){
   count = count + 1
-  if(count > 3){npars[count] = (NCOL(par_list[[i]])); }
-  
+  if(grepl("all_",i)){
+    dfoo = read.csv(list.files("estimates", full.names = T)[grepl(i, list.files("estimates"))][1])
+    npars[count] = NROW(dfoo)#(NCOL(par_list[[i]])); 
+    }
 }
-npars[length(nams)-1] =  NCOL(par_list[["free_upper_tri_TRUE_softplus_softplus_all"]]) + NCOL(par_list[["olr_cov"]])
-npars[length(nams)] =  NCOL(par_list[["free_upper_tri_TRUE_softplus_softplus_all"]]) + NCOL(par_list[["olr_cov"]])
+# npars[length(nams)-1] =  NCOL(par_list[["free_upper_tri_TRUE_softplus_softplus_all"]]) + NCOL(par_list[["olr_cov"]])
+# npars[length(nams)] =  NCOL(par_list[["free_upper_tri_TRUE_softplus_softplus_all"]]) + NCOL(par_list[["olr_cov"]])
 collapse_rows_dt$npars = npars
 collapse_rows_dt$RPS = foo[nams_idx, 1]
 collapse_rows_dt$LogS = foo[nams_idx, 2]
-collapse_rows_dt$Brier = foo[nams_idx, 3]
-colnames(collapse_rows_dt) = c("Method", "Model", "Covariates", "\\# Parameters", "RPS", "Log S.", "Brier S.")
+#collapse_rows_dt$Brier = foo[nams_idx, 3]
+colnames(collapse_rows_dt) = c("Method", "Model", "Covariates", "\\# Parameters", "RPS", "Log S.")
 row_group_label_fonts <- list(
   list(bold = T, italic = F),
   list(bold = F, italic = F)
 )
-kableExtra::kbl(collapse_rows_dt,booktabs = T, align = c("l","l","c","c","c","c","c"), linesep = '', format = "latex",escape = FALSE, digits = 3) %>%
+kableExtra::kbl(collapse_rows_dt,booktabs = T, align = c("l","l","c","c","c","c","c"), linesep = '', format = "latex",escape = FALSE, digits = 5) %>%
   column_spec(1, bold=T) %>%
   collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts)
 
@@ -162,9 +205,15 @@ library(ggplot2)
 library(ggpubr)
 library(MASS)
 library(reshape2)
+library(tidyr)
+
+
+get_pars = function(str, fold_number = 1){read.csv(list.files("estimates", full.names = T)[grepl(str, list.files("estimates"))][fold_number])$par}
+#get_pars("gerlang_relax_FALSE_exp_exp_all_no_warp")
+
 
 states = c("3", "2B", "2A", "1", "0")
-par_list = readRDS("results/estimated_model_pars.Rdata")
+#par_list = readRDS("results/estimated_model_pars.Rdata")
 d = read.csv("defect_data.csv")
 exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
 z = as.matrix(d[,exo.cols])
@@ -173,18 +222,13 @@ text.size <- 11
 ndays = 365*8
 
 #### gerlang ###
-nam = "gerlang_TRUE_all"
+nam = "gerlang_TRUE_exp_exp_all_no_warp"
 m=5; 
-npars = m-1
-lambda_base = exp(par_list[[nam]][1,1:npars])
-covs = par_list[[nam]][1,(npars+1):(npars + 5)]
-lambda = lambda_base * exp(sum(covs * z[idx,]))
 sol1 = matrix(NA, nrow = ndays, ncol = m)
 count = 0
 for(t in (1:ndays)/365){
   count = count + 1
-  A1 = as.matrix(Matrix::expm(make_A1(m, lambda)*t))
-  sol1[count, ] = c(1,0,0,0,0) %*% A1
+  sol1[count, ] = MJP_predict(m = m, s1 = c(1), u = c(t), get_pars(nam), z = matrix(z[idx, ], nrow = 1), generator = "gerlang", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, transient_dist_method = "eigen_decomp", warping = F)
 }
 dpp <- as.data.frame(sol1)
 colnames(dpp) <- states
@@ -202,42 +246,44 @@ p1 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)
     legend.background = element_rect(fill = "transparent", color = NA), # Set transparent background
     legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
   ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
+A1 = matrix(0, m,m)
+for(i in 1:m){
+	A1[i,] = MJP_predict(m = m, s1 = c(i), u = c(8), get_pars(nam), z = matrix(z[idx, ], nrow = 1), generator = "gerlang", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, transient_dist_method = "eigen_decomp", warping = F)
+}
 colnames(A1) = 1:5
 rownames(A1) = 5:1
-longData<-melt(A1)
-longData<-longData[longData$value!=0,]
-p11 = ggplot(longData, aes(x = Var2, y = Var1)) + 
-  geom_raster(aes(fill = value)) + 
-  geom_text(aes(label = sprintf("%.5f", value)), color = "white", size = 3, family = "serif") +  
-  scale_fill_gradient(low = "grey60", high = "black", guide = "none") + 
-  scale_y_discrete(limits = c("0", "1", "2A", "2B", "3")) +
-  scale_x_discrete(limits = c("3", "2B", "2A", "1", "0")) +
+longData <- melt(A1)
+x_levels <- c("3","2B","2A","1","0")
+y_levels <- c("0","1","2A","2B","3")
+longData$Var2 <- factor(longData$Var2, levels = seq_along(x_levels), labels = x_levels)
+longData$Var1 <- factor(longData$Var1, levels = seq_along(y_levels), labels = rev(y_levels)) 
+p11 <- ggplot(longData[longData$value != 0, ],
+              aes(x = Var2, y = Var1)) +
+  geom_tile(aes(fill = value), linewidth = 0) +
+  geom_text(aes(label = sprintf("%.5f", value)),
+            color = "white", size = 3, family = "serif") +
+  scale_fill_gradient(low = "grey60", high = "black", guide = "none") +
+  scale_x_discrete(drop = FALSE, expand = c(0,0)) +
+  scale_y_discrete(drop = FALSE, expand = c(0,0)) +
+  coord_fixed() +
+  labs(x = "To class", y = "From class") +
   theme(
-    axis.text.x = element_text(size = 9, angle = 0, vjust = 0.3),
+    axis.text.x = element_text(size = 9, vjust = 0.3),
     axis.text.y = element_text(size = 9),
-    plot.title = element_text(size = 11),
-    text = element_text(size = text.size, family = "serif"),  # Ensure overall text is serif
+    plot.title  = element_text(size = 11),
+    text        = element_text(size = text.size, family = "serif"),
     panel.background = element_rect(fill = "white", color = "black"),
-    panel.grid.minor = element_line(color = "lightgray")
-  ) + 
-  xlab("To class") + 
-  ylab("From class")
+    panel.grid.minor = element_blank()
+  )
 
-p11
-
-#### reparameterized upper ###
-nam = "gerlang_relax_TRUE_all"
+#### gerlang with warping ###
+nam = "gerlang_TRUE_exp_exp_all_warp"
 m=5; 
-npars = m-1
-lambda_base = exp(par_list[[nam]][1,1:npars])
-covs = par_list[[nam]][1,(npars+1):(npars + 5)]
-lambda = lambda_base * exp(sum(covs * z[idx,]))
 sol1 = matrix(NA, nrow = ndays, ncol = m)
 count = 0
 for(t in (1:ndays)/365){
   count = count + 1
-  A1 = as.matrix(Matrix::expm(make_A2(m, lambda)*t))
-  sol1[count, ] = c(1,0,0,0,0) %*% A1
+  sol1[count, ] = MJP_predict(m = m, s1 = c(1), u = c(t), get_pars(nam), z = matrix(z[idx, ], nrow = 1), generator = "gerlang", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, transient_dist_method = "eigen_decomp", warping = T)
 }
 dpp <- as.data.frame(sol1)
 colnames(dpp) <- states
@@ -255,41 +301,45 @@ p2 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)
     legend.background = element_rect(fill = "transparent", color = NA), # Set transparent background
     legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
   ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
+A1 = matrix(0, m,m)
+for(i in 1:m){
+	A1[i,] = MJP_predict(m = m, s1 = c(i), u = c(8), get_pars(nam), z = matrix(z[idx, ], nrow = 1), generator = "gerlang", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, transient_dist_method = "eigen_decomp", warping = T)
+}
 colnames(A1) = 1:5
 rownames(A1) = 5:1
-longData<-melt(A1)
-longData<-longData[longData$value!=0,]
-p22 = ggplot(longData, aes(x = Var2, y = Var1)) + 
-  geom_raster(aes(fill = value)) + 
-  geom_text(aes(label = sprintf("%.5f", value)), color = "white", size = 3, family = "serif") +  
-  scale_fill_gradient(low = "grey60", high = "black", guide = "none") + 
-  scale_y_discrete(limits = c("0", "1", "2A", "2B", "3")) +
-  scale_x_discrete(limits = c("3", "2B", "2A", "1", "0")) +
+longData <- melt(A1)
+x_levels <- c("3","2B","2A","1","0")
+y_levels <- c("0","1","2A","2B","3")
+longData$Var2 <- factor(longData$Var2, levels = seq_along(x_levels), labels = x_levels)
+longData$Var1 <- factor(longData$Var1, levels = seq_along(y_levels), labels = rev(y_levels)) 
+p22 <- ggplot(longData[longData$value != 0, ],
+              aes(x = Var2, y = Var1)) +
+  geom_tile(aes(fill = value), linewidth = 0) +
+  geom_text(aes(label = sprintf("%.5f", value)),
+            color = "white", size = 3, family = "serif") +
+  scale_fill_gradient(low = "grey60", high = "black", guide = "none") +
+  scale_x_discrete(drop = FALSE, expand = c(0,0)) +
+  scale_y_discrete(drop = FALSE, expand = c(0,0)) +
+  coord_fixed() +
+  labs(x = "To class", y = "From class") +
   theme(
-    axis.text.x = element_text(size = 9, angle = 0, vjust = 0.3),
+    axis.text.x = element_text(size = 9, vjust = 0.3),
     axis.text.y = element_text(size = 9),
-    plot.title = element_text(size = 11),
-    text = element_text(size = text.size, family = "serif"),  # Ensure overall text is serif
+    plot.title  = element_text(size = 11),
+    text        = element_text(size = text.size, family = "serif"),
     panel.background = element_rect(fill = "white", color = "black"),
-    panel.grid.minor = element_line(color = "lightgray")
-  ) + 
-  xlab("To class") + 
-  ylab("From class")
+    panel.grid.minor = element_blank()
+  )
 
 
-#### free upper ###
-nam = "free_upper_tri_TRUE_all"
+#### bidiagonal with warping ###
+nam = "bidiagonal_TRUE_exp_exp_all_warp"
 m=5; 
-npars = m*(m-1)/2
-lambda_base = exp(par_list[[nam]][1,1:npars])
-covs = par_list[[nam]][1,(npars+1):(npars + 5)]
-lambda = lambda_base * exp(sum(covs * z[idx,]))
 sol1 = matrix(NA, nrow = ndays, ncol = m)
 count = 0
 for(t in (1:ndays)/365){
   count = count + 1
-  A1 = as.matrix(Matrix::expm(make_A3(m, lambda)*t))
-  sol1[count, ] = c(1,0,0,0,0) %*% A1
+  sol1[count, ] = MJP_predict(m = m, s1 = c(1), u = c(t), get_pars(nam), z = matrix(z[idx, ], nrow = 1), generator = "bidiagonal", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, transient_dist_method = "eigen_decomp", warping = T)
 }
 dpp <- as.data.frame(sol1)
 colnames(dpp) <- states
@@ -307,45 +357,54 @@ p3 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)
     legend.background = element_rect(fill = "transparent", color = NA), # Set transparent background
     legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
   ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
+
+A1 = matrix(0, m,m)
+for(i in 1:m){
+	A1[i,] = MJP_predict(m = m, s1 = c(i), u = c(8), get_pars(nam), z = matrix(z[idx, ], nrow = 1), generator = "bidiagonal", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, transient_dist_method = "eigen_decomp", warping = T)
+}
 colnames(A1) = 1:5
 rownames(A1) = 5:1
-longData<-melt(A1)
-longData<-longData[longData$value!=0,]
-p33 = ggplot(longData, aes(x = Var2, y = Var1)) + 
-  geom_raster(aes(fill = value)) + 
-  geom_text(aes(label = sprintf("%.5f", value)), color = "white", size = 3, family = "serif") +  
-  scale_fill_gradient(low = "grey60", high = "black", guide = "none") + 
-  scale_y_discrete(limits = c("0", "1", "2A", "2B", "3")) +
-  scale_x_discrete(limits = c("3", "2B", "2A", "1", "0")) +
+longData <- melt(A1)
+x_levels <- c("3","2B","2A","1","0")
+y_levels <- c("0","1","2A","2B","3")
+longData$Var2 <- factor(longData$Var2, levels = seq_along(x_levels), labels = x_levels)
+longData$Var1 <- factor(longData$Var1, levels = seq_along(y_levels), labels = rev(y_levels)) 
+p33 <- ggplot(longData[longData$value != 0, ],
+              aes(x = Var2, y = Var1)) +
+  geom_tile(aes(fill = value), linewidth = 0) +
+  geom_text(aes(label = sprintf("%.5f", value)),
+            color = "white", size = 3, family = "serif") +
+  scale_fill_gradient(low = "grey60", high = "black", guide = "none") +
+  scale_x_discrete(drop = FALSE, expand = c(0,0)) +
+  scale_y_discrete(drop = FALSE, expand = c(0,0)) +
+  coord_fixed() +
+  labs(x = "To class", y = "From class") +
   theme(
-    axis.text.x = element_text(size = 9, angle = 0, vjust = 0.3),
+    axis.text.x = element_text(size = 9, vjust = 0.3),
     axis.text.y = element_text(size = 9),
-    plot.title = element_text(size = 11),
-    text = element_text(size = text.size, family = "serif"),  # Ensure overall text is serif
+    plot.title  = element_text(size = 11),
+    text        = element_text(size = text.size, family = "serif"),
     panel.background = element_rect(fill = "white", color = "black"),
-    panel.grid.minor = element_line(color = "lightgray")
-  ) + 
-  xlab("To class") + 
-  ylab("From class")
-
+    panel.grid.minor = element_blank()
+  )
 
 pdf(file = "figures/trans_dist_gerlang.pdf",width = 4, height = 3) 
 p1
 dev.off()
-pdf(file = "figures/trans_dist_param_upper.pdf",width = 4, height = 3) 
+pdf(file = "figures/trans_dist_gerlang_warping.pdf",width = 4, height = 3) 
 p2
 dev.off()
-pdf(file = "figures/trans_dist_free_upper.pdf",width = 4, height = 3) 
+pdf(file = "figures/trans_dist_bidiagonal_warping.pdf",width = 4, height = 3) 
 p3
 dev.off()
 
 pdf(file = "figures/tpm_gerlang.pdf",width = 4, height = 3) 
 p11
 dev.off()
-pdf(file = "figures/tpm_param_upper.pdf",width = 4, height = 3) 
+pdf(file = "figures/tpm_gerlang_warping.pdf",width = 4, height = 3) 
 p22
 dev.off()
-pdf(file = "figures/tpm_free_upper.pdf",width = 4, height = 3) 
+pdf(file = "figures/tpm_bidiagonal_warping.pdf",width = 4, height = 3) 
 p33
 dev.off()
 
@@ -517,16 +576,17 @@ reliability_plot = function(Cq, CqCI, quantiles ){
 }
 
 
-pred_list = readRDS("results/model_predictions_V3.Rdata")
-pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] )/2#+ pred_list[["empirical_dist_corr"]])/3
-pred_list[["ensemble2"]] =(pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/2
-pred_list[["ensemble3"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/3
+#pred_list = readRDS("results/model_predictions_V3.Rdata")
+#pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] )/2#+ pred_list[["empirical_dist_corr"]])/3
+#pred_list[["ensemble2"]] =(pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/2
+#pred_list[["ensemble3"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/3
 #pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_all"]] )/2
-nams = c("empirical_dist_smart","olr_cov", "free_upper_tri_TRUE_softplus_softplus_all", "ensemble2")
+nams = c("uniform","olr_cov", "bidiagonal_TRUE_exp_exp_all_warp", "ensemble_all")
+fold_numbers = 1
 for(i in 1:length(nams)){
-  obs = pred_list[["obs"]]
+  obs = pred_list[["obs"]][[fold_numbers]]
   OBS = apply(obs, 1, which.max)
-  y = pred_list[[nams[i]]]
+  y = pred_list[[nams[i]]][[fold_numbers]]
   quantiles = seq(0.05, 0.95, by = 0.1)
   iters = 200
   text.size = 11

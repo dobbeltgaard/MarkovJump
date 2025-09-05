@@ -1,3 +1,5 @@
+// [[Rcpp::depends(BH)]]
+// [[Rcpp::plugins(cpp17)]]   // or: cpp14
 
 //#include <boost/math/special_functions/digamma.hpp>
 #include <unsupported/Eigen/MatrixFunctions>
@@ -352,6 +354,18 @@ double square_double(double x){
 /* ********************************************************** */
 /* FUNCTION: SCORE for Markov jump process given partial data */
 /* ********************************************************** */
+Eigen::RowVectorXd expected_sojourn(int m, double u, Eigen::RowVectorXd p, Eigen::MatrixXd A, double dt = 0.005) {
+  Eigen::RowVectorXd mu = Eigen::RowVectorXd::Zero(m);
+  int K = static_cast<int>(u / dt);
+  for (int k = 0; k < K; k++) {
+    mu += p;
+    p += dt * (p * A).eval();
+  }
+  mu *= dt;
+  return mu;
+}
+
+
 
 // [[Rcpp::export]]
 double MJP_score(int m,
@@ -368,7 +382,8 @@ double MJP_score(int m,
                  bool rps_bin = false,
                  bool brier_bin = false,
                  const string& transient_dist_method = "pade",
-                 double eps = 2^(-52)){
+                 double eps = 2^(-52), 
+                 bool warping = false){
 
   //Rcpp::Rcout << pars << std::endl;
 
@@ -503,32 +518,73 @@ double MJP_score(int m,
       transient_dist = [](int m, const Eigen::RowVectorXd& Pt, const Eigen::MatrixXd& A, double eps, const Eigen::MatrixXd& U, const Eigen::MatrixXd& U_inv, const Eigen::MatrixXd& D, double cov_time) { return transient_dist_Pade(m, Pt, A, eps, U, U_inv, D, cov_time); };
   }
   
+  
   /* Compute score */
   if (!covs_bin) { // Case: Covariates excluded
-    for(int i = 0; i < n; i++){
-      cov_time = u(i);
-      start_idx = int(s1(i)-1);
-      end_idx = int(s2(i)-1);
-      Pt.setZero();
-      obs.setZero();
-      Pt(start_idx) = 1 ;
-      obs(end_idx) = 1 ;
-      Ptu = transient_dist(m, Pt, A, eps, U, U_inv, D, cov_time);
-      res += score_function(m, Ptu, obs);
+    if(!warping){
+      for(int i = 0; i < n; i++){
+        cov_time = u(i);
+        start_idx = int(s1(i)-1);
+        end_idx = int(s2(i)-1);
+        Pt.setZero();
+        obs.setZero();
+        Pt(start_idx) = 1 ;
+        obs(end_idx) = 1 ;
+        Ptu = transient_dist(m, Pt, A, eps, U, U_inv, D, cov_time);
+        res += score_function(m, Ptu, obs);
+      }
+    } else{ // warping
+      Eigen::VectorXd xii = pars.segment(lambda_base.size(), m - 1);
+      Eigen::VectorXd xi = Eigen::VectorXd::Ones(m);  // initialize with 1s
+      xi.head(m - 1) = exp_vec(xii); //soft_plus_vec(xii);
+      for(int i = 0; i < n; i++){
+        start_idx = int(s1(i)-1);
+        end_idx = int(s2(i)-1);
+        Pt.setZero();
+        obs.setZero();
+        Pt(start_idx) = 1 ;
+        obs(end_idx) = 1 ;
+        Eigen::RowVectorXd mu = expected_sojourn(m, u(i), Pt, A);
+        double tau_eff = 0;
+        for (int j = 0; j < m; ++j) tau_eff += mu(j) * xi(j);
+        cov_time = tau_eff; 
+        Ptu = transient_dist(m, Pt, A, eps, U, U_inv, D, cov_time);
+        res += score_function(m, Ptu, obs);
+      }
     }
   } else {  // Case: Covariates included
     int k = z.cols();
     Eigen::VectorXd beta_covs = pars.tail(k);
-    for(int i = 0; i < n; i++){
-      cov_time = link_function_covs( beta_covs.dot(z.row(i)) ) * u(i);
-      start_idx = int(s1(i)-1);
-      end_idx = int(s2(i)-1);
-      Pt.setZero();
-      obs.setZero();
-      Pt( start_idx) = 1 ;
-      obs(end_idx) = 1 ;
-      Ptu = transient_dist(m, Pt, A, eps, U, U_inv, D, cov_time);
-      res += score_function(m, Ptu, obs);
+    if(!warping){
+      for(int i = 0; i < n; i++){
+        cov_time = link_function_covs( beta_covs.dot(z.row(i)) ) * u(i);
+        start_idx = int(s1(i)-1);
+        end_idx = int(s2(i)-1);
+        Pt.setZero();
+        obs.setZero();
+        Pt( start_idx) = 1 ;
+        obs(end_idx) = 1 ;
+        Ptu = transient_dist(m, Pt, A, eps, U, U_inv, D, cov_time);
+        res += score_function(m, Ptu, obs);
+      }
+    } else { //warping
+      Eigen::VectorXd xii = pars.segment(lambda_base.size(), m - 1);
+      Eigen::VectorXd xi = Eigen::VectorXd::Ones(m);  // initialize with 1s
+      xi.head(m - 1) = exp_vec(xii); //soft_plus_vec(xii);            // overwrite first m-1 entries
+      for(int i = 0; i < n; i++){
+        start_idx = int(s1(i)-1);
+        end_idx = int(s2(i)-1);
+        Pt.setZero();
+        Pt(start_idx) = 1.0;
+        obs.setZero();
+        obs(end_idx) = 1 ;
+        Eigen::RowVectorXd mu = expected_sojourn(m, u(i), Pt, A);
+        double tau_eff = 0;
+        for (int j = 0; j < m; ++j) tau_eff += mu(j) * xi(j);
+        cov_time = link_function_covs( beta_covs.dot(z.row(i)) ) * tau_eff; 
+        Ptu = transient_dist(m, Pt, A, eps, U, U_inv, D, cov_time);
+        res += score_function(m, Ptu, obs);
+      }
     }
   }
   return res/n;
@@ -540,18 +596,6 @@ double MJP_score(int m,
 /* FUNCTION: Forecast for Markov jump process  */
 /* ******************************************* */
 
-
-
-Eigen::RowVectorXd expected_sojourn(int m, double u, Eigen::RowVectorXd p, Eigen::MatrixXd A, double dt = 0.005) {
-  Eigen::RowVectorXd mu = Eigen::RowVectorXd::Zero(m);
-  int K = static_cast<int>(u / dt);
-  for (int k = 0; k < K; k++) {
-    mu += p;
-    p += dt * (p * A).eval();
-  }
-  mu *= dt;
-  return mu;
-}
 
 
 
@@ -693,7 +737,7 @@ Eigen::MatrixXd MJP_predict(int m,
     } else { // using warping
       Eigen::VectorXd xii = pars.segment(lambda_base.size(), m - 1);
       Eigen::VectorXd xi = Eigen::VectorXd::Ones(m);  // initialize with 1s
-      xi.head(m - 1) = soft_plus_vec(xii);            // overwrite first m-1 entries
+      xi.head(m - 1) = exp_vec(xii); //soft_plus_vec(xii);            // overwrite first m-1 entries
       for(int i = 0; i < n; i++){
         start_idx = int(s1(i)-1);
         Pt.setZero();
@@ -721,7 +765,7 @@ Eigen::MatrixXd MJP_predict(int m,
     } else { // using warping
       Eigen::VectorXd xii = pars.segment(lambda_base.size(), m - 1);
       Eigen::VectorXd xi = Eigen::VectorXd::Ones(m);  // initialize with 1s
-      xi.head(m - 1) = soft_plus_vec(xii);            // overwrite first m-1 entries
+      xi.head(m - 1) = exp_vec(xii); //soft_plus_vec(xii);            // overwrite first m-1 entries
       for(int i = 0; i < n; i++){
         start_idx = int(s1(i)-1);
         Pt.setZero();
