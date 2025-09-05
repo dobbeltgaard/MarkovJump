@@ -34,3 +34,11 @@ figures/
 results/
 predictions/
 test/
+# RStudio junk
+.Rapp.history
+.Rhistory
+.Rproj.user/
+*.Rproj
+
+# Temporary/editor backups
+*.save
