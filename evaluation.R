@@ -606,7 +606,7 @@ for(i in 1:length(nams)){
   
   print(nams[i])
 }
-
+#good
 
 ####################
 ### THE TRIPTYCH ###

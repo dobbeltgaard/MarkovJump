@@ -1,0 +1,171 @@
+% !TEX root = main.tex
+
+
+\section{Results and discussion} \label{sec:results}
+
+We calculate the prediction errors of the Markov jump process described in \Cref{sec:mjp}, using the metrics outlined in \Cref{sec:error_metrics}, and compare them against the prediction errors of the reference predictors introduced in \Cref{sec:reference_forecasts}. We also compare the transient distributions of the Markov chains and the estimated effects of the exogenous covariates. To further assess forecast quality, we generate multicategory reliability diagrams and checkerboard plots to analyze calibration and discrimination ability.
+
+
+\subsection{Prediction errors} \label{sec:prediction_error}
+The prediction errors are calculated using a $k$-fold cross-validation procedure, described in the following. 
+
+\begin{enumerate}
+    \item Choose a $k$. The larger $k$ is chosen, the higher the computational burden becomes \citep{fushiki2011a}. We use $k = 10$ in this study.
+    \item By random, divide $\mathcal{S}$ into $k$ subsets of approximately equal size. To ensure reproducibility, a seed for the random number generator should be chosen.
+    \item For each of the $k$ subsets (folds):
+    \begin{enumerate}
+        \item Initialize $i = 1$. By $\mathcal{S}_i$, we denote the defects belonging to the $i$'th fold. The set of remaining defects is denoted $\mathcal{S}_{\neg i}$, such that $\mathcal{S} = \mathcal{S}_i \cup \mathcal{S}_{\neg i}$ and $\mathcal{S}_i \cap \mathcal{S}_{\neg i} = \emptyset$.
+        \item Model estimations are performed on the set $\mathcal{S}_{\neg i}$. The parameters of the Markov jump process are determined as described in \Cref{sec:optimum_score_estimation}, and the parameters of the cumulative link model are determined as described in \Cref{sec:cumulative_link_model}. Of the naïve predictors, only the empirical distribution predictor are informed by the measurements $\mathcal{S}_{\neg i}$. 
+        \item The models are used to produce predictions of the distributions of $\bm{\pi}^{(s)}\left( t_2^{(s)}\right)$ for the defects $s \in \mathcal{S}_i$ provided their corresponding initial state $y_1^{(s)}$, their initial time stamp $t_1^{(s)}$, and the covariates $\bm{z}^{(s)}$ (for the Markov jump process) or $\bm{z}'^{(s)}$ (for the cumulative link model).
+        \item If $i < k$, then increase $i = i + 1$ and GOTO (a); else GOTO 4.
+    \end{enumerate}
+    \item For each model with the corresponding set of predictions, compute the average prediction errors given all end point observations $y_2^{(s)}$ for $s \in \mathcal{S}$ for each metric described in \Cref{sec:error_metrics}.
+\end{enumerate}
+
+We test the predictive performance of each, and assess how exogenous rail characteristics and the choice of link function in the transition rate regression (\cref{eq:trans_rates_covariates}) affect prediction errors.
+
+The uniform distribution predictor and the empirical distribution predictor from \Cref{sec:reference_forecasts} are grouped as naïve reference methods, as neither requires parameter estimation.
+Similarly, as outlined in \Cref{sec:cumulative_link_model}, we test cumulative link models with logistic, probit, and complementary log-log link functions. As with the Markov jump process, we also investigate the effect of including exogenous rail characteristics.
+An ensemble forecast is constructed by averaging predictions from the Markov jump process (using the free upper parameterization $\bm{A}'''^{(s)}$ from \cref{eq:generator_free_upper}) and the cumulative link model (logistic link, with exogenous information).
+The results from the 10-fold cross-validation procedure are presented in \Cref{tab:forecast_error_tab}.
+
+\begin{table}[htb!]
+    \centering
+    \caption{Estimated prediction errors from 10-fold cross-prediction procedures in terms of average ranked probability score ($\overline{\text{RPS}}$), average log score ($\overline{\text{LogS}}$), and average Brier score ($\overline{\text{BS}}$). ``Exogeneous information'' refers to whether or not the rail characteristics described in \Cref{sec:data} are included in the model via the softmax link function, $g(x) = \log(1 + \exp(x))$.}
+\input{figures/forecast_error_tab}
+    \label{tab:forecast_error_tab}
+    %remember to manually add: \cdashline{2-7} \addlinespace[0.3em]
+    %between different parameterizations of OLR and MJP
+\end{table}
+
+All naïve predictors are outperformed by both the cumulative link models and the Markov jump process. Among the cumulative link models, the logistic link achieves the lowest error scores, while the complementary log-log link performs worst. The logistic link assumes a logistically distributed latent variable underlying the ordinal measurements; however, while this assumption yields the best results here, it does not imply that the true severity propagation follows a logistic distribution.
+
+The cumulative link models constitute a strong baseline, but the Markov jump process consistently achieves better predictive performance in terms of log score and Brier score. The ranked probability score (RPS) shows smaller differences: the Markov jump process is favored in most cases, although the generalized Erlang parameterization $\bm{A}'^{(s)}$ performs slightly worse than the logistic cumulative link model in RPS.
+This pattern is expected: the log score and Brier score are particularly sensitive to forecast sharpness and the ability to assign high probability to the realized outcome, while the RPS also rewards calibration across the ordinal scale. Consequently, the Markov process with generalized Erlang parameterization demonstrates stronger discrimination ability but weaker calibration relative to the cumulative logistic model. A similar trade-off is observed between the ensemble forecast and the free upper parameterization $\bm{A}'''^{(s)}$.
+
+However, in almost all cases the three different error scores show the same tendencies in the prediction accuracy of the various models, making it more difficult to comment on which models are more calibrated or have better discrimination ability. Subsequently, we provide a detailed diagnostic analysis in \Cref{sec:reliability_analysis}. However, we note that the prediction accuracy of all Markov jump processes across all error metrics increases with the optimum score estimation approach. This means that determining model parameters maximizing a score function which is a sum of the three individual error scores, leads to higher prediction accuracy in all three metrics.
+
+The choice of generator parameterization substantially impacts prediction accuracy. The free upper parameterization $\bm{A}'''^{(s)}$ yields the best error scores, while the generalized Erlang $\bm{A}'^{(s)}$ performs worst, indicating that greater model flexibility improves forecast performance. We further compare and discuss the transient distributions implied by each parameterization in \Cref{sec:results_transient_dist_markov}.
+Among all models in \Cref{tab:forecast_error_tab}, the free upper Markov jump process achieves the highest log score, while the ensemble forecast achieves the best ranked probability score and Brier score.
+
+The strong performance of the ensemble forecast aligns with findings from other forecasting studies, where combining models often improves predictive accuracy \citep{wu2021a}. The different structural assumptions of the Markov jump process and the cumulative link model allow them to capture complementary aspects of the data. Moreover, ensembles benefit from pooling model errors, which tend to cancel out if models capture true signals more consistently than they replicate errors \citep{wu2021a}. This effect is also observed in the present study, particularly in the RPS.
+
+We next report findings related to the choice of link function in the regression of transition rates within the Markov jump process (see \Cref{eq:trans_rates_covariates}).
+To avoid an overly large table, we only include results for the softmax link function in \Cref{tab:forecast_error_tab}. However, among the link functions tested, the softmax link achieved the best predictive performance, followed by the exponential link, with the square link performing worst, although the differences were relatively minor.
+This ordering aligns with expectations: the softmax link is less numerically sensitive than the exponential link, while the square link lacks injectivity, which could introduce ambiguity in the numerical optimization algorithm.
+
+\FloatBarrier
+
+\input{figures/transient_dists}
+
+
+\subsection{Transient distributions of the Markov chains} \label{sec:results_transient_dist_markov}
+The generator parameterizations imply substantially different degradation dynamics.
+In \Cref{fig:transient_dists} (page \pageref{fig:transient_dists}), we illustrate the transient distributions over an eight-year period for a randomly chosen class $3$ defect under each parameterization, along with the corresponding eight-year transition probability matrices.
+
+The generator parameterizations imply substantially different degradation dynamics.
+In \Cref{fig:transient_dists} (page \pageref{fig:transient_dists}), we illustrate the transient distributions over an eight-year period for a randomly chosen class $3$ defect under each parameterization, along with the corresponding eight-year transition probability matrices.
+
+The first row of each transition matrix corresponds to the transient distribution after eight years.
+Because the generalized Erlang parameterization only allows jumps to neighboring classes, it assigns substantially more probability mass to class $2B$ (see \Cref{fig:trans_dist_gerlang}) than the free upper parameterization (\Cref{fig:trans_dist_free_upper}), which permits direct jumps to more severe categories without passing through intermediate states.
+This difference likely reflects the relatively low number of observed class $2B$ defects, causing the free upper model to assign little probability to that state over time.
+
+The reparameterized upper (\Cref{fig:trans_dist_param_upper}) assigns less probability mass to class $2B$ than the generalized Erlang, but more than the free upper. However, it differs notably from both in its treatment of the most severe classes: it assigns substantially more probability mass to class $1$ and correspondingly less to class $0$ after eight years.
+This shift stems from the core assumption of the reparameterized upper (\cref{eq:trans_rate_param}), where the degradation time between two observed states is modeled as the sum of intermediate sub-degradation processes.
+As a result, probability mass is systematically shifted toward intermediate states, leading to the observed leftward bias in the transition matrix compared to the generalized Erlang and free upper parameterizations.
+
+Although the free upper parameterization achieves the highest predictive accuracy in this study, the reparameterized upper has practical advantages.
+The free upper parameterization's number of parameters grows quadratically with the number of states, whereas for the reparameterized upper, it grows only linearly.
+For the relatively small state space considered here ($m = 5$), model estimation remains robust. However, for larger state spaces, the free upper may suffer from overparameterization and instability. In such cases, the reparameterized upper offers a alternative, combining linear parameter growth with greater flexibility than the generalized Erlang.
+
+The structural differences between the generator parameterizations reflect different assumptions about the physical degradation mechanisms of rail defects.
+While the generalized Erlang parameterization enforces gradual transitions between neighboring severity classes, it can still capture sudden defect propagation through rapid sequences of small jumps.
+Conversely, the free upper parameterization allows direct jumps to more severe classes without passing through intermediates, making it well-suited for modeling abrupt failures caused by random shocks, such as those imposed by heavy rolling stock loads or external impacts.
+The reparameterized upper parameterization lies between these two extremes: it models large transitions as the cumulative effect of smaller degradation steps, combining gradual wear processes with the possibility of accelerated defect growth.
+
+Thus, all three parameterizations accommodate both gradual and sudden degradation mechanisms, but differ in how flexibly they allow defects to bypass intermediate severity classes.
+In practice, real-world rail degradation involves a combination of slow fatigue-driven crack growth and occasional abrupt worsening due to shocks imposed by rolling stock, suggesting that more flexible parameterizations may better approximate the true defect evolution — particularly in long-term forecasts over extended time horizons.
+
+
+% Note that the first row in the transition probability matrices corresponds to the transient distribution after eight years. As the generalized Erlang only models jumps to the neighboring class, it assigns substantially more probability mass to class $2B$ (see \Cref{fig:trans_dist_gerlang}) than the free upper parameterization in \Cref{fig:trans_dist_free_upper}, which is not restricted to visit $2B$ before it can move further into more severe categories. Most likely, the relatively low number of $2B$ observations is the reason why the free upper parameterization from \cref{eq:generator_free_upper} assigns low probability to that state over the eight year period. The reparameterized upper in \Cref{fig:trans_dist_param_upper} assigns less probability mass to category $2B$ than the generalized Erlang, but more than the free upper. However, the reparameterized upper from \cref{eq:trans_rate_param} differs notably from the two other parameterizations wrt. category $1$ and $0$ where it assigns significantly more probability mass to class $1$ than the generalized Erlang and the free upper. Most of this probability mass comes from class $0$ which has substantially lower probability mass after eight years than in the cases of the generalized Erlang and the free upper. This is caused by the core assumption of the reparameterized upper in \cref{eq:trans_rate_param}, where the degradation time between two observed states is the sum of all intermediate sub-degradation processes. In general, the assumption will force more probability mass to the left in the transition probability matrix, which indeed is the case in \Cref{fig:trans_dist_param_upper} compared to \Cref{fig:trans_dist_gerlang} or \Cref{fig:trans_dist_free_upper}.
+% Although, the free upper parameterization has the highest prediction accuracy, the reparameterized upper has its merits. The parameter spaces of the free upper increases quadratically with the number of categories in the state space, while it increases linearly for the reparameterized upper. For the fairly small state space considered in this present study ($m = 5$), model estimation appears robust. However, for larger state spaces it might be more problematic to robustly determine all parameters using the free upper parameterization. In that case, the reparameterized upper could offer an alternative with as few parameters as the generalized Erlang but with more flexibility for jumps in the Markov chain.
+
+\FloatBarrier
+
+\subsection{Exogenous information} \label{sec:results_exogenous_info}
+The inclusion of the exogenous information containing the track characteristics consistently improves prediction errors. This holds true for all investigated model settings of the cumulative link model and the Markov jump process. 
+This supports the notion of heterogeneity of the rail network, since taking the specific rail characteristics at the defect location into account leads to better predictions, see \cref{tab:forecast_error_tab}.
+\citet{bisgaard2024A} demonstrate that the included covariates are statistically significant on a 5\% level, computing the standard errors of the parameters via a second order approximation of the score function in the estimated optimum. Due to the $k$-fold cross validation procedure in this study, we obtain $k$ different estimates for each variable for each model setting. In \cref{tab:covariates_estimates}, we show the range of the coefficients.
+\begin{table}[htb!]
+    \centering
+    \caption{Model estimates of rail track characteristics from k-fold estimation procedure}
+    \centerline{\input{figures/covariates_estimates}}
+    \label{tab:covariates_estimates}
+\end{table}
+For all folds, the coefficients on the covariates have constant sign and are of similar magnitude, with the only exception of the complementary loglog link for the cumulative link model. However as shown in \cref{tab:forecast_error_tab}, the complementary loglog link has the worst prediction performance of all investigated parametric models, suggesting that the assumption of a min-Gumbell distributed latent variable is not suitable. With that aside, the fact that different settings (link functions and generator parameterizations) of two distinct statistical models lead to similar estimated coefficients for the covariates on all studied subsets of the data strongly suggests that the estimations are robust and that the statistical interpretation of the influence of the covariates is sound. We conclude that the models associate increases in tonnage, line speed, steel hardness and curvature with faster propagation of defect severity. Increasing rail profile is associated with slower propagation of defect severity. As argued by \citet{bisgaard2024A}, these associations are in accordance with railway domain knowledge \citep{UIC_2002_defecthandbook,RASMUSSEN20178}
+
+\subsection{Visual forecast diagnostic} \label{sec:reliability_analysis}
+Until now, we have evaluated the Markov jump process (MJP) forecasts using proper scoring rules, demonstrating that the MJP with the free upper parameterization ($\bm{A}'''^{(s)}$ from \cref{eq:generator_free_upper}) outperforms all reference predictors.
+Including exogenous covariates further improves predictive performance, and combining the MJP with the best-performing cumulative link model in an ensemble forecast yields additional gains.
+These results indicate the potential for applying such models to support track maintenance decisions by predicting future defect severity propagation.
+However, proper scoring rules such as the RPS, log score, and Brier score, while instructive, summarize forecast quality into single numbers and cannot reveal all sources of forecast deficiencies \citep{hamill1997,Dimitriadis_2024}.
+
+To provide a more detailed analysis, we generate multicategorical reliability diagrams to assess forecast calibration, and checkerboard plots to evaluate discrimination ability.
+We follow the methodology proposed by \citet{hamill1997}, extending the framework of reliability diagrams initially introduced for binary forecasts by \citet{wilks1995a}.
+The diagnostic plots are generated by the following procedure.
+\begin{enumerate}    
+    \item Define a set of quantiles $q_1, q_2, \dots, q_K$ (e.g., $0.05, 0.15, \dots, 0.95$), where $K$ is the number of quantiles. We use $K = 10$.
+    \item For each forecast, compute the cumulative probabilities across the $m$ categories. For each quantile $q_k$, determine the forecasted category as the smallest category where the cumulative probability exceeds or equals $q_k$. This converts the probabilistic forecasts into categories at each quantile.
+    \item For each forecast-observation pair, the multicategory reliability is defined as:
+    \begin{itemize}
+        \item $1$ if the observed category is less than the forecasted category.
+        \item $0$ if the observed category is greater than the forecasted category.
+        \item $\frac{q - q_{\min}}{q_{\max} - q_{\min}}$ if the observed category equals the forecasted category, where $q_{\min}$ and $q_{\max}$ are the quantiles where the observation matches the forecast.
+    \end{itemize}
+    \item For each quantile $q_k$, compute the average reliability across all forecast-observation pairs.
+\end{enumerate}
+Error bars are calculated via a bootstrap procedure, which repeats the above steps across multiple resampled datasets. A checkerboard plot of the difference between the forecasted and observed categories at each quantile is used to visualize the discrimination ability of the forecasts. \citet{hamill1997} offers an exhaustive description of the above methodology. Our GitHub repository\footnote{\url{https://github.com/dobbeltgaard/MarkovJump.git}} provides \texttt{R} code to generate these diagnostic plots.
+
+For brevity, we evaluate four well-performing predictors from \cref{tab:forecast_error_tab}:
+(1) the uniform distribution predictor (naïve, nonparametric),
+(2) the cumulative link model with logistic link and exogenous information,
+(3) the Markov jump process with the free upper parameterization and exogenous information, and
+(4) the ensemble forecast combining predictors (2) and (3).
+Results are shown in \Cref{fig:reliability_diagrams}. Bootstrapping was performed with 200 resamples, and 10\% and 90\% confidence intervals are reported.
+\input{figures/reliability_figs}
+
+The empirical distribution predictor (\Cref{fig:reliability_diag_empirical_dist_corr}) substantially overestimates the fraction of observed categories across all quantiles, indicating pronounced miscalibration.
+Its mean category error is also the highest among the four predictors, consistent with its poor performance on aggregate error scores.
+
+The cumulative link model with logistic link (\Cref{fig:reliability_diag_olr_cov}) shows notable improvement in calibration relative to the empirical predictor.
+However, its discrimination ability remains modest, as indicated by large average category errors and checkerboard plots with heavily populated bins far from the zero-error line.
+
+The Markov jump process (\Cref{fig:reliability_diag_free_upper_tri_TRUE_all}) achieves the lowest mean category error, and its checkerboard plot shows concentration of errors near the zero-category line, indicating good discrimination ability.
+Its reliability curve closely follows the ideal diagonal, suggesting well-calibrated forecasts.
+
+The ensemble forecast (\Cref{fig:reliability_diag_ensemble}) yields slight improvements in calibration at higher quantiles but slight worsening at lower quantiles.
+This behavior can be explained by the interaction of the individual models: while the cumulative link model tends to overpredict severity at higher quantiles, the MJP tends to underpredict, resulting in partial cancellation. However, at lower quantiles, both models tend to underpredict, leading to no corrective effect.
+
+The ensemble forecast appears somewhat less sharp than the MJP alone, as reflected in higher mean category error and more dispersed errors in the checkerboard plots.
+Nevertheless, the differences remain relatively minor, and in all cases, the diagnostic plots confirm the improvements in predictive performance indicated by the aggregate scores.
+
+
+
+\FloatBarrier
+
+
+\section{Conclusion} \label{sec:conclusion}
+We propose modeling partially observed rail defect severity trajectories using a Markov jump process, with transition rates regressed on exogenous information, including tonnage, line speed, rail curvature, grade, and rail profile at the defect locations.
+The infinitesimal generator matrix is parameterized in three different ways: a generalized Erlang structure, a reparameterized upper matrix derived from the generalized Erlang form, and a free upper triangular matrix with no functional relationship between transition rates.
+Model parameters are estimated through optimum score estimation, maximizing a combined objective based on the average log score, Brier score, and ranked probability score.
+
+We evaluate the predictive performance of the proposed Markov jump processes against several reference predictors, including three naïve predictors (a uniform predictor and an empirical distribution predictor) and a static regression model based on the cumulative link framework, tested with logistic, probit, and complementary log-log link functions.
+Prediction errors are estimated using a cross-validation procedure.
+
+The results show that the Markov jump process consistently outperforms all reference predictors, achieving higher predictive accuracy across all error metrics.
+Its forecasts are both better calibrated and demonstrate superior discrimination ability.
+The parameterization of the generator substantially impacts predictive performance: predictive accuracy increases with the flexibility of the parameterization, allowing larger and more direct jumps in the state space.
+Additionally, combining forecasts into an ensemble further improves performance, and including covariate information significantly enhances predictive accuracy.
+
+The proposed methodology provides a competitive forecasting framework for infrastructure managers, offering a practical tool to anticipate the propagation of rail defect severity and thereby support track maintenance decisions.
+Beyond railway applications, the approach is also relevant for multicategorical forecasting problems in other domains where ordinal degradation or transition processes must be predicted.

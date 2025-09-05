@@ -1,0 +1,68 @@
+\documentclass{article}
+\usepackage{graphicx} 
+\graphicspath{{../../figures/}}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[capitalise]{cleveref}
+\usepackage{natbib}
+\usepackage{bm}
+\usepackage{dsfont}
+\bibliographystyle{apalike}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\Crefname{equation}{Eq.}{Eqs.}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{svg}
+\usepackage[super]{nth}
+\usepackage{siunitx}
+ \usepackage{array,multirow,graphicx}
+\usepackage{arydshln}
+\usepackage{algpseudocode}
+\usepackage{subcaption}
+\usepackage[section]{placeins}
+\usepackage{makecell}
+\usepackage{geometry}
+ \geometry{
+ a4paper,
+ total={170mm,257mm},
+ left=20mm,
+ top=20mm,
+ }
+\newcommand{\myparagraph}[1]{\paragraph{#1}\mbox{}\\}
+\newcommand{\RemoveSpaces}[1]{%
+  \begingroup
+  \spaceskip=1sp
+  \xspaceskip=1sp
+  #1%
+  \endgroup}
+\usepackage{pdflscape}
+\usepackage{url}
+\usepackage{nomencl}
+\makenomenclature
+\newcommand{\RN}[1]{\textup{\uppercase\expandafter{\romannumeral#1}}}
+
+\usepackage{lineno}
+\usepackage{setspace}
+
+\linenumbers
+\doublespacing
+
+
+\title{Probabilistic Forecasting of an Ordered Finite State Space: A Study of the Propagation of Rail Defect Severity}
+\author{Albert Skovgaard Bisgaard, Steven Harrod, Jan Kloppenborg Møller, Bo Friis Nielsen}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\input{00_abstract}
+\input{01_Introduction}
+\input{02_Data}
+\input{03_Methods}
+\input{05_Results}
+\input{09_Extra}
+\bibliography{references}
+
+\end{document}
