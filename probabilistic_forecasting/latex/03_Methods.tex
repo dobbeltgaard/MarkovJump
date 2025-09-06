@@ -7,7 +7,7 @@ We propose the Markov jump process (or \textit{continuous-time Markov chain}) fo
 We describe its mathematical properties with computational remarks, if any, and lay out how it is estimated and applied for prediction. In addition, we describe the evaluation methodology with respect to error metrics and reference predictors. 
 We denote the complete set of rail defects by $\mathcal{S}$. The set of possible defect classifications is defined as $\mathcal{E} = \{3, 2B, 2A, 1, 0\}$, where $\mathcal{E}$ is ordered with index set denoted $\mathcal{J}$.
 Further, we define a stochastic process by $\{ X^{(s)}(t) \; \vert \; t \in \mathbb R_+\}$ for each $s \in \mathcal{S}$, and let its range be given by the defect classifications such that $ X^{(s)}(t) \in \mathcal{J}, \; \forall t \in \mathbb R_+$. Hence, the state space of $X^{(s)}(t)$ is discretely valued and finite. 
-The recorded endpoint data of the defect trajectories described in \Cref{sec:defect_trajectories} are denoted as $Y^{(s)} = \{ y_1^{(s)} = X^{(s)}(t_1^{(s)}), y_2^{(s)} = X^{(s)}(t_2^{(s)}) \}$ with $y_1^{(s)}$ and $y_2^{(s)}$ being the observed states and $t_1^{(s)}$ respectively $t_2^{(s)}$ their time stamps, for defect $s \in \mathcal{S}$. We define the time passed between two observations $\tau^{(s)} = t_2^{(s)} - t_1^{(s)}, \; s \in \mathcal{S}$. 
+The recorded endpoint data of the defect trajectories described in \Cref{sec:defect_trajectories} are denoted as $Y^{(s)} = \{ y_1^{(s)} = X^{(s)}(t_1^{(s)}), y_2^{(s)} = X^{(s)}(t_2^{(s)}) \}$ with $y_1^{(s)}$ and $y_2^{(s)}$ being the observed defect classes and $t_1^{(s)}$ respectively $t_2^{(s)}$ their time stamps, for defect $s \in \mathcal{S}$. The time passed between two observations is written as $\tau^{(s)} = t_2^{(s)} - t_1^{(s)}, \; s \in \mathcal{S}$. Accordingly, the observed transition data can be expressed as the collection of tuples $\{ ( y_1^{(s)}, y_2^{(s)}, \tau^{(s)} ) \}_{s \in \mathcal{S}}$. 
 
 
 
@@ -29,7 +29,7 @@ The instantaneous rate of transition from state $i$ to state $j$ is defined as
     \lambda_{i,j} = 
     \lim_{\Delta t \rightarrow 0_+} \frac{P\left( X^{(s)}(\Delta t) = j | X^{(s)}(0) = i\right)}{\Delta t}, \quad i \neq j, s \in \mathcal S,
 \end{align*}
-for $i,j \in \mathcal{J}$. The transition rates are collected in the \textit{infinitesimal generator}, $\bm{A} \in \mathbb R^{m \times m}$, (or alternatively denoted the \textit{transition rate matrix}), such that the $(i,j)$'th element in $\bm{A}$ is given by $\lambda_{i,j}$ where $i \neq j$. Naturally, the rates of transition are nonnegative, i.e. $\lambda_{i,j} \geq 0$ for $i \neq j$. The diagonal elements are $\bm{A}_{i,i} = -\sum_{j \in \mathcal{J} | i \neq j } \lambda_{i,j}$ and reflect the total rate of leaving state $i$ \citep{bladt_nielsen}. 
+for $i,j \in \mathcal{J}$. The transition rates are collected in the \textit{infinitesimal generator}, $\bm{A} \in \mathbb R^{m \times m}$, (or the \textit{transition rate matrix}), such that the $(i,j)$'th element in $\bm{A}$ is given by $\lambda_{i,j}$ where $i \neq j$. Naturally, the rates of transition are nonnegative, i.e. $\lambda_{i,j} \geq 0$ for $i \neq j$. The diagonal elements are $\bm{A}_{i,i} = -\sum_{j \in \mathcal{J} | i \neq j } \lambda_{i,j}$ and reflect the total rate of leaving state $i$ \citep{bladt_nielsen}. 
 To introduce exogenous dependencies to the Markov jump process, we regress the transition rate matrix on the covariates, $\bm{z}^{(s)}$, by
 \begin{equation}
 \begin{aligned}
@@ -41,10 +41,14 @@ with $\bm{A}$ denoting some base transition rate matrix. The function $g \, : \,
 \begin{align}
     g(x) = \exp(x), \quad g(x) = \log(1 + \exp(x) ), \quad \text{and} \quad g(x) = x^2.
 \end{align}
-$\bm{z}^{(s)}$ contains the exogenous information described in \Cref{sec:data}. With this exogeneous information, we deem the Markov chain spatially inhomogeneous as the rail characteristics vary throughout the network as described in \Cref{sec:data}. This dependency setting is indicated by writing $\bm{A}^{(s)}$ with explicit $s$-dependence.
+$\bm{z}^{(s)}$ contains the exogenous information described in \Cref{sec:data}. With this exogeneous information, we deem the Markov chain spatially inhomogeneous as the rail characteristics vary throughout the network as described in \Cref{sec:data}. This dependency setting is indicated by writing $\bm{A}^{(s)}$ with the explicit $s$-dependence.
 
-Let $\bm{\pi}^{(s)}(t) = \begin{bmatrix} \pi^{(s)}_1(t), \dots, \pi^{(s)}_m(t) \end{bmatrix}$ denote the time-dependent state distribution of size $1 \times m$ with $\sum_{i = 1}^m \bm{\pi}^{(s)}_i(t) = 1, \; \forall t\in \mathbb{R}, \forall s \in \mathcal{S}$. Alternatively, $\bm{\pi}^{(s)}(t)$ is denoted the \textit{transient distribution} of the Markov chain at time $t$.
-The Kolmogorov forward equation, $\Dot{\bm{\pi}}^{(s)}(t) = \bm{\pi}^{(s)}(t) \bm{A}^{(s)}$, describes how the state probabilities evolve over time, given some initial probabilities \citep{bladt_nielsen}. The transient distribution can be obtained by
+Let $\bm{\pi}^{(s)}(t) = \begin{bmatrix} \pi^{(s)}_1(t), \dots, \pi^{(s)}_m(t) \end{bmatrix}$ denote the time-dependent state distribution of defect $s$, a vector of dimension $1 \times m$ satisfying $\sum_{i = 1}^m \bm{\pi}^{(s)}_i(t) = 1$. For any $t>t_1^{(s)}$, the $i$'th component is given by
+\begin{align}
+ \bm{\pi}_i^{(s)}(t) = P\left( X^{(s)}(t) = i \mid X^{(s)}(t_1^{(s)}) = y_1^{(s)}  \right), \quad \forall t\in \mathbb{R}, \forall s \in \mathcal{S}. 
+\end{align}
+Equivalently, $\bm{\pi}^{(s)}(t)$ is called the \textit{transient distribution} of the Markov chain, representing the probability distribution over severity classes at time $t$, conditional on the observed starting state $y_1^{(s)}$.
+Kolmogorov's forward equation, $\Dot{\bm{\pi}}^{(s)}(t) = \bm{\pi}^{(s)}(t) \bm{A}^{(s)}$, governs the change in state probabilities over time, given some initial probabilities \citep{bladt_nielsen}. The transient distribution can be obtained by
 \begin{equation}
 \begin{aligned}
                   \bm{\pi}^{(s)}(t_0 + \Delta t) = 
@@ -55,12 +59,16 @@ The Kolmogorov forward equation, $\Dot{\bm{\pi}}^{(s)}(t) = \bm{\pi}^{(s)}(t) \b
 
 
 \subsubsection{Temporal warping} \label{sec:warping}
-Previous work on Markov jump processes applied to crack growth typically parameterizes progression in terms of calendar time, assuming that all time contributes equally to defect development \citep{bisgaard2024A}. However, for severity classes, calendar time may not contribute equally, meaning that a defect might be subject to state-dependent degradation dynamics. To model this dependency, \textit{temporal warping} is proposed.
-We define
-\begin{align}
-    \mu_i^{(s)}(\tau ) = \int_0^\tau \pi^{(s)}_i(t) \; dt, \label{eq:cumulative_sojourn_time}
-\end{align}
-which is the estimated expectation of the cumulative sojourn time in state $i$ during the interval $\left[ 0,\tau \right]$ for a defect $s \in \mathcal{S}$. 
+Previous work on Markov jump processes applied to crack growth typically parameterizes progression in terms of calendar time, assuming that all elapsed time contributes equally to defect development, see for instance \citet{bisgaard2024A}. 
+In practice, however, the speed of propagation may depend on which severity class is currently occupied: some states may correspond to slower degradation dynamics, while others may accelerate propagation.
+To allow such flexibility, we propose temporal warping through state-specific weights $\xi_i$.
+Given the collection of tuples $\{ ( y_1^{(s)}, y_2^{(s)}, \tau^{(s)} ) \}_{s \in \mathcal{S}}$, we define the expected sojourn times in state $i$ during the interval $\left[ 0,\tau^{(s)} \right]$ conditional on the initial state $y_1^{(s)}$ as
+\begin{equation}
+    \begin{aligned}
+    \mu_i^{(s)}(\tau ) 	&=\mathbb{E} \left[ \int_0^{\tau^{(s)}} \mathds{1}_{X^{(s)}(t) = i} \; dt \mid X^{(s)}(0) = y_1^{(s)}  \right] \\ 
+    				&= \int_0^\tau \pi^{(s)}_i(t) \; dt.
+\end{aligned}  \label{eq:cumulative_sojourn_time}
+\end{equation} 
 In practice, this is calculated by 
 $
 \bm{\mu}^{(s)}(\tau) \approx \sum_{k = 1}^{K} \Delta t \cdot \bm{\pi}^{(s)}(t_k)
@@ -74,9 +82,9 @@ The warped time $\widetilde{\tau}^{(s)}$ for crack $s \in \mathcal S$, is then o
     &\approx \sum_{k = 1}^K \bm{\xi} \cdot \bm{\pi}^{(s)}(t_k) \cdot \Delta t,   
     \end{aligned} \label{eq:warped_time}
 \end{equation}
-where $\bm{\xi} \in \mathbb{R}_+^m$ is a vector of nonnegative weights. An Euler scheme calculates the transient distribution, i.e. $\bm{\pi}^{(s)}(t_k) \approx \bm{\pi}^{(s)}(t_{k-1}) + \Delta t \cdot \bm{\pi}^{(s)}(t_{k-1}) \bm{A}^{(s)}$.
-If all $\xi_i = 1$, the model reduces to one without warping, i.e., $\widetilde\tau^{(s)} = \tau^{(s)}$. In this study, we set the weight for the absorbing state to $1$ to ensure that arrival at the absorbing state concludes the degradation process in warped time domain as well.
-We compare models with and without temporal warping in terms of predictive accuracy. %For notational simplicity, we write $\tau'$ in both cases of standard covariate-dependent MJP and its temporally warped version.
+where $\bm{\xi} \in \mathbb{R}_+^m$ is a vector of nonnegative weights. We approximate the transient distribution via an Euler scheme, i.e. $\bm{\pi}^{(s)}(t_k) \approx \bm{\pi}^{(s)}(t_{k-1}) + \Delta t \cdot \bm{\pi}^{(s)}(t_{k-1}) \bm{A}^{(s)}$.
+If all $\xi_i = 1$, the model reduces to one without warping, i.e., $\widetilde\tau^{(s)} = \tau^{(s)}$. The weight for the absorbing state is set to $1$ to ensure that arrival at the absorbing state concludes the degradation process in the warped time domain as well.
+We compare models with and without temporal warping in terms of predictive accuracy. For notational simplicity, we use $\tau'$ to denote elapsed time in both the standard covariate-dependent MJP and its temporally warped version.
 
 \subsubsection{Parameterization of the infinitesimal generator} \label{sec:generator_params}
 The parameterization of the infinitesimal generator (or just the \textit{generator}) determines how $X^{(s)}$ transitions between states in the Markov chain. 
@@ -85,31 +93,31 @@ Given an observation $y_1^{(s)} = X^{(s)}(t_1^{(s)})$ for defect $s \in \mathcal
 
 For example, if $y_1^{(s)}$ is class $2B$ and $y_2^{(s)}$ is class 1, it is not observed whether, or when, the defect entered class $2A$. By parameterizing the generator, we can either force the process to pass through $2A$ before reaching $1$, or allow direct transitions between non-neighboring states. 
 
-Since rails can degrade both gradually and through sudden shocks, the generator’s structure influences which physical degradation mechanisms the model can capture. In the following, we introduce five different parameterizations of $\bm{A}^{(s)}$, each applied later in the prediction study to assess their impact on forecast accuracy. \Cref{tab:generators_overview} provides an overview of the generators considered in the following. Common to all is that the lower triangle of $\bm{A}^{(s)}$ is zero, reflecting that degradation is irreversible without maintenance.
+Since rails can degrade both gradually and through sudden shocks, the generator’s structure influences which physical degradation mechanisms the model can capture. In the following, we introduce five different parameterizations of $\bm{A}$ from \cref{eq:trans_rates_covariates}, each applied later in the prediction study to assess their impact on forecast accuracy. \Cref{tab:generators_overview} provides an overview of the generators considered in the following. Common to all is that the lower triangle of $\bm{A}$ is zero, reflecting that degradation is irreversible without maintenance.
 
 \begin{table}[htb!]
 \centering
 \caption{Overview of generator parameterizations for crack $s \in \mathcal{S}$ where $m$ is the size of the state space and $p$ the number of covariates.}
 \label{tab:generators_overview}
-\begin{tabular}{@{}clcc@{}}
+\begin{tabular}{@{}llll@{}}
 \toprule
 Generator & Allowed jumps & Free base rates & \makecell{Total parameters} \\
 \midrule
-$\bm{A}_{\RN{1}}^{(s)}$ & Nearest-class & $m - 1$ & $2m - 2 + p$ \\
-$\bm{A}_{\RN{2}}^{(s)}$ & Any forward jump (harmonically constrained) & $m - 1$ & $2m - 2 + p$ \\
-$\bm{A}_{\RN{3}}^{(s)}$ & Up to 2 classes ahead & $2m - 3$ & $3m - 4 + p$ \\
-$\bm{A}_{\RN{4}}^{(s)}$ & Up to 3 classes ahead & $3m - 6$ & $4m - 7 + p$ \\
-$\bm{A}_{\RN{5}}^{(s)}$ & Any forward jump (free) & $\frac{m(m-1)}{2}$ & $\frac{m(m+1)}{2} - 1 + p$ \\
+$\bm{A}_{\RN{1}}$ & Nearest-class & $m - 1$ & $2m - 2 + p$ \\
+$\bm{A}_{\RN{2}}$ & Any forward jump (harmonically constrained) & $m - 1$ & $2m - 2 + p$ \\
+$\bm{A}_{\RN{3}}$ & Up to 2 classes ahead & $2m - 3$ & $3m - 4 + p$ \\
+$\bm{A}_{\RN{4}}$ & Up to 3 classes ahead & $3m - 6$ & $4m - 7 + p$ \\
+$\bm{A}_{\RN{5}}$ & Any forward jump (free) & $\frac{m(m-1)}{2}$ & $\frac{m(m+1)}{2} - 1 + p$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-
+\FloatBarrier
 
 \myparagraph{Generalized Erlang}
 The first proposed parameterization assumes that a defect transition can only happen to a neighboring defect class. The generator can then be expressed as
 \begin{align}
-    \bm{A}_{\RN{1}}^{(s)} = \begin{bmatrix} 
+    \bm{A}_{\RN{1}} = \begin{bmatrix} 
     \Sigma_1 & \lambda_{3,2B} & 0 & 0 & 0 \\
     0 & \Sigma_2 & \lambda_{2B, 2A} & 0 & 0 \\
     0 & 0 & \Sigma_3 & \lambda_{2A, 1} & 0 \\
@@ -117,7 +125,7 @@ The first proposed parameterization assumes that a defect transition can only ha
     0 & 0 & 0 & 0 & 0 \\
     \end{bmatrix}, \label{eq:generator_erlang}
 \end{align}
-where $\Sigma_i = -\sum_{j=1, i \neq j}^m A^{(s)}_{\RN{1},i,j}$ for $i = 1, \dots, m-1$. 
+where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{1},i,j}$ for $i = 1, \dots, m-1$. 
 \Cref{eq:generator_erlang} results in the \textit{generalized Erlang distribution} or a \textit{hypoexponential distribution} for transition times between states. This is a distribution of the sum of independent exponential random variables \citep{bladt_nielsen}. For the previously outlined observation of a defect jump from class $2B$ to class $1$ between time $t_1^{(s)}$ and $t^{(s)}_2$, \cref{eq:generator_erlang} assumes that $X^{(s)}(t^{(s)})$ has visited class $2A$ where $t^{(s)}_1 < t^{(s)} < t^{(s)}_2$.
 %For brevity of notation, we have dropped the explicit $\bm{z}^{(s)}$-dependence on the $\lambda_{i,j}$'s but we note that we refer to the variables expressed in \cref{eq:trans_rates_covariates}. 
 Given the parameterization in \cref{eq:generator_erlang}, the model setting has $m-1$ parameters, while it with the regression setting in \cref{eq:trans_rates_covariates} and temporal warping in \cref{sec:warping} has $2m-2 + p$ parameters, where $m$ denotes the size of the state space and $p$ denotes the number of covariates.
@@ -135,10 +143,10 @@ Formally, this is expressed as
 \begin{align}
     \frac{1}{\lambda_{i,j}} = \sum_{k = i}^{j-1} \frac{1}{\lambda_{k,k+1}}, \quad i < j. \label{eq:trans_rate_param}
 \end{align}
-We let $\bm{A}_{\RN{2}}^{(s)}$ denote the generator subject to the reparameterized upper triangle of the generalized Erlang in \cref{eq:generator_erlang}.
-Upon determination of the upper triangle using \cref{eq:trans_rate_param}, the diagonal elements are updated accordingly so that they still satisfy $A_{\RN{2},i,i}^{(s)} = -\sum_{j=1, i \neq j}^m A_{\RN{2},i,j}^{(s)}$ for $i = 1, \dots, m$. For completeness, we provide its somewhat cumbersome algebraic expression, i.e.
+We let $\bm{A}_{\RN{2}}$ denote the generator subject to the reparameterized upper triangle of the generalized Erlang in \cref{eq:generator_erlang}.
+Upon determination of the upper triangle using \cref{eq:trans_rate_param}, the diagonal elements are updated accordingly so that they still satisfy $A_{\RN{2},i,i}= -\sum_{j=1, i \neq j}^m A_{\RN{2},i,j}$ for $i = 1, \dots, m$. For completeness, we provide its somewhat cumbersome algebraic expression, i.e.
 \begin{align*}
-  \bm{A}_{\RN{2}}^{(s)}=\begin{bmatrix}
+  \bm{A}_{\RN{2}}=\begin{bmatrix}
 \Sigma_1 %-\lambda_{3,2B}-\frac{\lambda_{3,2B} \lambda_{2B,2A}}{\lambda_{3,2B}+\lambda_{2B,2A}}-\frac{\lambda_{3,2B} \lambda_{2B,2A} \lambda_{2A,1}}{\left(\lambda_{2B,2A}+\lambda_{2A,1}\right) \lambda_{3,2B}+\lambda_{2B,2A} \lambda_{2A,1}}-\\\frac{\lambda_{3,2B} \lambda_{2B,2A} \lambda_{2A,1} \lambda_{1,0}}{\left(\left(\lambda_{2A,1}+\lambda_{1,0}\right) \lambda_{2B,2A}+\lambda_{2A,1} \lambda_{1,0}\right) \lambda_{3,2B}+\lambda_{2B,2A} \lambda_{2A,1} \lambda_{1,0}} 
  & \lambda_{3,2B} & \frac{\lambda_{3,2B} \lambda_{2B,2A}}{\lambda_{3,2B}+\lambda_{2B,2A}} & \frac{\lambda_{3,2B} \lambda_{2B,2A} \lambda_{2A,1}}{\left(\lambda_{2B,2A}+\lambda_{2A,1}\right) \lambda_{3,2B}+\lambda_{2B,2A} \lambda_{2A,1}} & \frac{\lambda_{3,2B} \lambda_{2B,2A} \lambda_{2A,1} \lambda_{1,0}}{\left(\left(\lambda_{2A,1}+\lambda_{1,0}\right) \lambda_{2B,2A}+\lambda_{2A,1} \lambda_{1,0}\right) \lambda_{3,2B}+\lambda_{2B,2A} \lambda_{2A,1} \lambda_{1,0}} 
 \\
@@ -155,7 +163,7 @@ Upon determination of the upper triangle using \cref{eq:trans_rate_param}, the d
  0 & 0 & 0 & 0 & 0 
     \end{bmatrix},
 \end{align*}
-where $\Sigma_i = -\sum_{j=1, i \neq j}^m A^{(s)}_{\RN{2},i,j}$ for $i = 1, \dots, m-1$. 
+where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{2},i,j}$ for $i = 1, \dots, m-1$. 
 
 \myparagraph{Upper-banded (max jump = 2)}
 The \textit{upper bidiagonal} parameterization allows for transitions to both the immediate next class and the class two steps ahead in severity. Compared to the generalized Erlang, this formulation introduces additional flexibility, while still maintaining a relatively sparse generator. The generator is given by
@@ -168,13 +176,13 @@ The \textit{upper bidiagonal} parameterization allows for transitions to both th
 0 & 0 & 0 & 0 & 0 \\
 \end{bmatrix}, \label{eq:generator_bidiagonal}
 \end{align}
-where $\Sigma_i = -\sum_{j=1, i \neq j}^m A^{(s)}_{\RN{3},i,j}$ for $i = 1, \dots, m-1$.
-The total number of base rate parameters is $2m - 3$. With covariates and warping, the model has $3m - 4 + p$ parameters in total.
+where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{3},i,j}$ for $i = 1, \dots, m-1$.
+The total number of base rate parameters is $2m - 3$. With covariates and warping, it becomes $3m - 4 + p$ parameters in total.
 
 \myparagraph{Upper-banded (max jump = 3)}
-The fourth parameterization, \textit{upper tridiagonal}, further generalizes the upper bidiagonal by allowing jumps of up to three severity levels ahead. The generator matrix takes the form
+The fourth parameterization, \textit{upper tridiagonal}, allows jumps of up to three severity levels ahead. The generator matrix takes the form
 \begin{align}
-\bm{A}_{\RN{4}}^{(s)} = \begin{bmatrix}
+\bm{A}_{\RN{4}}= \begin{bmatrix}
 \Sigma_1 & \lambda_{3,2B} & \lambda_{3,2A} & \lambda_{3,1} & 0 \\
 0 & \Sigma_2 & \lambda_{2B,2A} & \lambda_{2B,1} & \lambda_{2B,0} \\
 0 & 0 & \Sigma_3 & \lambda_{2A,1} & \lambda_{2A,0} \\
@@ -182,14 +190,14 @@ The fourth parameterization, \textit{upper tridiagonal}, further generalizes the
 0 & 0 & 0 & 0 & 0 \\
 \end{bmatrix}, \label{eq:generator_tridiagonal}
 \end{align}
-where again $\Sigma_i = -\sum_{j=1, i \neq j}^m A^{(s)}_{\RN{4},i,j}$ for $i = 1, \dots, m-1$.
+where again $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{4},i,j}$ for $i = 1, \dots, m-1$.
 This specification enables modeling large defect escalations, where a defect may deteriorate across multiple classes in a single transition. It introduces more flexibility than the previous structures at the cost of increased cardinality of the parameter space. Specifically, this parameterization includes $3m - 6$ base transition rates, yielding a total of $4m - 7 + p$ parameters with covariates and warping.
 
 
 \myparagraph{Free upper-triangular}
 The last parameterization assumes that a defect can transition to any class of equal or higher severity, without any functional relationship between transition rates. In this setting, the upper triangle of the generator is \textit{free} of structural restrictions. The generator is expressed as
 \begin{align}
-    \bm{A}_{\RN{5}}^{(s)} =
+    \bm{A}_{\RN{5}} =
     \begin{bmatrix} 
     \Sigma_1 & \lambda_{3,2B} & \lambda_{3, 2A} & \lambda_{3, 1} & \lambda_{3, 0} \\
     0 & \Sigma_2 & \lambda_{2B, 2A} & \lambda_{2B, 1} & \lambda_{2B, 0} \\
@@ -198,48 +206,53 @@ The last parameterization assumes that a defect can transition to any class of e
     0 & 0 & 0 & 0 & 0 \\
     \end{bmatrix}, \label{eq:generator_free_upper}
 \end{align}
-where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{5},i,j}^{(s)}$ for $i = 1, \dots, m-1$.
+where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{5},i,j}$ for $i = 1, \dots, m-1$.
 Unlike the reparameterized upper, this formulation does not constrain long-range jumps to have lower rates than neighboring jumps. It introduces more model flexibility at the cost of higher complexity: the number of free parameters increases quadratically with the number of states and linearly with the number of covariates, that is, $(m^2 + m)/2 - 1 +p$ parameters in total with regression and warping.
 
 
 \FloatBarrier
 
 \subsubsection{Optimum score estimation}\label{sec:optimum_score_estimation}
-Let $\bm{\theta}$ denote the set of model parameters to be determined.
-For the Markov jump process, $\bm{\theta}$ is the collection of parameters constituted by the base transition rates, $\lambda_{i,j}^{(0)}$, and the coefficients on the covariates, $\bm{\beta}$.
-Optimum score estimation is about determining ``good'' model parameters, $\bm{\theta}$, based on maximizing some score function $\mathcal{D}$, i.e.
+
+Let $\bm{\theta}$ denote the set of model parameters, consisting of the transition rates, covariate coefficients, and the coefficients associated with expected sojourn times, such that $\bm{\theta} = \{ \lambda_{i,j} : i,j \in \mathcal{J}, i \neq j ; \; \beta_k : k = 1,\dots, p ; \; \xi_l : l = 1, \dots, m-1\} $. 
+%For the Markov jump process, $\bm{\theta}$ is the collection of parameters constituted by the base transition rates, $\lambda_{i,j}^{(0)}$, and the coefficients on the covariates, $\bm{\beta}$.
+Optimum score estimation aims to determine ``good'' model parameters, $\widehat{\bm{\theta}}$, by maximizing some score function $\mathcal{D}$, i.e.
 \begin{align*}
-\argmax_{\bm{\theta}}\mathcal{D}_n(\bm{\theta}) \rightarrow \bm{\theta}_0, \quad \text{as } n \rightarrow \infty,   
+\widehat{\bm{\theta}}_n = \argmax_{\bm{\theta}}\mathcal{D}_n(\bm{\theta})   
 \end{align*}
-\citet{Gneiting2007} argues that the choice of score function, $\mathcal{D}$, should be in accordance with the forecast scoring rule as this improves model performance \citep{friedman1983a,Copas1983} compared to non-tailored estimation practices. 
+where $\widehat{\bm{\theta}}_n  \rightarrow \bm{\theta}_0$ as $n \rightarrow \infty$ with $\bm{\theta}_0$ denoting the true set of model parameters.
+\citet{Gneiting2007} argues that the choice of score function, $\mathcal{D}$, should be consistent with the forecast scoring rule used for evaluation as this improves model performance compared to non-tailored estimation practices \citep{friedman1983a,Copas1983}. 
 The overall idea of optimum score estimation is that we choose the measure of the goodness-of-fit in accordance with how we seek to evaluate the performance of the model. 
-Given a parametric model, $P_{\bm{\theta}}$, and the recorded data, $Y^{(s)}$, we denote the \textit{metric} (or \textit{reward}) by $D(P_{\bm{\theta}}, Y^{(s)})$, and the mean score by
+Given a parametric model, $P_{\bm{\theta}}$, and the recorded data, $Y^{(s)}$, we denote the \textit{metric} (or \textit{reward}) by $D(P_{\bm{\theta}}, Y^{(s)})$, and the score by
 \begin{align}
-    \mathcal{D}_n(\bm{\theta}) = \frac{1}{|\mathcal{S}|} \sum_{s \in \mathcal{S}} D\left(P_{\bm{\theta}}, Y^{(s)}\right). \label{eq:mean_score}
+    \mathcal{D}_{|\mathcal{S}|}(\bm{\theta}) = \sum_{s \in \mathcal{S}} D\left(P_{\bm{\theta}}, Y^{(s)}\right). %\frac{1}{|\mathcal{S}|} 
+    \label{eq:mean_score}
 \end{align}
 \citet{bisgaard2024A} applies maximum likelihood estimation to determine parameters of the Markov jump process.
-The data mean log-likelihood given the recorded jumps of the defect trajectories is 
+The data log-likelihood given the recorded defect transitions is 
 \begin{equation}
 \begin{aligned}
-                  \ell\left( \bm{\theta}; \{y_1^{(s)}, y_2^{(s)}, t_1^{(s)},t_2^{(s)}\}_{s \in \mathcal{S}} \right) &= 
-                  \frac{1}{|\mathcal{S}|}\sum_{s \in \mathcal{S}} \log \left( P\left(X^{(s)}(t_2^{(s)}) = y_2^{(s)} \mid X^{(s)}(t_1^{(s)}) = y_1^{(s)} \right) \right) \\ 
-                  &= \frac{1}{|\mathcal{S}|}\sum_{s \in \mathcal{S}}
-                  \log\left(   \left[ \bm{\pi}^{(s)}\left( t_2^{(s)} \right)  \right]_{ y_2^{(s)}} \right)
-                  \\
-                  &= \frac{1}{|\mathcal{S}|}\sum_{s \in \mathcal{S}}
-                  \log\left(   \left[ \bm{e}_{y_{1}^{(s)}}  \exp \left( \bm{A}^{(s)} \tau^{(s)} \right) \right]_{ y_2^{(s)}} \right), \label{eq:likelihood_mjp}
+                  \ell\left( \bm{\theta}; Y \right) = 
+                  \sum_{s \in \mathcal{S}} \log \left( P\left(X^{(s)}(t_2^{(s)}) = y_2^{(s)} \mid X^{(s)}(t_1^{(s)}) = y_1^{(s)} \right) \right), \quad \text{with} \\ 
+                 P\left(X^{(s)}(t_2^{(s)}) = y_2^{(s)} \mid X^{(s)}(t_1^{(s)}) = y_1^{(s)} \right) = \left[ \bm{\pi}^{(s)}\left( t_2^{(s)} \right)  \right]_{ y_2^{(s)}} =  \left[ \bm{e}_{y_{1}^{(s)}}  \exp \left( \bm{A}^{(s)} \tau'^{(s)} \right) \right]_{ y_2^{(s)}},
+                 % &= \sum_{s \in \mathcal{S}}
+                  %\log\left(   \left[ \bm{\pi}^{(s)}\left( t_2^{(s)} \right)  \right]_{ y_2^{(s)}} \right)
+                  %\\
+                  %&= \sum_{s \in \mathcal{S}}
+                  %\log\left(   \left[ \bm{e}_{y_{1}^{(s)}}  \exp \left( \bm{A}^{(s)} \tau^{(s)} \right) \right]_{ y_2^{(s)}} \right), 
+                  \label{eq:likelihood_mjp}
 \end{aligned}     
 \end{equation}
-where $\bm{e}_{y_{1}^{(s)}} \in \mathbb{N}^{1 \times m}$ is $1$ at the state $y_{1}^{(s)}$-index and zero elsewhere (it corresponds to the initial distribution $\bm{\pi}^{(s)}(t_1^{(s)})$). The $y_2^{(s)}$-index on the square brackets indicates that we choose the corresponding element of the transient distribution, $\bm{e}_{y_{1}^{(s)}}  \exp \left( \bm{A}^{(s)} \tau^{(s)} \right)$. 
+where $\bm{e}_{y_{1}^{(s)}} \in \mathbb{N}^{1 \times m}$ is $1$ at the state $y_{1}^{(s)}$-index and zero elsewhere (it corresponds to the initial distribution $\bm{\pi}^{(s)}(t_1^{(s)})$). The $y_2^{(s)}$-index on the square brackets indicates that we choose the corresponding element of the transient distribution, $\bm{e}_{y_{1}^{(s)}}  \exp \left( \bm{A}^{(s)} \tau'^{(s)} \right)$. 
 % state probability of a transition from state $y_1^{(s)}$'th to state $y_{2}^{(s)}$ in the time passed between the two observations, that is $\tau_s = t_2^{(s)} - t_1^{(s)}$. 
-Thus, the discrete likelihood is the product of the probabilities of observing the state, $y_2^{(s)}$, after $\tau_s$ time has passed upon observing $y_1^{(s)}$ for all $s \in \mathcal{S}$.
-\Cref{eq:likelihood_mjp} is thus an example on a choice of the mean score function in \cref{eq:mean_score}.
-Maximum likelihood estimation corresponds to optimum score estimation based on the log-score. Subsequently, MLE is optimal given forecast evaluation wrt. to this exact scoring rule. Provided another scoring rule, MLE might not be suitable for optimal forecast performance. This notion is empirically demonstrated by \citet{Gneiting2005} and \citet{gebetsberger2018a}.
-For this study, we apply several probabilistic scoring rules. We describe these in \Cref{sec:error_metrics}. To improve prediction performance wrt. to all metrics, our optimum score estimation is based on maximizing the sum of the mean score functions wrt. their respective scoring rules, i.e.
+The discrete likelihood is then the product of the probabilities of observing the state, $y_2^{(s)}$, after $\tau'^{(s)}$ time (warped or not) has passed upon observing $y_1^{(s)}$ for all $s \in \mathcal{S}$.
+\Cref{eq:likelihood_mjp} is an example on a choice of the score function in \cref{eq:mean_score}.
+Maximum likelihood estimation corresponds to optimum score estimation based on the log-score. It is therefore optimal with respect to forecast evaluation under this rule. Provided another scoring rule, MLE might not be suitable for optimal forecast performance. This notion is empirically demonstrated by \citet{Gneiting2005} and \citet{gebetsberger2018a}.
+For this study, we apply two probabilistic scoring rules. We describe these in \Cref{sec:error_metrics}. To improve prediction performance wrt. to both metrics, our optimum score estimation is based on maximizing the sum of the score functions wrt. their respective scoring rules, i.e.
 \begin{align}
-     \mathcal{D}_n(\bm{\theta}) = \frac{1}{|\mathcal{S}|} \sum_{s \in \mathcal{S}} \left( D_1\left(P_{\bm{\theta}}, Y^{(s)}\right) + D_2\left(P_{\bm{\theta}}, Y^{(s)}\right) + D_3\left(P_{\bm{\theta}},  Y^{(s)}\right)\right). \label{eq:mean_score_combination}
+     \mathcal{D}_{{|\mathcal{S}|}}(\bm{\theta}) = \sum_{s \in \mathcal{S}} \left( D_1\left(P_{\bm{\theta}}, Y^{(s)}\right) + D_2\left(P_{\bm{\theta}}, Y^{(s)}\right) \right). \label{eq:mean_score_combination}
 \end{align}
-where $D_i(P_{\bm{\theta}}, Y^{(s)})$ for $i = 1,2,3$ are the three different metrics considered in this study. If deemed relevant, weights can be assigned to each of terms. The following describes the different metrics.
+where $D_i(P_{\bm{\theta}}, Y^{(s)})$ for $i = 1,2$ are the two different metrics considered in this study. If deemed relevant, weights can be assigned to each of the terms. The following describes these metrics.
 
 % Model parameters can be determined by maximum likelihood estimation, i.e. maximining the logarithm of the quantity in \cref{eq:likelihood_mjp}, i.e.
 % \begin{align*}
@@ -254,10 +267,14 @@ where $D_i(P_{\bm{\theta}}, Y^{(s)})$ for $i = 1,2,3$ are the three different me
 
 
 \subsection{Metrics} \label{sec:error_metrics}
-As $\mathcal{E}$ is a discrete and finite state space, suitable methods for evaluating categorical forecasts must be considered. By \cref{eq:markov_eq_solution}, we model the evolution of the distribution of $\mathcal{E}$, i.e. we produce probabilities associated to each element of the state space.
-Opposed to nominal category forecasts, the considered state space of defect severity has a natural ordering, e.g. class $1$ is more severe than class $2A$. Subsequently, it is said to be \textit{ordinal} \citep{broecker2008a,hamill1997,Weijs2010}.
-For probabilistic forecasts of an ordinal discrete state space, there are two possibly relevant aspects of verification, i.e. (1) forecast ability in the category corresponding to the outcome of the event, and (2) forecast ability to predict category probabilities \textit{close to} the category corresponding to the outcome of the event \citep{Weijs2010}. 
-In the following, we present three different metrics that will be used for both estimation (as described in \Cref{sec:optimum_score_estimation}) and for evaluating model predictions.
+As $\mathcal{E}$ is a discrete and finite state space of severity classes, suitable methods for evaluating categorical forecasts must be considered. By \cref{eq:markov_eq_solution}, we model the evolution of the distribution on $\mathcal{E}$, i.e. we produce probabilities associated to each element of the state space.
+Opposed to nominal category forecasts, the considered state space of defect severity has a natural ordering. It is therefore said to be \textit{ordinal} \citep{broecker2008a,hamill1997}.
+For probabilistic forecasts of an ordinal discrete state space, there are two possibly relevant aspects of verification \citep{Weijs2010}, i.e. 
+\begin{itemize}
+\item forecast ability in the category corresponding to the outcome of the event;
+\item forecast ability to predict category probabilities \textit{close to} the category corresponding to the outcome of the event.
+\end{itemize} 
+In the following, we present two different metrics that will be used for both estimation (as described in \Cref{sec:optimum_score_estimation}) and for evaluating model predictions.
 
 %Let $\Tilde{P}^{(s)}_{i}(t)$ denote the predicted probability at time $t$ for outcome $i \in \mathcal{J}$ for defect $s \in \mathcal{S}$. We assume that the $m$ defect classes are mutually exclusive and exhaustive meaning that
 % \begin{align*}
@@ -267,37 +284,43 @@ In the following, we present three different metrics that will be used for both 
 
 
 \subsubsection{Log Score}
-The log-score is a widely used scoring rule; optimum score estimation based on the log-score corresponds to maximum likelihood estimation. The log-score evaluates the logarithm of the probability assigned to the observed outcome. In the case of the current study, the mean log-score can be expressed as
+The average log-score is a widely used scoring rule; optimum score estimation based on the log-score corresponds to maximum likelihood estimation. The log-score evaluates the logarithm of the probability assigned to the observed outcome. In the case of the current study, the mean log-score can be expressed as
 \begin{align}
     \overline{\text{LogS}} = \frac{1}{\vert \mathcal{S} \vert} \sum_{s \in \mathcal{S}} \log \left( \left[ \bm{\pi}^{(s)}\left( t_2^{(s)} \right)  \right]_{ y_2^{(s)}} \right).  \label{eq:log_Score}
 \end{align}
 \Cref{eq:log_Score} is thus equivalent to \cref{eq:likelihood_mjp}.
 It rewards forecasts solely based on the probability assigned to the observed category, ignoring the probabilities assigned to incorrect ones. Therefore, it is \textit{insensitive to distance} in the state space.  
 
-
-\subsubsection{Brier score} 
-\citet{Brier1950} proposed a scoring rule for multicategorical predictive distributions, which in our case is given as the mean of the sum of the squared distances of the computed transient distributions and the observed endpoints of the defect trajectories, i.e.
-\begin{align}
-    \overline{\text{BS}} = \frac{1}{\vert \mathcal{S} \vert} \sum_{s \in \mathcal{S}} \sum_{i \in \mathcal{J}} \left( \bm{\pi}^{(s)}_i\left( t_2^{(s)} \right) -\mathds{1}_{ \{i \; = \; y_2^{(s)} \} } \right)^2, \label{eq:Brier_Score}
-\end{align}
-where $\mathds{1}_{ q }$ is an indicator which is one if $q$ is true and zero otherwise.
-Like the log-score, the Brier score treats classes not corresponding to the observed outcome equally, that is by summing over the quadratic errors, making it also insensitive to distance. A perfect forecast is associated with a zero contribution to the Brier score for each defect, $s$. Therefore, it is a loss function.
+%
+%\subsubsection{Brier score} 
+%\citet{Brier1950} proposed a scoring rule for multicategorical predictive distributions, which in our case is given as the mean of the sum of the squared distances of the computed transient distributions and the observed endpoints of the defect trajectories, i.e.
+%\begin{align}
+%    \overline{\text{BS}} = \frac{1}{\vert \mathcal{S} \vert} \sum_{s \in \mathcal{S}} \sum_{i \in \mathcal{J}} \left( \bm{\pi}^{(s)}_i\left( t_2^{(s)} \right) -\mathds{1}_{ \{i \; = \; y_2^{(s)} \} } \right)^2, \label{eq:Brier_Score}
+%\end{align}
+%where $\mathds{1}_{ q }$ is an indicator which is one if $q$ is true and zero otherwise.
+%Like the log-score, the Brier score treats classes not corresponding to the observed outcome equally, that is by summing over the quadratic errors, making it also insensitive to distance. A perfect forecast is associated with a zero contribution to the Brier score for each defect, $s$. Therefore, it is a loss function.
 
 
 \subsubsection{Ranked Probability Score}
-The mean ranked probability score (RPS) is given by
+The average ranked probability score (RPS) is given by
 \begin{align}
     \overline{\text{RPS}} =\frac{1}{\vert \mathcal{S} \vert} \sum_{s \in \mathcal{S}} \sum_{k = 1}^m\left( \sum_{i = 1}^k\bm{\pi}^{(s)}_i\left( t_2^{(s)} \right)  - \sum_{i = 1}^k\mathds{1}_{ \{ i \; = \; y_2^{(s)} \} } \right)^2 \label{eq:RPS}
 \end{align}
-as the mean of squared distances between the cumulative transient distribution and the cumulative observed outcomes \citep{Epstein1969}.
-Compared to the log-score and the Brier score, RPS punishes probability masses in false outcomes milder if the wrong predictions are located \textit{closer} to the observed outcome. Thus, RPS introduces an ordering to inaccurate predictions in the sense that some \textit{wrong} predictions can be less wrong.
-For the purpose of degradation dynamics where there is a structural ordering wrt. defect severity, it can be argued that RPS is more suitable than the log-score or the Brier Score, if forecasts are interpreted as beliefs about track safety levels, which correlate with crack size \citep{UIC_2002_defecthandbook}. 
+as the average of squared distances between the cumulative transient distribution and the cumulative observed outcomes \citep{Epstein1969}.
+Compared to the log-score, RPS punishes probability masses in false outcomes milder if the wrong predictions are located \textit{closer} to the observed outcome. Thus, RPS introduces an ordering to inaccurate predictions in the sense that some \textit{wrong} predictions can be less wrong.
+For the purpose of degradation dynamics where there is a structural ordering wrt. defect severity, it can be argued that RPS is more suitable than the log-score or the Brier Score, if forecasts are interpreted as beliefs about track 
+safety levels, which correlate with crack size \citep{UIC_2002_defecthandbook}. 
 According to \citet{Czado2009}, an advantage with RPS is that it enables direct comparison between predictive distributions and point predictions, as it has shown to generalize the mean absolute error \citep{Hersbach2000}.
 
+
+
 \subsubsection{Metrics recap} \label{sec:metrics_recap}
-With these three scoring rules, we have outlined a collection of metrics to be used for both model estimation (via optimum score estimation) and the evaluation of model predictions. The choice of metric depends on the problem at hand and which forecast properties are preferred by the end-user. The present study outlines a general model framework that can be adapted to handle any of the three metrics or a combination of them.
-With that said, the log-score and the Brier score are inherently suited for verification of forecast ability in the category corresponding to the outcome of the event (nominal state space), while RPS is better suited for evaluating forecasts for ordinal state spaces. Therefore, we suggest that more emphasis should be placed on the RPS for studies related to degradation. However, there might be reasons to differ from that general suggestion, for instance if safety precautions differ substantially from one category to the other.
-When used for estimation, loss functions like the Brier score and RPS are minimized (hence enter with a negative sign in the score function $\mathcal{D}$), while the log-score, being a utility function, is maximized.
+The scoring rules above provide metrics that can be used both for model estimation (via optimum score estimation) and for evaluating predictions. The choice of metric depends on the problem at hand and which forecast properties are preferred by the end-user. 
+The proposed model framework is flexible and can be adapted to estimate and evaluate under any proper scoring rule.
+Unlike the log-score, the RPS reflects that misclassifying a crack by one class is less serious than misclassifying it by several classes. We therefore suggest placing greater emphasis on RPS in studies of degradation. 
+However, there might be reasons to differ from that general suggestion, for instance if safety precautions differ substantially from one category to the other.
+For estimation, loss functions such as RPS are minimized (entering with a negative sign in \cref{eq:mean_score_combination}), whereas the log-score, as a utility, is maximized.
+%When used for estimation, loss functions like RPS are minimized (hence enter with a negative sign in the score function $\mathcal{D}$), while the log-score, being a utility function, is maximized.
 
 
 \subsection{Computational remarks} \label{sec:computation_remarks}
