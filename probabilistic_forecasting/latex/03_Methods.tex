@@ -37,10 +37,10 @@ To introduce exogenous dependencies to the Markov jump process, we regress the t
     %\lambda_{i,j} ( \bm{z}^{(s)} ) = \lambda_{i,j}^{(0)} \; g\left( \bm{\beta}^\top \bm{z}^{(s)} \right), \quad i,j \in \mathcal{J}
 \end{aligned} \label{eq:trans_rates_covariates}
 \end{equation}
-with $\bm{A}$ denoting some base transition rate matrix. The function $g \, : \, \mathbb{R} \rightarrow \mathbb{R_+}$ takes any covariate dot product, $\bm{\beta}^\top \bm{z}^{(s)}$, as input and maps it to the positive real line, ensuring that the transition rates are nonnegative. We examine different choices for $g(\cdot)$, namely 
-\begin{align}
-    g(x) = \exp(x), \quad g(x) = \log(1 + \exp(x) ), \quad \text{and} \quad g(x) = x^2.
-\end{align}
+with $\bm{A}$ denoting some base transition rate matrix. The function $g \, : \, \mathbb{R} \rightarrow \mathbb{R_+}$ takes any covariate dot product, $\bm{\beta}^\top \bm{z}^{(s)}$, as input and maps it to the positive real line, ensuring that the transition rates are nonnegative. Example choices could be
+\begin{align*}
+   g(x) = \exp(x), \quad g(x) = \log(1 + \exp(x) ), \quad \text{and} \quad g(x) = x^2.
+\end{align*}
 $\bm{z}^{(s)}$ contains the exogenous information described in \Cref{sec:data}. With this exogeneous information, we deem the Markov chain spatially inhomogeneous as the rail characteristics vary throughout the network as described in \Cref{sec:data}. This dependency setting is indicated by writing $\bm{A}^{(s)}$ with the explicit $s$-dependence.
 
 Let $\bm{\pi}^{(s)}(t) = \begin{bmatrix} \pi^{(s)}_1(t), \dots, \pi^{(s)}_m(t) \end{bmatrix}$ denote the time-dependent state distribution of defect $s$, a vector of dimension $1 \times m$ satisfying $\sum_{i = 1}^m \bm{\pi}^{(s)}_i(t) = 1$. For any $t>t_1^{(s)}$, the $i$'th component is given by
@@ -220,7 +220,7 @@ Optimum score estimation aims to determine ``good'' model parameters, $\widehat{
 \begin{align*}
 \widehat{\bm{\theta}}_n = \argmax_{\bm{\theta}}\mathcal{D}_n(\bm{\theta})   
 \end{align*}
-where $\widehat{\bm{\theta}}_n  \rightarrow \bm{\theta}_0$ as $n \rightarrow \infty$ with $\bm{\theta}_0$ denoting the true set of model parameters.
+where $\widehat{\bm{\theta}}_n  \rightarrow \bm{\theta}_{\infty}$ as $n \rightarrow \infty$ with $\bm{\theta}_{\infty}$ denoting the true set of model parameters.
 \citet{Gneiting2007} argues that the choice of score function, $\mathcal{D}$, should be consistent with the forecast scoring rule used for evaluation as this improves model performance compared to non-tailored estimation practices \citep{friedman1983a,Copas1983}. 
 The overall idea of optimum score estimation is that we choose the measure of the goodness-of-fit in accordance with how we seek to evaluate the performance of the model. 
 Given a parametric model, $P_{\bm{\theta}}$, and the recorded data, $Y^{(s)}$, we denote the \textit{metric} (or \textit{reward}) by $D(P_{\bm{\theta}}, Y^{(s)})$, and the score by
@@ -252,7 +252,7 @@ For this study, we apply two probabilistic scoring rules. We describe these in \
 \begin{align}
      \mathcal{D}_{{|\mathcal{S}|}}(\bm{\theta}) = \sum_{s \in \mathcal{S}} \left( D_1\left(P_{\bm{\theta}}, Y^{(s)}\right) + D_2\left(P_{\bm{\theta}}, Y^{(s)}\right) \right). \label{eq:mean_score_combination}
 \end{align}
-where $D_i(P_{\bm{\theta}}, Y^{(s)})$ for $i = 1,2$ are the two different metrics considered in this study. If deemed relevant, weights can be assigned to each of the terms. The following describes these metrics.
+where $D_i(P_{\bm{\theta}}, Y^{(s)})$ for $i = 1,2$ are the two different metrics considered in this study. They are described in the following \cref{sec:error_metrics}. If deemed relevant, weights can be assigned to each of the terms. To solve the optimization problem in \cref{eq:mean_score_combination}, we apply a Newton–Raphson algorithm with line search using \texttt{nlminb} from \citet{R_stats}. Gradients are obtained as detailed in \cref{sec:computation_remarks}. 
 
 % Model parameters can be determined by maximum likelihood estimation, i.e. maximining the logarithm of the quantity in \cref{eq:likelihood_mjp}, i.e.
 % \begin{align*}
@@ -317,85 +317,69 @@ According to \citet{Czado2009}, an advantage with RPS is that it enables direct 
 \subsubsection{Metrics recap} \label{sec:metrics_recap}
 The scoring rules above provide metrics that can be used both for model estimation (via optimum score estimation) and for evaluating predictions. The choice of metric depends on the problem at hand and which forecast properties are preferred by the end-user. 
 The proposed model framework is flexible and can be adapted to estimate and evaluate under any proper scoring rule.
-Unlike the log-score, the RPS reflects that misclassifying a crack by one class is less serious than misclassifying it by several classes. We therefore suggest placing greater emphasis on RPS in studies of degradation. 
+Unlike the log-score, the RPS reflects that misclassifying a crack by one class is less serious than misclassifying it by several classes. We therefore suggest placing greater emphasis on RPS evaluation in studies of degradation. 
 However, there might be reasons to differ from that general suggestion, for instance if safety precautions differ substantially from one category to the other.
 For estimation, loss functions such as RPS are minimized (entering with a negative sign in \cref{eq:mean_score_combination}), whereas the log-score, as a utility, is maximized.
 %When used for estimation, loss functions like RPS are minimized (hence enter with a negative sign in the score function $\mathcal{D}$), while the log-score, being a utility function, is maximized.
 
 
-\subsection{Computational remarks} \label{sec:computation_remarks}
-We have implemented the Markov jump process in \texttt{C++} integrated with \texttt{R} via \texttt{Rcpp} \citep{Rcpp}. The repository can be accessed on \url{https://github.com/dobbeltgaard/MarkovJump.git}. The implementation allows the user to specify which metric(s) to use for optimum score estimation (log score, Brier score, ranked probability score). Additionally, the implementation allows the user to specify one of the three parameterizations of the generator from \Cref{sec:generator_params}. 
-Prediction is performed by applying the solution to the Kolmogorov differential equation in \cref{eq:markov_eq_solution}. All aforementioned scoring rules are implemented for prediction evaluation. 
-The model implementation accommodates three calculation methods for the transient distribution of the Markov chain. The first is a Padé approximation of the matrix exponential. The second method is to calculate the transient distribution via \textit{uniformization} (or \textit{randomization}). Uniformization provides an alternative representation of a Markov jump process such that all holding times distributions have the same intensity parameter \citep{bladt_nielsen}. We refer to \citet{sherlock2021a} for a detailed algorithmic description. The third method is by applying the eigendecomposition
+\subsection{Remarks on implementation and computation} \label{sec:computation_remarks}
+We implemented the Markov jump process in \texttt{C++}, interfaced with \texttt{R} via \texttt{Rcpp} \citep{Rcpp} and the \texttt{C++} Template Model Builder (TMB) framework \citep{TMB}.
+The repository can be accessed on \url{https://github.com/dobbeltgaard/MarkovJump.git}.
+ 
+Previous work by \citet{bisgaard2024A} leveraged \texttt{C++} speed in \texttt{R} using \texttt{Rcpp}, and derived algebraic expressions for the gradients used for model estimation, as it was shown to improve its robustness. 
+As that study only considered a single generator parameterization with maximum likelihood estimation, closed-form gradients were cumbersome but tractable.”
+In contrast, when now considering a broad variety of model settings, deriving gradients by hand becomes infeasible, and finite-difference approximations are both slow and potentially inaccurate. TMB circumvents this issue by providing exact gradients via automatic differentiation (AD), based on the computation graph of elementary calculus operations, using the \texttt{CppAD} package \citep{CppAD}.
+
+Our implementation is flexible: users may choose the scoring rule (log-score and/or ranked probability score), select among the five generator parameterizations in \cref{sec:generator_params}, and optionally incorporate covariates and temporal warping (\cref{sec:warping}).
+ 
+Prediction is performed by applying the solution to the Kolmogorov differential equation in \cref{eq:markov_eq_solution} using the aforementioned scoring rules for assessment of accuracy.
+The \texttt{Rcpp} model implementation accommodates three calculation methods for the transient distribution of the Markov chain. The first is a Padé approximation of the matrix exponential. The second method is to calculate the transient distribution via \textit{uniformization} (or \textit{randomization}). Uniformization provides an alternative representation of a Markov jump process such that all holding times distributions have the same intensity parameter \citep{bladt_nielsen}. We refer to \citet{sherlock2021a} for a detailed algorithmic description. The third method is by applying the eigendecomposition
 \begin{align*}
     \exp{\left( \bm{A}u \right) } = \bm{U}  \exp{\left( \bm{\Lambda}u \right) } \bm{U}^{-1}, 
 \end{align*}
-which reduces the numerical effort substantially since the matrix exponential to a diagonal matrix is the same as taking the exponential to each diagonal element.
-We refer to \citet{bisgaard2024A} for algebraic expressions for the eigenspaces $\bm{U}$ and $\bm{U}^{-1}$, in case of the generalized Erlang parameterization. In case of the other two generator parameterizations, we apply numerical schemes for the eigendecompositions using the \texttt{Eigen} library in \texttt{C++} \citep{eigenweb}.
+which substantially reduces numerical effort since exponentiating a diagonal matrix amounts to exponentiating each diagonal element.
+We refer to \citet{bisgaard2024A} for algebraic expressions for the eigenspaces $\bm{U}$ and $\bm{U}^{-1}$, in case of the generalized Erlang parameterization. In case of the other four generator parameterizations, we apply numerical schemes for the eigendecompositions using the \texttt{Eigen} library in \texttt{C++} \citep{eigenweb}.
 
-We have tested the speed of the score computation with respect to the different score options and the different methods for calculating the transient distribution of the Markov chain, using the \texttt{bench} library \citep{R_bench}. We compare our \texttt{C++} implementation with a standard (``slow'') \texttt{R} implementation based on a Padé approximation of the transient distribution. \Cref{tab:mjp_score_computation_speed} displays the results of the speed investigation.
+We have tested the speed of the likelihood computation with respect to the different score options and the different methods for calculating the transient distribution of the Markov chain, using the \texttt{bench} library \citep{R_bench}. We compare our \texttt{C++} implementation with a standard (``slow'') \texttt{R} implementation based on a Padé approximation of the transient distribution. \Cref{tab:mjp_score_computation_speed} displays the results of the speed investigation.
 \begin{table}[htb!]
     \centering
-    \caption{Relative speed of Markov jump score computation wrt. calculation method of transient distribution and score metric. Uniformization is performed with maximum truncation error on $2^{-52}$ (see \citet{sherlock2021a} for details). The base reference for the speed investigation is the ''\texttt{C++} w. eigendecomposition`` which has a median run time on $1.85$ ms.}
+    \caption{Relative speed of Markov jump score computation wrt. calculation method of transient distribution and score metric. Uniformization is performed with maximum truncation error on $2^{-52}$ (see \citet{sherlock2021a} for details). The base reference for the speed investigation is the ``\texttt{C++} w. eigendecomposition'' which has a median run time on $1.85$ ms.}
     \label{tab:mjp_score_computation_speed}
-\begin{tabular}{lccc}
+\begin{tabular}{lcc}
 \toprule
-  & Log score & Ranked probability score & Brier score \\
+  & Log score & Ranked probability score \\%& Brier score \\
 \midrule
-\texttt{R} w. Padé & 154.03 & 98.71 & 150.15\\
-\texttt{C++} w. Padé & 3.26 & 3.40 & 3.42\\
-\texttt{C++} w. uniformization & 6.77 & 6.84 & 6.78\\
-\texttt{C++} w. eigendecomposition & \textbf{1.00} & 1.10 & 1.07\\
+\texttt{R} w. Padé & 154.03 & 98.71 \\%& 150.15\\
+\texttt{C++} w. Padé & 3.26 & 3.40 \\%& 3.42\\
+\texttt{C++} w. uniformization & 6.77 & 6.84 \\%& 6.78\\
+\texttt{C++} w. eigendecomposition & \textbf{1.00} & 1.10 \\%& 1.07\\
 \bottomrule
 \end{tabular}
 \end{table}
-As seen, there is a substantial speedup going from a standard \texttt{R} implementation to a corresponding \texttt{C++} implementation which is approximately 50 times faster. The calculation method for the transient distribution does impact the computation speed. If the generator matrix is diagonalizable, the eigendecomposition provides a highly efficient (and accurate) way to calculate the transient distribution. Our implementation checks if this is the case, and if not, uniformization is applied as outlined by \citet{sherlock2021a}. Although uniformization can be slower than the Padé approximation, it has the advantage that the user controls the truncation error. For the \texttt{C++} implementations, there are only minor differences in computation speed wrt. which score is applied. This is expected as there is only a small difference in the number of operations required to compute the various scores. However, we observe a substantial difference of the various \texttt{R} implementations. The difference between them is most likely explained by the fact that the incorporated \texttt{cumsum} function in the RPS implementation can benefit from CPU cache better since it processes data in a sequential manner, making it more cache-friendly. Additionally, the \texttt{cumsum} operation has some inherent optimization that might make it faster than a simple element-wise difference and squaring.
+The results in \Cref{tab:mjp_score_computation_speed} show a substantial speedup when moving from a standard \texttt{R} implementation to \texttt{C++}.
+The calculation method for the transient distribution does impact the computation speed. If the generator matrix is diagonalizable, the eigendecomposition provides a highly efficient (and accurate) way to calculate the transient distribution. Our implementation checks if this is the case, and if not, uniformization is applied as outlined by \citet{sherlock2021a}. Although uniformization can be slower than the Padé approximation, it has the advantage that the user controls the truncation error. 
+For the \texttt{C++} implementations, computation speed differs little between the log-score and RPS, as both require similar operations. By contrast, the standard \texttt{R} implementations differ substantially. This is likely due to the \texttt{cumsum} function used in the RPS implementation, which benefits from sequential memory access and CPU cache optimization.
+
+
 
 
 
 \subsection{Reference predictors} \label{sec:reference_forecasts}
-The use of reference predictors (or alternatively \textit{baseline predictors}) is essential in forecast studies, as it allows comparison between various methods. Benchmarking a proposed model with reference predictors reveals the gains of introducing it wrt. some chosen score/metric (see \Cref{sec:error_metrics}). For instance, it enables quantification of what is gained by introducing complex model structures with e.g. temporal and state dependencies or covariates.
-In the following, we describe the reference predictors that are used to benchmark the Markov jump process from \Cref{sec:mjp}.
-We note that we have used the ''trick`` of introducing simple state dependence to these reference predictors so that they only assign probability mass to states that are possible for $X^{(s)}(t)$ to reach given its current state. For instance, if the most recent observation of $X^{(s)}(t)$ is a class $2A$ defect, it does not make sense to predict any probability mass in the classes $3$ or $2B$, as this study considers defect trajectories subject to non-reversible degradation.  
-We do this to ensure that the reference predictors used to benchmark the Markov jump process are competitive and that the Markov jump process is compared to predictors that constitute actual reference predictability.
-
-
-\subsubsection{Uniform predictor}
-Predicting the uniform distribution is a type of \textit{preferenceless} naïve forecast method, i.e. it predicts equal probability masses over the entire state space. Subsequently, each state is assigned a probability of $1/m$. As defect propagation is state dependent and assumed irreversible, we correct the uniform predictor so that the entire probability mass is divided between the states that are possible to reach given the starting point $y_1^{(s)}$ for each defect. 
-Thus, the corrected uniform predictor is given by 
-\begin{align}
-    \widehat{\bm{\pi}}^{(s),\text{Uni.}}_i \left( y_1^{(s)} \right) = \frac{\mathds{1}_{ \{  i \; \geq \; y_1^{(s)}  \} }   }{\sum_{j \in \mathcal{J}} \mathds{1}_{ \{ j \; \geq \; y_1^{(s)} \} }   }, \quad \forall s \in \mathcal S. \label{eq:uniform_predictor}
-\end{align}
-The uniform predictor in \cref{eq:uniform_predictor} can be regarded as a variation of a random classifier, i.e. it is preferenceless in the reachable states.
-
-
-
-\subsubsection{Empirical distribution predictor}
-Predicting the empirical distribution is another naïve approach to forecasting. It is more competitive given data with many repeated events. For this study, we compute the empirical distribution of the initial state of the defect trajectories, i.e. $y_1^{(s)}$. Given the distribution of the recorded $y_1^{(s)}$ for $s \in \mathcal{S}$, the empirical predictor assigns corresponding probability masses to the state space for the future, i.e.
-\begin{align}
-    \widehat{\bm{\pi}}^{(s),\text{Empi.}}_i \left( y_1^{(s)},y_2^{(s)} \right) = \frac{\sum_{s \in \mathcal{S}} \mathds{1}_{ \{  i \; = \; y_1^{(s)} \; \wedge \; j \; = \; y_2^{(s)}   \} }   }{\sum_{s \in \mathcal{S}} \mathds{1}_{ \{  i \; = \; y_1^{(s)}    \} }   }, \quad \forall j \in \mathcal{J}.  \label{eq:empirical_distr}
-\end{align}
-% \begin{align}
-%     \widehat{\bm{\pi}}^{(s),\text{Empi.}}_i \left( y_1^{(s)} \right) = \begin{cases}
-%         0, \quad i \; < \; y_1^{(s)} \\
-%         \frac{1}{|\mathcal{S}|}\left( \sum_{s \in \mathcal{S}} \left( \mathds{1}_{ \{ i \; = \; y_1^{(s)} \} } +
-%         \frac{\mathds{1}_{ \{ i \; < \; y_1^{(s)} \} }}{m - y_1^{(s)} + 1}  \right) \right)
-%         , \quad \text{else}.
-%     \end{cases}
-%     \label{eq:empirical_distr}
-% \end{align}
-%As described earlier, we add $\frac{\mathds{1}_{ \{ i \; < \; y_1^{(s)} \} }}{m - y_1^{(s)} + 1} $ to the reachable states to correct for probability masses assigned to states that are unreachable for $X^{(s)}$ given $y_1^{(s)}$.
-
-
+Reference predictors provide a benchmark against which the Markov jump process from \Cref{sec:mjp} can be evaluated. They allow us to quantify the benefits of introducing temporal dynamics, state dependence, and covariates relative to simpler predictive models.
+In this study, we consider two such benchmarks. The cumulative link model (CLM) serves as the primary, competitive reference predictor, while the uniform distribution predictor provides a minimal baseline that distributes probability evenly across feasible states.
 
 \subsubsection{Cumulative link model} \label{sec:cumulative_link_model}
-The cumulative link model is a static regression model that predicts probabilities for an ordinal state space. Opposite to the case of the uniform predictor and the empirical distribution predictor, it cannot be said to be a naïve method. It is included to the collection of reference predictors to compare the benefits of the dynamic model setting of the Markov jump process.
+
+The cumulative link model (CLM) is a regression model for ordinal outcomes and serves as this study's primary reference predictor. It provides a static benchmark in which temporal dynamics are not modeled explicitly but are instead encoded through covariates. The covariate design matrix $\bm{z}'^{(s)}$ includes (i) the time between observations, $\tau^{(s)}$, (ii) rail characteristics as described in \Cref{sec:data}, and (iii) indicator variables for the initial defect state $y_1^{(s)} =2,3,\dots,m$. 
+
 The cumulative probabilities are defined as
 \begin{align*}
      P\left( X^{(s)} \leq j \; \vert \; \bm{z}'^{(s)} \right) = 
      \pi_1^{(s)}(\bm{z}'^{(s)}) + \dots + \pi_j^{(s)}(\bm{z}'^{(s)}), \quad j = 1, \dots, m, 
 \end{align*}
-where $\pi^{(s)}_j\left(\bm{z}'^{(s)}\right) = P \left(  X^{(s)} = j \; \vert \; \bm{z}'^{(s)} \right)$ with $\sum_{j = 1}^m \pi^{(s)}_j(\bm{z}'^{(s)}) = 1$ for $s \in \mathcal{S}$. $\bm{z}'^{(s)}$ is the set of covariates (regression variables) for each defect $s \in \mathcal{S}$. Note the staticity is indicated by writing $X^{(s)}$, while we in \Cref{sec:mjp} denoted the process by $X^{(s)}(t)$ with explicit time dependence.
+where $\pi^{(s)}_j\left(\bm{z}'^{(s)}\right) = P \left(  X^{(s)} = j \; \vert \; \bm{z}'^{(s)} \right)$ with $\sum_{j = 1}^m \pi^{(s)}_j(\bm{z}'^{(s)}) = 1$ for $s \in \mathcal{S}$. 
+Note the staticity is indicated by writing $X^{(s)}$, while we in \Cref{sec:mjp} denoted the process by $X^{(s)}(t)$ with explicit time dependence.
 $G^{-1}$ denotes a link function, which is the inverse of some continuous cumulative density function, $G$.
 The cumulative link model is then given by
 \begin{align}
@@ -404,16 +388,14 @@ The cumulative link model is then given by
 \end{align}
 where $\alpha_j$ is an intercept for the $j$ cumulative link, and $\bm{\beta}^\top$ are the coefficients for the covariates, $\bm{z}'^{(s)}$. 
 
-As seen from \cref{eq:cum_link_model}, the cumulative probability of an event, $j$, is obtained by the linear predictor, $\alpha_j + \bm{\beta}^\top \bm{z}'^{(s)}$, through some link, $G$.
-The regression setting in \cref{eq:cum_link_model} is somewhat related to that of the regression in \cref{eq:trans_rates_covariates} as there is some base rate (or intercept) that is scaled (or added) by the covariate contribution, all mapped through some transformation of exponential family (link function). However, the covariate set, $\bm{z}^{(s)}$, in \cref{eq:trans_rates_covariates}, is only a subset of the covariates used in \cref{eq:cum_link_model}. As the Markov jump process inherently captures temporal dynamics and state dependency via \cref{eq:markov_property}, there is no need to include the time between observations, $\tau^{(s)}$, and the initial defect observation $y_1^{(s)}$ in the covariates $\bm{z}^{(s)}$. 
-The cumulative link model is static in terms of temporal dependency. Further, it has no intrinsic formulation of state dependence. This implies that some of the recorded endpoint data of the defect trajectories, $Y^{(s)}$, need to be incorporated through the covariates, i.e. the time between observations, $\tau^{(s)}$, and the initial defect observation $y_1^{(s)}$. Subsequently, $\bm{z}'^{(s)}$ contains this information in addition to the rail characteristics described in \Cref{sec:data}. Therefore, it is denoted by a prime to indicate the difference between the covariates in \cref{eq:trans_rates_covariates}.
-
+As seen from \cref{eq:cum_link_model}, the cumulative probability of an event, $j$, is obtained by the linear predictor, $\alpha_j + \bm{\beta}^\top \bm{z}'^{(s)}$, through the link function, $G$.
+The regression setting in \cref{eq:cum_link_model} is somewhat related to that of the regression in \cref{eq:trans_rates_covariates} as there is some base rate (or intercept) that is scaled (or added) by the covariate contribution, all mapped through some transformation of exponential family. %However, the covariate set, $\bm{z}^{(s)}$, in \cref{eq:trans_rates_covariates}, is only a subset of the covariates used in \cref{eq:cum_link_model}. As the Markov jump process inherently captures temporal dynamics and state dependency via \cref{eq:markov_property}, there is no need to include the time between observations, $\tau^{(s)}$, and the initial defect observation $y_1^{(s)}$ in the covariates $\bm{z}^{(s)}$. 
+The cumulative link model is static in terms of temporal dependency. Further, it has no intrinsic formulation of state dependence. This implies that some of the recorded endpoint data of the defect trajectories, $Y^{(s)}$, need to be incorporated through the covariates, i.e. the time between observations, $\tau^{(s)}$, and the initial defect observation $y_1^{(s)}$. %Subsequently, $\bm{z}'^{(s)}$ contains this information in addition to the rail characteristics described in \Cref{sec:data}. Therefore, it is denoted by a prime to indicate the difference between the covariates in \cref{eq:trans_rates_covariates}.
 
 The link function specifies the distribution of an unobserved continuous variable, of which only crude ordinal measurements, $Y^{(s)}$, are recorded. If $G(\cdot)$ is the standard logistic distribution, then $G^{-1}(\cdot)$ is the logit function, leading to a \textit{proportional odds logistic regression model} \citep{mccullagh1980a}, where the log-odds of being in category $j$ or below differ by a constant across categories.
 If $G(\cdot)$ is the standard normal distribution, then $G^{-1}(\cdot)$ is the probit function, and the cumulative link model generalizes the binary probit model \citep{agresti2012}.
 If $G^{-1}(\cdot)$ is the complementary log-log function, the model corresponds to a proportional hazards model for grouped survival times \citep{Christensen2023}.
 In the prediction study in \Cref{sec:results}, we test the logit, probit, and complementary log-log link functions to evaluate which yields the highest prediction accuracy.
-
 
 By the law of total probability for a discrete random variable, we have that 
 \begin{align}
@@ -437,5 +419,44 @@ where $\mathds{1}_{ \{ q \} }$ is an indicator which is 1 if the event $q$ occur
 \end{align*}
 where the $\pi^{(s)}_j\left(\bm{z}'^{(s)}\right)$ are defined in \cref{eq:cum_link_probs} related to the cumulative link functional in \cref{eq:cum_link_model}.
 The model is estimated with the \texttt{polr} function from the \texttt{MASS} library \citep{mass_R}.
-With determined model coefficients, the cumulative link model can be applied for prediction. By model definition, probabilities are forecasted. Given a set covariates $\bm{z}'^{(s)}$ for a defect $s \in \mathcal{S}$, that is the rail characteristics described in \Cref{sec:data}, and the time between observations, $\tau^{(s)}$, and the initial defect observation $y_1^{(s)}$, we compute the probabilities for each category by \cref{eq:cum_link_probs} via the cumulative links in \cref{eq:cum_link_model}.
+With determined model coefficients, the cumulative link model can be applied for prediction. 
+Predictions are obtained directly as probabilities for each category via \cref{eq:cum_link_probs} and \cref{eq:cum_link_model}, given the covariates $\bm{z}’^{(s)}$.
+
+
+\subsubsection{Uniform distribution predictor} \label{sec:uniform_predictor}
+As a secondary reference, we consider a uniform distribution predictor. It represents a baseline in which probability mass is spread evenly across all states that are reachable given the initial observation $y_1^{(s)}$. In particular, if degradation is assumed non-reversible, only states $j \geq y_1^{(s)}$ are included in the support. The predictor is defined as
+\begin{align}
+    \widehat{\pi}^{(s),\text{Uni.}}_i(y_1^{(s)}) 
+    = \frac{\mathds{1}_{ \{ i \geq y_1^{(s)} \} }}{\sum_{j \in \mathcal{J}} \mathds{1}_{ \{ j \geq y_1^{(s)} \} }}, 
+    \quad i \in \mathcal{J}, \; s \in \mathcal{S}. \label{eq:uniform_predictor}
+\end{align}
+
+Although simplistic, evaluating forecast accuracy relative to a uniform predictor is informative. It establishes the performance of a purely uninformative model and thereby provides a lower bound against which more advanced approaches can be compared. The relative improvement over the uniform predictor highlights the added value of incorporating covariates, temporal dynamics, and state dependence, and also gives an indication of the intrinsic difficulty of the forecasting problem.
+
+%\subsubsection{Uniform predictor}
+%Predicting the uniform distribution is a type of \textit{preferenceless} naïve forecast method, i.e. it predicts equal probability masses over the entire state space. Subsequently, each state is assigned a probability of $1/m$. As defect propagation is state dependent and assumed irreversible, we correct the uniform predictor so that the entire probability mass is divided between the states that are possible to reach given the starting point $y_1^{(s)}$ for each defect. 
+%Thus, the corrected uniform predictor is given by 
+%\begin{align}
+%    \widehat{\bm{\pi}}^{(s),\text{Uni.}}_i \left( y_1^{(s)} \right) = \frac{\mathds{1}_{ \{  i \; \geq \; y_1^{(s)}  \} }   }{\sum_{j \in \mathcal{J}} \mathds{1}_{ \{ j \; \geq \; y_1^{(s)} \} }   }, \quad \forall s \in \mathcal S. \label{eq:uniform_predictor}
+%\end{align}
+%The uniform predictor in \cref{eq:uniform_predictor} can be regarded as a variation of a random classifier, i.e. it is preferenceless in the reachable states.
+
+
+
+%\subsubsection{Empirical distribution predictor}
+%Predicting the empirical distribution is another naïve approach to forecasting. It is more competitive given data with many repeated events. For this study, we compute the empirical distribution of the initial state of the defect trajectories, i.e. $y_1^{(s)}$. Given the distribution of the recorded $y_1^{(s)}$ for $s \in \mathcal{S}$, the empirical predictor assigns corresponding probability masses to the state space for the future, i.e.
+%\begin{align}
+%    \widehat{\bm{\pi}}^{(s),\text{Empi.}}_i \left( y_1^{(s)},y_2^{(s)} \right) = \frac{\sum_{s \in \mathcal{S}} \mathds{1}_{ \{  i \; = \; y_1^{(s)} \; \wedge \; j \; = \; y_2^{(s)}   \} }   }{\sum_{s \in \mathcal{S}} \mathds{1}_{ \{  i \; = \; y_1^{(s)}    \} }   }, \quad \forall j \in \mathcal{J}.  \label{eq:empirical_distr}
+%\end{align}
+% \begin{align}
+%     \widehat{\bm{\pi}}^{(s),\text{Empi.}}_i \left( y_1^{(s)} \right) = \begin{cases}
+%         0, \quad i \; < \; y_1^{(s)} \\
+%         \frac{1}{|\mathcal{S}|}\left( \sum_{s \in \mathcal{S}} \left( \mathds{1}_{ \{ i \; = \; y_1^{(s)} \} } +
+%         \frac{\mathds{1}_{ \{ i \; < \; y_1^{(s)} \} }}{m - y_1^{(s)} + 1}  \right) \right)
+%         , \quad \text{else}.
+%     \end{cases}
+%     \label{eq:empirical_distr}
+% \end{align}
+%As described earlier, we add $\frac{\mathds{1}_{ \{ i \; < \; y_1^{(s)} \} }}{m - y_1^{(s)} + 1} $ to the reachable states to correct for probability masses assigned to states that are unreachable for $X^{(s)}$ given $y_1^{(s)}$.
+
 

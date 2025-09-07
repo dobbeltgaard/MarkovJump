@@ -208,10 +208,9 @@ library(reshape2)
 library(tidyr)
 
 
-get_pars = function(str, fold_number = 1){read.csv(list.files("estimates", full.names = T)[grepl(str, list.files("estimates"))][fold_number])$par}
-#get_pars("gerlang_relax_FALSE_exp_exp_all_no_warp")
 
 
+m = 5
 states = c("3", "2B", "2A", "1", "0")
 #par_list = readRDS("results/estimated_model_pars.Rdata")
 d = read.csv("defect_data.csv")
@@ -221,192 +220,68 @@ idx = 1 #sample(1:NROW(d), size = 1)
 text.size <- 11
 ndays = 365*8
 
-#### gerlang ###
-nam = "gerlang_TRUE_exp_exp_all_no_warp"
-m=5; 
-sol1 = matrix(NA, nrow = ndays, ncol = m)
-count = 0
-for(t in (1:ndays)/365){
-  count = count + 1
-  sol1[count, ] = MJP_predict(m = m, s1 = c(1), u = c(t), get_pars(nam), z = matrix(z[idx, ], nrow = 1), generator = "gerlang", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, transient_dist_method = "eigen_decomp", warping = F)
-}
-dpp <- as.data.frame(sol1)
-colnames(dpp) <- states
-dpp$time <- 1:ndays
-dpp_long <- tidyr::gather(dpp, key = "Column", value = "Probability", -time)
-dpp_long$Column <- factor(dpp_long$Column, levels = c("3", "2B", "2A", "1", "0")) 
-p1 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)) +
-  geom_line(size = 0.75) +
-  theme(
-    text = element_text(size = text.size, family = "serif"),
-    panel.background = element_rect(fill = "white", color = "black"),
-    panel.grid.minor = element_line(color = "lightgray"),
-    legend.position = c(0.55, 0.9),
-    legend.direction = "horizontal", # Set legend direction to horizontal
-    legend.background = element_rect(fill = "transparent", color = NA), # Set transparent background
-    legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
-  ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
-A1 = matrix(0, m,m)
-for(i in 1:m){
-	A1[i,] = MJP_predict(m = m, s1 = c(i), u = c(8), get_pars(nam), z = matrix(z[idx, ], nrow = 1), generator = "gerlang", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, transient_dist_method = "eigen_decomp", warping = F)
-}
-colnames(A1) = 1:5
-rownames(A1) = 5:1
-longData <- melt(A1)
-x_levels <- c("3","2B","2A","1","0")
-y_levels <- c("0","1","2A","2B","3")
-longData$Var2 <- factor(longData$Var2, levels = seq_along(x_levels), labels = x_levels)
-longData$Var1 <- factor(longData$Var1, levels = seq_along(y_levels), labels = rev(y_levels)) 
-p11 <- ggplot(longData[longData$value != 0, ],
-              aes(x = Var2, y = Var1)) +
-  geom_tile(aes(fill = value), linewidth = 0) +
-  geom_text(aes(label = sprintf("%.5f", value)),
-            color = "white", size = 3, family = "serif") +
-  scale_fill_gradient(low = "grey60", high = "black", guide = "none") +
-  scale_x_discrete(drop = FALSE, expand = c(0,0)) +
-  scale_y_discrete(drop = FALSE, expand = c(0,0)) +
-  coord_fixed() +
-  labs(x = "To class", y = "From class") +
-  theme(
-    axis.text.x = element_text(size = 9, vjust = 0.3),
-    axis.text.y = element_text(size = 9),
-    plot.title  = element_text(size = 11),
-    text        = element_text(size = text.size, family = "serif"),
-    panel.background = element_rect(fill = "white", color = "black"),
-    panel.grid.minor = element_blank()
-  )
-
-#### gerlang with warping ###
-nam = "gerlang_TRUE_exp_exp_all_warp"
-m=5; 
-sol1 = matrix(NA, nrow = ndays, ncol = m)
-count = 0
-for(t in (1:ndays)/365){
-  count = count + 1
-  sol1[count, ] = MJP_predict(m = m, s1 = c(1), u = c(t), get_pars(nam), z = matrix(z[idx, ], nrow = 1), generator = "gerlang", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, transient_dist_method = "eigen_decomp", warping = T)
-}
-dpp <- as.data.frame(sol1)
-colnames(dpp) <- states
-dpp$time <- 1:ndays
-dpp_long <- tidyr::gather(dpp, key = "Column", value = "Probability", -time)
-dpp_long$Column <- factor(dpp_long$Column, levels = c("3", "2B", "2A", "1", "0")) 
-p2 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)) +
-  geom_line(size = 0.75) +
-  theme(
-    text = element_text(size = text.size, family = "serif"),
-    panel.background = element_rect(fill = "white", color = "black"),
-    panel.grid.minor = element_line(color = "lightgray"),
-    legend.position = c(0.55, 0.9),
-    legend.direction = "horizontal", # Set legend direction to horizontal
-    legend.background = element_rect(fill = "transparent", color = NA), # Set transparent background
-    legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
-  ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
-A1 = matrix(0, m,m)
-for(i in 1:m){
-	A1[i,] = MJP_predict(m = m, s1 = c(i), u = c(8), get_pars(nam), z = matrix(z[idx, ], nrow = 1), generator = "gerlang", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, transient_dist_method = "eigen_decomp", warping = T)
-}
-colnames(A1) = 1:5
-rownames(A1) = 5:1
-longData <- melt(A1)
-x_levels <- c("3","2B","2A","1","0")
-y_levels <- c("0","1","2A","2B","3")
-longData$Var2 <- factor(longData$Var2, levels = seq_along(x_levels), labels = x_levels)
-longData$Var1 <- factor(longData$Var1, levels = seq_along(y_levels), labels = rev(y_levels)) 
-p22 <- ggplot(longData[longData$value != 0, ],
-              aes(x = Var2, y = Var1)) +
-  geom_tile(aes(fill = value), linewidth = 0) +
-  geom_text(aes(label = sprintf("%.5f", value)),
-            color = "white", size = 3, family = "serif") +
-  scale_fill_gradient(low = "grey60", high = "black", guide = "none") +
-  scale_x_discrete(drop = FALSE, expand = c(0,0)) +
-  scale_y_discrete(drop = FALSE, expand = c(0,0)) +
-  coord_fixed() +
-  labs(x = "To class", y = "From class") +
-  theme(
-    axis.text.x = element_text(size = 9, vjust = 0.3),
-    axis.text.y = element_text(size = 9),
-    plot.title  = element_text(size = 11),
-    text        = element_text(size = text.size, family = "serif"),
-    panel.background = element_rect(fill = "white", color = "black"),
-    panel.grid.minor = element_blank()
-  )
 
 
-#### bidiagonal with warping ###
 nam = "bidiagonal_TRUE_exp_exp_all_warp"
-m=5; 
-sol1 = matrix(NA, nrow = ndays, ncol = m)
-count = 0
-for(t in (1:ndays)/365){
-  count = count + 1
-  sol1[count, ] = MJP_predict(m = m, s1 = c(1), u = c(t), get_pars(nam), z = matrix(z[idx, ], nrow = 1), generator = "bidiagonal", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, transient_dist_method = "eigen_decomp", warping = T)
-}
-dpp <- as.data.frame(sol1)
-colnames(dpp) <- states
-dpp$time <- 1:ndays
-dpp_long <- tidyr::gather(dpp, key = "Column", value = "Probability", -time)
-dpp_long$Column <- factor(dpp_long$Column, levels = c("3", "2B", "2A", "1", "0")) 
-p3 <- ggplot(data = dpp_long, aes(x = time/365, y = Probability, color = Column)) +
-  geom_line(size = 0.75) +
-  theme(
-    text = element_text(size = text.size, family = "serif"),
-    panel.background = element_rect(fill = "white", color = "black"),
-    panel.grid.minor = element_line(color = "lightgray"),
-    legend.position = c(0.55, 0.9),
-    legend.direction = "horizontal", # Set legend direction to horizontal
-    legend.background = element_rect(fill = "transparent", color = NA), # Set transparent background
-    legend.key = element_rect(fill = "transparent", color = NA) # Set transparent background for legend key
-  ) + xlab("Time [years]") + ylab("Probability") + labs(color = "Classes")
+nam = "gerlang_TRUE_exp_exp_all_no_warp"; generator = "gerlang"; warp_indicator = F;
+trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator)
+trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator)
 
-A1 = matrix(0, m,m)
-for(i in 1:m){
-	A1[i,] = MJP_predict(m = m, s1 = c(i), u = c(8), get_pars(nam), z = matrix(z[idx, ], nrow = 1), generator = "bidiagonal", link_type_base = "exp", link_type_covs = "exp", covs_bin = T, transient_dist_method = "eigen_decomp", warping = T)
-}
-colnames(A1) = 1:5
-rownames(A1) = 5:1
-longData <- melt(A1)
-x_levels <- c("3","2B","2A","1","0")
-y_levels <- c("0","1","2A","2B","3")
-longData$Var2 <- factor(longData$Var2, levels = seq_along(x_levels), labels = x_levels)
-longData$Var1 <- factor(longData$Var1, levels = seq_along(y_levels), labels = rev(y_levels)) 
-p33 <- ggplot(longData[longData$value != 0, ],
-              aes(x = Var2, y = Var1)) +
-  geom_tile(aes(fill = value), linewidth = 0) +
-  geom_text(aes(label = sprintf("%.5f", value)),
-            color = "white", size = 3, family = "serif") +
-  scale_fill_gradient(low = "grey60", high = "black", guide = "none") +
-  scale_x_discrete(drop = FALSE, expand = c(0,0)) +
-  scale_y_discrete(drop = FALSE, expand = c(0,0)) +
-  coord_fixed() +
-  labs(x = "To class", y = "From class") +
-  theme(
-    axis.text.x = element_text(size = 9, vjust = 0.3),
-    axis.text.y = element_text(size = 9),
-    plot.title  = element_text(size = 11),
-    text        = element_text(size = text.size, family = "serif"),
-    panel.background = element_rect(fill = "white", color = "black"),
-    panel.grid.minor = element_blank()
-  )
 
-pdf(file = "figures/trans_dist_gerlang.pdf",width = 4, height = 3) 
-p1
-dev.off()
-pdf(file = "figures/trans_dist_gerlang_warping.pdf",width = 4, height = 3) 
-p2
-dev.off()
-pdf(file = "figures/trans_dist_bidiagonal_warping.pdf",width = 4, height = 3) 
-p3
-dev.off()
+source("plot_functions.R")
+w <- 2; h <- 2  # target PDF size in inches
+#k <- size_scaler(w, h, 3, 3) 
+k = 1; base_size=11;
+nam = "gerlang_TRUE_exp_exp_all_warp"; generator = "gerlang"; warp_indicator = T;
+p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
+p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
+ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")
+ggplot2::ggsave(paste0("figures/tpm_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p2,width = w, height = h, units = "in")
 
-pdf(file = "figures/tpm_gerlang.pdf",width = 4, height = 3) 
-p11
-dev.off()
-pdf(file = "figures/tpm_gerlang_warping.pdf",width = 4, height = 3) 
-p22
-dev.off()
-pdf(file = "figures/tpm_bidiagonal_warping.pdf",width = 4, height = 3) 
-p33
-dev.off()
+
+nam = "bidiagonal_TRUE_exp_exp_all_warp"; generator = "bidiagonal"; warp_indicator = T;
+p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
+p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
+ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")
+ggplot2::ggsave(paste0("figures/tpm_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p2,width = w, height = h, units = "in")
+
+
+nam = "tridiagonal_TRUE_exp_exp_all_warp"; generator = "tridiagonal"; warp_indicator = T;
+p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
+p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
+ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")
+ggplot2::ggsave(paste0("figures/tpm_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p2,width = w, height = h, units = "in")
+
+nam = "free_upper_tri_TRUE_exp_exp_all_warp"; generator = "free_upper_tri"; warp_indicator = T;
+p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
+p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
+ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")
+ggplot2::ggsave(paste0("figures/tpm_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p2,width = w, height = h, units = "in")
+
+
+# ggplot2::ggsave("figures/trans_prob_gerlang.pdf", p2,
+                # width = w, height = h, units = "in", device = cairo_pdf)
+# pdf(file = "figures/trans_dist_gerlang.pdf",width = 4, height = 3) 
+# p1
+# dev.off()
+# pdf(file = "figures/trans_dist_gerlang_warping.pdf",width = 4, height = 3) 
+# p2
+# dev.off()
+# pdf(file = "figures/trans_dist_bidiagonal_warping.pdf",width = 4, height = 3) 
+# p3
+# dev.off()
+
+# pdf(file = "figures/tpm_gerlang.pdf",width = 4, height = 3) 
+# p11
+# dev.off()
+# pdf(file = "figures/tpm_gerlang_warping.pdf",width = 4, height = 3) 
+# p22
+# dev.off()
+# pdf(file = "figures/tpm_bidiagonal_warping.pdf",width = 4, height = 3) 
+# p33
+# dev.off()
+
+
 
 
 ### OLR logistic ###

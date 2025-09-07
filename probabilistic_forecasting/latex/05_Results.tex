@@ -2,57 +2,64 @@
 
 
 \section{Results and discussion} \label{sec:results}
-
-We calculate the prediction errors of the Markov jump process described in \Cref{sec:mjp}, using the metrics outlined in \Cref{sec:error_metrics}, and compare them against the prediction errors of the reference predictors introduced in \Cref{sec:reference_forecasts}. We also compare the transient distributions of the Markov chains and the estimated effects of the exogenous covariates. To further assess forecast quality, we generate multicategory reliability diagrams and checkerboard plots to analyze calibration and discrimination ability.
-
+We evaluate the predictive accuracy of the Markov jump process (MJP) under the model settings from \Cref{sec:mjp}, compare against the reference predictors in \Cref{sec:reference_forecasts}, and analyze differences in both prediction error and distributional behavior. In addition to error scores, we assess calibration and discrimination using reliability diagrams and checkerboard plots.
 
 \subsection{Prediction errors} \label{sec:prediction_error}
 The prediction errors are calculated using a $k$-fold cross-validation procedure, described in the following. 
 
 \begin{enumerate}
-    \item Choose a $k$. The larger $k$ is chosen, the higher the computational burden becomes \citep{fushiki2011a}. We use $k = 10$ in this study.
+    \item Choose a $k$. The larger $k$ is chosen, the higher the computational burden becomes \citep{fushiki2011a}. We use $k = 5$ in this study.
     \item By random, divide $\mathcal{S}$ into $k$ subsets of approximately equal size. To ensure reproducibility, a seed for the random number generator should be chosen.
     \item For each of the $k$ subsets (folds):
     \begin{enumerate}
         \item Initialize $i = 1$. By $\mathcal{S}_i$, we denote the defects belonging to the $i$'th fold. The set of remaining defects is denoted $\mathcal{S}_{\neg i}$, such that $\mathcal{S} = \mathcal{S}_i \cup \mathcal{S}_{\neg i}$ and $\mathcal{S}_i \cap \mathcal{S}_{\neg i} = \emptyset$.
-        \item Model estimations are performed on the set $\mathcal{S}_{\neg i}$. The parameters of the Markov jump process are determined as described in \Cref{sec:optimum_score_estimation}, and the parameters of the cumulative link model are determined as described in \Cref{sec:cumulative_link_model}. Of the naïve predictors, only the empirical distribution predictor are informed by the measurements $\mathcal{S}_{\neg i}$. 
+        \item Model estimations are performed on the set $\mathcal{S}_{\neg i}$. The parameters of the Markov jump process are determined as described in \Cref{sec:optimum_score_estimation}, and the parameters of the cumulative link model are determined as described in \Cref{sec:cumulative_link_model}.
         \item The models are used to produce predictions of the distributions of $\bm{\pi}^{(s)}\left( t_2^{(s)}\right)$ for the defects $s \in \mathcal{S}_i$ provided their corresponding initial state $y_1^{(s)}$, their initial time stamp $t_1^{(s)}$, and the covariates $\bm{z}^{(s)}$ (for the Markov jump process) or $\bm{z}'^{(s)}$ (for the cumulative link model).
         \item If $i < k$, then increase $i = i + 1$ and GOTO (a); else GOTO 4.
     \end{enumerate}
     \item For each model with the corresponding set of predictions, compute the average prediction errors given all end point observations $y_2^{(s)}$ for $s \in \mathcal{S}$ for each metric described in \Cref{sec:error_metrics}.
 \end{enumerate}
 
-We test the predictive performance of each, and assess how exogenous rail characteristics and the choice of link function in the transition rate regression (\cref{eq:trans_rates_covariates}) affect prediction errors.
-
-The uniform distribution predictor and the empirical distribution predictor from \Cref{sec:reference_forecasts} are grouped as naïve reference methods, as neither requires parameter estimation.
-Similarly, as outlined in \Cref{sec:cumulative_link_model}, we test cumulative link models with logistic, probit, and complementary log-log link functions. As with the Markov jump process, we also investigate the effect of including exogenous rail characteristics.
-An ensemble forecast is constructed by averaging predictions from the Markov jump process (using the free upper parameterization $\bm{A}'''^{(s)}$ from \cref{eq:generator_free_upper}) and the cumulative link model (logistic link, with exogenous information).
-The results from the 10-fold cross-validation procedure are presented in \Cref{tab:forecast_error_tab}.
+We assess the predictive performance of each generator parameterization and assess how exogenous rail characteristics and temporal warping affect prediction accuracy. We use the link function, $g(x) = \exp(x)$, for \cref{eq:trans_rates_covariates}. 
+As outlined in \Cref{sec:cumulative_link_model}, we benchmark against cumulative link models (CLMs) with logistic, probit, and complementary log-log link functions. As with the MJP, we also investigate the effect of including exogenous rail characteristics.
+The results from the described procedure are presented in \Cref{tab:forecast_error_tab}. An ensemble forecast is constructed by averaging all predictive distributions from all other predictors in the table.
 
 \begin{table}[htb!]
     \centering
-    \caption{Estimated prediction errors from 10-fold cross-prediction procedures in terms of average ranked probability score ($\overline{\text{RPS}}$), average log score ($\overline{\text{LogS}}$), and average Brier score ($\overline{\text{BS}}$). ``Exogeneous information'' refers to whether or not the rail characteristics described in \Cref{sec:data} are included in the model via the softmax link function, $g(x) = \log(1 + \exp(x))$.}
+    \caption{Prediction errors from $k$-fold cross-prediction procedures in terms of average ranked probability score ($\overline{\text{RPS}}$) and average log score ($\overline{\text{LogS}}$). ``Exogeneous information'' refers to whether or not the rail characteristics described in \Cref{sec:data} are included in the model.}
 \input{figures/forecast_error_tab}
     \label{tab:forecast_error_tab}
     %remember to manually add: \cdashline{2-7} \addlinespace[0.3em]
     %between different parameterizations of OLR and MJP
 \end{table}
 
-All naïve predictors are outperformed by both the cumulative link models and the Markov jump process. Among the cumulative link models, the logistic link achieves the lowest error scores, while the complementary log-log link performs worst. The logistic link assumes a logistically distributed latent variable underlying the ordinal measurements; however, while this assumption yields the best results here, it does not imply that the true severity propagation follows a logistic distribution.
 
-The cumulative link models constitute a strong baseline, but the Markov jump process consistently achieves better predictive performance in terms of log score and Brier score. The ranked probability score (RPS) shows smaller differences: the Markov jump process is favored in most cases, although the generalized Erlang parameterization $\bm{A}'^{(s)}$ performs slightly worse than the logistic cumulative link model in RPS.
-This pattern is expected: the log score and Brier score are particularly sensitive to forecast sharpness and the ability to assign high probability to the realized outcome, while the RPS also rewards calibration across the ordinal scale. Consequently, the Markov process with generalized Erlang parameterization demonstrates stronger discrimination ability but weaker calibration relative to the cumulative logistic model. A similar trade-off is observed between the ensemble forecast and the free upper parameterization $\bm{A}'''^{(s)}$.
+Among the CLMs, the logistic link achieves the best scores, while the complementary log-log link performs worst. Although the logistic assumption underlies the latent variable, this should not be interpreted as evidence that defect propagation itself follows a logistic distribution—only that it provides the most effective link function in this context.
 
-However, in almost all cases the three different error scores show the same tendencies in the prediction accuracy of the various models, making it more difficult to comment on which models are more calibrated or have better discrimination ability. Subsequently, we provide a detailed diagnostic analysis in \Cref{sec:reliability_analysis}. However, we note that the prediction accuracy of all Markov jump processes across all error metrics increases with the optimum score estimation approach. This means that determining model parameters maximizing a score function which is a sum of the three individual error scores, leads to higher prediction accuracy in all three metrics.
+CLMs provide strong static baselines, but MJPs consistently outperform them in log score, reflecting their advantage in capturing temporal dynamics and state dependence. For RPS, the relative difference is smaller: while MJPs are favored in most cases (and especially for the more complex generators), parameterizations $\bm{A}{\RN{1}}$ and $\bm{A}{\RN{2}}$ without warping slightly underperform compared to the logistic CLM.
+This pattern is expected: the log score is particularly sensitive to forecast sharpness and the ability to assign high probability to the realized outcome, while the RPS also rewards calibration across the ordinal scale. 
+This reflects the trade-off between sharpness and calibration: the generalized Erlang MJP exhibits stronger discrimination but weaker calibration compared to the logistic CLM.
+%Consequently, the MJP with the generalized Erlang parameterization demonstrates stronger discrimination ability but weaker calibration relative to the CLM with logistic. %A similar trade-off is observed between the ensemble forecast and the free upper parameterization $\bm{A}'''^{(s)}$.
+However, in almost all cases the two different error scores show the same tendencies in the prediction accuracy of the various models, making it more difficult to comment on which models are more calibrated or have better discrimination ability. We therefore provide a detailed diagnostic analysis in \Cref{sec:reliability_analysis}.
 
-The choice of generator parameterization substantially impacts prediction accuracy. The free upper parameterization $\bm{A}'''^{(s)}$ yields the best error scores, while the generalized Erlang $\bm{A}'^{(s)}$ performs worst, indicating that greater model flexibility improves forecast performance. We further compare and discuss the transient distributions implied by each parameterization in \Cref{sec:results_transient_dist_markov}.
-Among all models in \Cref{tab:forecast_error_tab}, the free upper Markov jump process achieves the highest log score, while the ensemble forecast achieves the best ranked probability score and Brier score.
+The choice of generator parameterization substantially impacts prediction accuracy. 
+Overall, the $\bm{A}_{\RN{4}}$ and $\bm{A}_{\RN{5}}$ parameterizations yield the best scores, which indicates that greater model flexibility improves forecast performance for this prediction challenge.
+We further compare and discuss the transient distributions implied by each parameterization in \Cref{sec:results_transient_dist_markov}. 
 
-The strong performance of the ensemble forecast aligns with findings from other forecasting studies, where combining models often improves predictive accuracy \citep{wu2021a}. The different structural assumptions of the Markov jump process and the cumulative link model allow them to capture complementary aspects of the data. Moreover, ensembles benefit from pooling model errors, which tend to cancel out if models capture true signals more consistently than they replicate errors \citep{wu2021a}. This effect is also observed in the present study, particularly in the RPS.
+%also write which numerical optimizer was used
+%Among all models in \Cref{tab:forecast_error_tab}, the free upper Markov jump process achieves the highest log score, while the ensemble forecast achieves the best ranked probability score and Brier score.
+Temporal warping (see \cref{sec:warping}) consistently improves prediction accuracy across all parameterizations, indicating that state-dependent rescaling of time can correct for biases introduced by severity classification schemes that do not necessarily align with underlying physical crack sizes. 
 
-We next report findings related to the choice of link function in the regression of transition rates within the Markov jump process (see \Cref{eq:trans_rates_covariates}).
-To avoid an overly large table, we only include results for the softmax link function in \Cref{tab:forecast_error_tab}. However, among the link functions tested, the softmax link achieved the best predictive performance, followed by the exponential link, with the square link performing worst, although the differences were relatively minor.
-This ordering aligns with expectations: the softmax link is less numerically sensitive than the exponential link, while the square link lacks injectivity, which could introduce ambiguity in the numerical optimization algorithm.
+Remark: The $\bm{A}_{\RN{2}}$ parameterization is not included under the warped MJP, as estimation did not converge. This could be due to the interaction between the harmonic skip of $\bm{A}_{\RN{2}}$ and the temporal warping weights, creating identifiability issues.
+
+Including exogenous track characteristics likewise reduces prediction error across all investigated model settings of both the MJP and CLM. This is consistent with \citet{bisgaard2024A}, who found that such covariates explain structural variability between rail lines, and supports the notion that the rail network is heterogeneous and that local conditions at the crack location must be accounted for.
+
+The ensemble forecast achieves strong performance, consistent with prior findings that model averaging improves predictive accuracy \citep{wu2021a}. The structural differences between predictors allow them to capture complementary aspects of the data. By pooling their predictions, ensemble averaging reduces idiosyncratic model errors and improves calibration.
+ 
+
+%We next report findings related to the choice of link function in the regression of transition rates within the Markov jump process (see \Cref{eq:trans_rates_covariates}).
+%To avoid an overly large table, we only include results for the softmax link function in \Cref{tab:forecast_error_tab}. However, among the link functions tested, the softmax link achieved the best predictive performance, followed by the exponential link, with the square link performing worst, although the differences were relatively minor.
+%This ordering aligns with expectations: the softmax link is less numerically sensitive than the exponential link, while the square link lacks injectivity, which could introduce ambiguity in the numerical optimization algorithm.
 
 \FloatBarrier
 
@@ -92,17 +99,17 @@ In practice, real-world rail degradation involves a combination of slow fatigue-
 
 \FloatBarrier
 
-\subsection{Exogenous information} \label{sec:results_exogenous_info}
-The inclusion of the exogenous information containing the track characteristics consistently improves prediction errors. This holds true for all investigated model settings of the cumulative link model and the Markov jump process. 
-This supports the notion of heterogeneity of the rail network, since taking the specific rail characteristics at the defect location into account leads to better predictions, see \cref{tab:forecast_error_tab}.
-\citet{bisgaard2024A} demonstrate that the included covariates are statistically significant on a 5\% level, computing the standard errors of the parameters via a second order approximation of the score function in the estimated optimum. Due to the $k$-fold cross validation procedure in this study, we obtain $k$ different estimates for each variable for each model setting. In \cref{tab:covariates_estimates}, we show the range of the coefficients.
-\begin{table}[htb!]
-    \centering
-    \caption{Model estimates of rail track characteristics from k-fold estimation procedure}
-    \centerline{\input{figures/covariates_estimates}}
-    \label{tab:covariates_estimates}
-\end{table}
-For all folds, the coefficients on the covariates have constant sign and are of similar magnitude, with the only exception of the complementary loglog link for the cumulative link model. However as shown in \cref{tab:forecast_error_tab}, the complementary loglog link has the worst prediction performance of all investigated parametric models, suggesting that the assumption of a min-Gumbell distributed latent variable is not suitable. With that aside, the fact that different settings (link functions and generator parameterizations) of two distinct statistical models lead to similar estimated coefficients for the covariates on all studied subsets of the data strongly suggests that the estimations are robust and that the statistical interpretation of the influence of the covariates is sound. We conclude that the models associate increases in tonnage, line speed, steel hardness and curvature with faster propagation of defect severity. Increasing rail profile is associated with slower propagation of defect severity. As argued by \citet{bisgaard2024A}, these associations are in accordance with railway domain knowledge \citep{UIC_2002_defecthandbook,RASMUSSEN20178}
+%\subsection{Exogenous information} \label{sec:results_exogenous_info}
+%The inclusion of the exogenous information containing the track characteristics consistently improves prediction errors. This holds true for all investigated model settings of the cumulative link model and the Markov jump process. 
+%This supports the notion of heterogeneity of the rail network, since taking the specific rail characteristics at the defect location into account leads to better predictions, see \cref{tab:forecast_error_tab}.
+%\citet{bisgaard2024A} demonstrate that the included covariates are statistically significant on a 5\% level, computing the standard errors of the parameters via a second order approximation of the score function in the estimated optimum. Due to the $k$-fold cross validation procedure in this study, we obtain $k$ different estimates for each variable for each model setting. In \cref{tab:covariates_estimates}, we show the range of the coefficients.
+%\begin{table}[htb!]
+%    \centering
+%    \caption{Model estimates of rail track characteristics from k-fold estimation procedure}
+%    \centerline{\input{figures/covariates_estimates}}
+%    \label{tab:covariates_estimates}
+%\end{table}
+%For all folds, the coefficients on the covariates have constant sign and are of similar magnitude, with the only exception of the complementary loglog link for the cumulative link model. However as shown in \cref{tab:forecast_error_tab}, the complementary loglog link has the worst prediction performance of all investigated parametric models, suggesting that the assumption of a min-Gumbell distributed latent variable is not suitable. With that aside, the fact that different settings (link functions and generator parameterizations) of two distinct statistical models lead to similar estimated coefficients for the covariates on all studied subsets of the data strongly suggests that the estimations are robust and that the statistical interpretation of the influence of the covariates is sound. We conclude that the models associate increases in tonnage, line speed, steel hardness and curvature with faster propagation of defect severity. Increasing rail profile is associated with slower propagation of defect severity. As argued by \citet{bisgaard2024A}, these associations are in accordance with railway domain knowledge \citep{UIC_2002_defecthandbook,RASMUSSEN20178}
 
 \subsection{Visual forecast diagnostic} \label{sec:reliability_analysis}
 Until now, we have evaluated the Markov jump process (MJP) forecasts using proper scoring rules, demonstrating that the MJP with the free upper parameterization ($\bm{A}'''^{(s)}$ from \cref{eq:generator_free_upper}) outperforms all reference predictors.
