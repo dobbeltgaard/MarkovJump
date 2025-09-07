@@ -221,38 +221,44 @@ text.size <- 11
 ndays = 365*8
 
 
-
-nam = "bidiagonal_TRUE_exp_exp_all_warp"
+source("plot_functions.R")
 nam = "gerlang_TRUE_exp_exp_all_no_warp"; generator = "gerlang"; warp_indicator = F;
-trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator)
-trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator)
+k = 1; base_size=11;
+trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
+trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
 
 
 source("plot_functions.R")
-w <- 2; h <- 2  # target PDF size in inches
+w <- 2; h <- 1.5  # target PDF size in inches
 #k <- size_scaler(w, h, 3, 3) 
-k = 1; base_size=11;
-nam = "gerlang_TRUE_exp_exp_all_warp"; generator = "gerlang"; warp_indicator = T;
+k = 1; base_size=6;
+nam = "gerlang_TRUE_exp_exp_all_no_warp"; generator = "gerlang"; warp_indicator = F;
+p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
+p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
+ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")
+ggplot2::ggsave(paste0("figures/tpm_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p2,width = w, height = h, units = "in")
+
+nam = "gerlang_relax_TRUE_exp_exp_all_no_warp"; generator = "gerlang_relax"; warp_indicator = F;
 p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
 p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
 ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")
 ggplot2::ggsave(paste0("figures/tpm_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p2,width = w, height = h, units = "in")
 
 
-nam = "bidiagonal_TRUE_exp_exp_all_warp"; generator = "bidiagonal"; warp_indicator = T;
+nam = "bidiagonal_TRUE_exp_exp_all_no_warp"; generator = "bidiagonal"; warp_indicator = F;
 p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
 p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
 ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")
 ggplot2::ggsave(paste0("figures/tpm_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p2,width = w, height = h, units = "in")
 
 
-nam = "tridiagonal_TRUE_exp_exp_all_warp"; generator = "tridiagonal"; warp_indicator = T;
+nam = "tridiagonal_TRUE_exp_exp_all_no_warp"; generator = "tridiagonal"; warp_indicator = F;
 p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
 p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
 ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")
 ggplot2::ggsave(paste0("figures/tpm_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p2,width = w, height = h, units = "in")
 
-nam = "free_upper_tri_TRUE_exp_exp_all_warp"; generator = "free_upper_tri"; warp_indicator = T;
+nam = "free_upper_tri_TRUE_exp_exp_all_no_warp"; generator = "free_upper_tri"; warp_indicator = F;
 p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
 p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
 ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")

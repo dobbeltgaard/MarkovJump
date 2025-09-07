@@ -22,7 +22,7 @@ The prediction errors are calculated using a $k$-fold cross-validation procedure
 
 We assess the predictive performance of each generator parameterization and assess how exogenous rail characteristics and temporal warping affect prediction accuracy. We use the link function, $g(x) = \exp(x)$, for \cref{eq:trans_rates_covariates}. 
 As outlined in \Cref{sec:cumulative_link_model}, we benchmark against cumulative link models (CLMs) with logistic, probit, and complementary log-log link functions. As with the MJP, we also investigate the effect of including exogenous rail characteristics.
-The results from the described procedure are presented in \Cref{tab:forecast_error_tab}. An ensemble forecast is constructed by averaging all predictive distributions from all other predictors in the table.
+The results from the described procedure are presented in \Cref{tab:forecast_error_tab} (page \pageref{tab:forecast_error_tab}). An ensemble forecast is constructed by averaging all predictive distributions from all other predictors in the table.
 
 \begin{table}[htb!]
     \centering
@@ -36,7 +36,7 @@ The results from the described procedure are presented in \Cref{tab:forecast_err
 
 Among the CLMs, the logistic link achieves the best scores, while the complementary log-log link performs worst. Although the logistic assumption underlies the latent variable, this should not be interpreted as evidence that defect propagation itself follows a logistic distribution—only that it provides the most effective link function in this context.
 
-CLMs provide strong static baselines, but MJPs consistently outperform them in log score, reflecting their advantage in capturing temporal dynamics and state dependence. For RPS, the relative difference is smaller: while MJPs are favored in most cases (and especially for the more complex generators), parameterizations $\bm{A}{\RN{1}}$ and $\bm{A}{\RN{2}}$ without warping slightly underperform compared to the logistic CLM.
+CLMs provide strong static baselines, but MJPs consistently outperform them in log score, reflecting the advantage in capturing temporal dynamics and state dependence. For RPS, the relative difference is smaller: while MJPs are favored in most cases (and especially for the more complex generators), parameterizations $\bm{A}{\RN{1}}$ and $\bm{A}{\RN{2}}$ without warping slightly underperform compared to the logistic CLM.
 This pattern is expected: the log score is particularly sensitive to forecast sharpness and the ability to assign high probability to the realized outcome, while the RPS also rewards calibration across the ordinal scale. 
 This reflects the trade-off between sharpness and calibration: the generalized Erlang MJP exhibits stronger discrimination but weaker calibration compared to the logistic CLM.
 %Consequently, the MJP with the generalized Erlang parameterization demonstrates stronger discrimination ability but weaker calibration relative to the CLM with logistic. %A similar trade-off is observed between the ensemble forecast and the free upper parameterization $\bm{A}'''^{(s)}$.
@@ -44,7 +44,7 @@ However, in almost all cases the two different error scores show the same tenden
 
 The choice of generator parameterization substantially impacts prediction accuracy. 
 Overall, the $\bm{A}_{\RN{4}}$ and $\bm{A}_{\RN{5}}$ parameterizations yield the best scores, which indicates that greater model flexibility improves forecast performance for this prediction challenge.
-We further compare and discuss the transient distributions implied by each parameterization in \Cref{sec:results_transient_dist_markov}. 
+In \Cref{sec:results_transient_dist_markov}, we further compare and discuss the transient distributions from chosen examples on parameterizations.
 
 %also write which numerical optimizer was used
 %Among all models in \Cref{tab:forecast_error_tab}, the free upper Markov jump process achieves the highest log score, while the ensemble forecast achieves the best ranked probability score and Brier score.
@@ -62,36 +62,29 @@ The ensemble forecast achieves strong performance, consistent with prior finding
 %This ordering aligns with expectations: the softmax link is less numerically sensitive than the exponential link, while the square link lacks injectivity, which could introduce ambiguity in the numerical optimization algorithm.
 
 \FloatBarrier
-
-\input{figures/transient_dists}
-
+ 
+ 
+ \input{figures/transient_dists}
 
 \subsection{Transient distributions of the Markov chains} \label{sec:results_transient_dist_markov}
 The generator parameterizations imply substantially different degradation dynamics.
-In \Cref{fig:transient_dists} (page \pageref{fig:transient_dists}), we illustrate the transient distributions over an eight-year period for a randomly chosen class $3$ defect under each parameterization, along with the corresponding eight-year transition probability matrices.
+In \Cref{fig:transient_dists}, %(page \pageref{fig:transient_dists}), 
+we illustrate the transient distributions over an eight-year period for a randomly chosen class $3$ defect
+under the parameterization of the generalized Erlang ($\bm{A}_{\RN{1}}$), the relaxed Erlang ($\bm{A}_{\RN{2}}$), and the upper-banded (max jump = 3) ($\bm{A}_{\RN{4}}$), 
+along with the corresponding eight-year transition probability matrices.
 
-The generator parameterizations imply substantially different degradation dynamics.
-In \Cref{fig:transient_dists} (page \pageref{fig:transient_dists}), we illustrate the transient distributions over an eight-year period for a randomly chosen class $3$ defect under each parameterization, along with the corresponding eight-year transition probability matrices.
 
 The first row of each transition matrix corresponds to the transient distribution after eight years.
-Because the generalized Erlang parameterization only allows jumps to neighboring classes, it assigns substantially more probability mass to class $2B$ (see \Cref{fig:trans_dist_gerlang}) than the free upper parameterization (\Cref{fig:trans_dist_free_upper}), which permits direct jumps to more severe categories without passing through intermediate states.
-This difference likely reflects the relatively low number of observed class $2B$ defects, causing the free upper model to assign little probability to that state over time.
+Because $\bm{A}_{\RN{1}}$ only allows jumps to neighboring classes, it assigns substantially more probability mass to class $2B$ (see \Cref{fig:trans_dist_gerlang}) than $\bm{A}_{\RN{4}}$ (\Cref{fig:trans_dist_tridiagonal}), which permits direct jumps to more severe categories without passing through all intermediate states.
+This difference likely reflects the relatively low number of observed class $2B$ defects, causing $\bm{A}_{\RN{4}}$ to assign little probability to that state over time.
 
-The reparameterized upper (\Cref{fig:trans_dist_param_upper}) assigns less probability mass to class $2B$ than the generalized Erlang, but more than the free upper. However, it differs notably from both in its treatment of the most severe classes: it assigns substantially more probability mass to class $1$ and correspondingly less to class $0$ after eight years.
-This shift stems from the core assumption of the reparameterized upper (\cref{eq:trans_rate_param}), where the degradation time between two observed states is modeled as the sum of intermediate sub-degradation processes.
-As a result, probability mass is systematically shifted toward intermediate states, leading to the observed leftward bias in the transition matrix compared to the generalized Erlang and free upper parameterizations.
-
-Although the free upper parameterization achieves the highest predictive accuracy in this study, the reparameterized upper has practical advantages.
-The free upper parameterization's number of parameters grows quadratically with the number of states, whereas for the reparameterized upper, it grows only linearly.
-For the relatively small state space considered here ($m = 5$), model estimation remains robust. However, for larger state spaces, the free upper may suffer from overparameterization and instability. In such cases, the reparameterized upper offers a alternative, combining linear parameter growth with greater flexibility than the generalized Erlang.
+$\bm{A}_{\RN{2}}$ (\Cref{fig:trans_dist_gerlang_relax}) assigns less probability mass to class $2B$ than $\bm{A}_{\RN{1}}$, but more than $\bm{A}_{\RN{4}}$. However, it differs notably from both in its treatment of the most severe classes: it assigns substantially more probability mass to class $1$ and correspondingly less to class $0$ after eight years.
+This shift stems from the core assumption of $\bm{A}_{\RN{2}}$ (\cref{eq:trans_rate_param}), where the degradation time between two observed states is modeled as the sum of intermediate sub-degradation processes.
+As a result, probability mass is systematically shifted toward intermediate states, leading to the observed leftward bias in the transition matrix compared to $\bm{A}_{\RN{1}}$ and $\bm{A}_{\RN{4}}$.
 
 The structural differences between the generator parameterizations reflect different assumptions about the physical degradation mechanisms of rail defects.
-While the generalized Erlang parameterization enforces gradual transitions between neighboring severity classes, it can still capture sudden defect propagation through rapid sequences of small jumps.
-Conversely, the free upper parameterization allows direct jumps to more severe classes without passing through intermediates, making it well-suited for modeling abrupt failures caused by random shocks, such as those imposed by heavy rolling stock loads or external impacts.
-The reparameterized upper parameterization lies between these two extremes: it models large transitions as the cumulative effect of smaller degradation steps, combining gradual wear processes with the possibility of accelerated defect growth.
-
-Thus, all three parameterizations accommodate both gradual and sudden degradation mechanisms, but differ in how flexibly they allow defects to bypass intermediate severity classes.
-In practice, real-world rail degradation involves a combination of slow fatigue-driven crack growth and occasional abrupt worsening due to shocks imposed by rolling stock, suggesting that more flexible parameterizations may better approximate the true defect evolution — particularly in long-term forecasts over extended time horizons.
+%While $\bm{A}_{\RN{1}}$ enforces gradual transitions between neighboring severity classes, it can still capture sudden defect propagation through rapid sequences of small jumps.Conversely, $\bm{A}_{\RN{4}}$ (as well as $\bm{A}_{\RN{3}}$ and $\bm{A}_{\RN{5}}$) allows direct jumps to more severe classes without passing through intermediates, making it well-suited for modeling abrupt failures caused by random shocks, such as those imposed by heavy rolling stock loads or external impacts. $\bm{A}_{\RN{2}}$ lies between these two extremes: it models large transitions as the cumulative effect of smaller degradation steps, combining gradual wear processes with the possibility of accelerated defect growth.
+In summary, $\bm{A}_{\RN{1}}$ enforces gradual progression via neighboring classes, $\bm{A}_{\RN{4}}$ (and similarly $\bm{A}_{\RN{3}}$ and $\bm{A}_{\RN{5}}$) allows for abrupt jumps to severe states, and $\bm{A}_{\RN{2}}$ represents an intermediate compromise. Real-world degradation involves both fatigue-driven crack growth and occasional abrupt worsening due to shocks imposed by rolling stock, suggesting that the more flexible parameterizations better approximate true defect evolution, particularly in long-term forecasts over extended time horizons.
 
 
 % Note that the first row in the transition probability matrices corresponds to the transient distribution after eight years. As the generalized Erlang only models jumps to the neighboring class, it assigns substantially more probability mass to class $2B$ (see \Cref{fig:trans_dist_gerlang}) than the free upper parameterization in \Cref{fig:trans_dist_free_upper}, which is not restricted to visit $2B$ before it can move further into more severe categories. Most likely, the relatively low number of $2B$ observations is the reason why the free upper parameterization from \cref{eq:generator_free_upper} assigns low probability to that state over the eight year period. The reparameterized upper in \Cref{fig:trans_dist_param_upper} assigns less probability mass to category $2B$ than the generalized Erlang, but more than the free upper. However, the reparameterized upper from \cref{eq:trans_rate_param} differs notably from the two other parameterizations wrt. category $1$ and $0$ where it assigns significantly more probability mass to class $1$ than the generalized Erlang and the free upper. Most of this probability mass comes from class $0$ which has substantially lower probability mass after eight years than in the cases of the generalized Erlang and the free upper. This is caused by the core assumption of the reparameterized upper in \cref{eq:trans_rate_param}, where the degradation time between two observed states is the sum of all intermediate sub-degradation processes. In general, the assumption will force more probability mass to the left in the transition probability matrix, which indeed is the case in \Cref{fig:trans_dist_param_upper} compared to \Cref{fig:trans_dist_gerlang} or \Cref{fig:trans_dist_free_upper}.
@@ -111,11 +104,8 @@ In practice, real-world rail degradation involves a combination of slow fatigue-
 %\end{table}
 %For all folds, the coefficients on the covariates have constant sign and are of similar magnitude, with the only exception of the complementary loglog link for the cumulative link model. However as shown in \cref{tab:forecast_error_tab}, the complementary loglog link has the worst prediction performance of all investigated parametric models, suggesting that the assumption of a min-Gumbell distributed latent variable is not suitable. With that aside, the fact that different settings (link functions and generator parameterizations) of two distinct statistical models lead to similar estimated coefficients for the covariates on all studied subsets of the data strongly suggests that the estimations are robust and that the statistical interpretation of the influence of the covariates is sound. We conclude that the models associate increases in tonnage, line speed, steel hardness and curvature with faster propagation of defect severity. Increasing rail profile is associated with slower propagation of defect severity. As argued by \citet{bisgaard2024A}, these associations are in accordance with railway domain knowledge \citep{UIC_2002_defecthandbook,RASMUSSEN20178}
 
-\subsection{Visual forecast diagnostic} \label{sec:reliability_analysis}
-Until now, we have evaluated the Markov jump process (MJP) forecasts using proper scoring rules, demonstrating that the MJP with the free upper parameterization ($\bm{A}'''^{(s)}$ from \cref{eq:generator_free_upper}) outperforms all reference predictors.
-Including exogenous covariates further improves predictive performance, and combining the MJP with the best-performing cumulative link model in an ensemble forecast yields additional gains.
-These results indicate the potential for applying such models to support track maintenance decisions by predicting future defect severity propagation.
-However, proper scoring rules such as the RPS, log score, and Brier score, while instructive, summarize forecast quality into single numbers and cannot reveal all sources of forecast deficiencies \citep{hamill1997,Dimitriadis_2024}.
+\subsection{Forecast diagnostics of reliability and discrimination} \label{sec:reliability_analysis}
+So far, forecast evaluation has relied on proper scoring rules. These showed that flexible MJP parameterizations outperform reference predictors, and that temporal warping, exogenous information, and that averaging over all predictors in an ensemble further improve accuracy. However, such scores reduce forecast quality to single summary values, and therefore cannot reveal the specific sources of deficiencies \citep{hamill1997,Dimitriadis_2024}.
 
 To provide a more detailed analysis, we generate multicategorical reliability diagrams to assess forecast calibration, and checkerboard plots to evaluate discrimination ability.
 We follow the methodology proposed by \citet{hamill1997}, extending the framework of reliability diagrams initially introduced for binary forecasts by \citet{wilks1995a}.
@@ -131,35 +121,135 @@ The diagnostic plots are generated by the following procedure.
     \end{itemize}
     \item For each quantile $q_k$, compute the average reliability across all forecast-observation pairs.
 \end{enumerate}
-Error bars are calculated via a bootstrap procedure, which repeats the above steps across multiple resampled datasets. A checkerboard plot of the difference between the forecasted and observed categories at each quantile is used to visualize the discrimination ability of the forecasts. \citet{hamill1997} offers an exhaustive description of the above methodology. Our GitHub repository\footnote{\url{https://github.com/dobbeltgaard/MarkovJump.git}} provides \texttt{R} code to generate these diagnostic plots.
+As a supplementary summary metric, we report the \textit{average category error}, defined as the mean absolute difference between the forecasted category at each quantile and the observed category, averaged first across forecasts and then across quantiles.
 
-For brevity, we evaluate four well-performing predictors from \cref{tab:forecast_error_tab}:
-(1) the uniform distribution predictor (naïve, nonparametric),
-(2) the cumulative link model with logistic link and exogenous information,
-(3) the Markov jump process with the free upper parameterization and exogenous information, and
-(4) the ensemble forecast combining predictors (2) and (3).
-Results are shown in \Cref{fig:reliability_diagrams}. Bootstrapping was performed with 200 resamples, and 10\% and 90\% confidence intervals are reported.
+Error bars are calculated via a bootstrap procedure, which repeats the above steps across multiple resampled datasets. A checkerboard plot of the difference between the forecasted and observed categories at each quantile is used to visualize the discrimination ability of the forecasts. \citet{hamill1997} offers an exhaustive description of the above methodology. Our GitHub repository\footnote{\url{https://github.com/dobbeltgaard/MarkovJump.git}} provides \texttt{R} code to generate these diagnostic plots.
 \input{figures/reliability_figs}
 
-The empirical distribution predictor (\Cref{fig:reliability_diag_empirical_dist_corr}) substantially overestimates the fraction of observed categories across all quantiles, indicating pronounced miscalibration.
-Its mean category error is also the highest among the four predictors, consistent with its poor performance on aggregate error scores.
+To illustrate, we focus on four representative predictors: 
+(1) the uniform predictor, providing a simplistic lower bound; 
+(2) the logistic CLM with exogenous information, representing the strongest static baseline; 
+(3) the MJP with parameterization $\bm{A}_{\RN{3}}$ including exogenous information and warping, as a representative dynamic model; and 
+(4) the ensemble forecast, combining all predictors. 
+Results are shown in \Cref{fig:reliability_diagrams}. Bootstrapping was performed with 200 resamples, and 10\% and 90\% confidence intervals are reported.
 
-The cumulative link model with logistic link (\Cref{fig:reliability_diag_olr_cov}) shows notable improvement in calibration relative to the empirical predictor.
+
+%For brevity, we evaluate four predictors from \cref{tab:forecast_error_tab};
+%(1) the uniform distribution predictor (naïve, nonparametric),
+%(2) the cumulative link model with logistic link and exogenous information,
+%(3) the Markov jump process (using $\bm{A}_{\RN{3}}$) with exogenous information and temporal warping, as well as
+%(4) the ensemble forecast combining all predictors.
+%Results are shown in \Cref{fig:reliability_diagrams}. 
+
+The uniform distribution predictor (\Cref{fig:reliability_diag_uniform}) substantially overestimates the fraction of observed categories across all quantiles, indicating pronounced miscalibration.
+Its average category error is also the highest among the four predictors, consistent with its poor performance on aggregate error scores in \cref{tab:forecast_error_tab}.
+
+The cumulative link model with logistic link (\Cref{fig:reliability_diag_olr_cov}) shows notable improvement in calibration relative to the uniform distribution predictor.
 However, its discrimination ability remains modest, as indicated by large average category errors and checkerboard plots with heavily populated bins far from the zero-error line.
 
-The Markov jump process (\Cref{fig:reliability_diag_free_upper_tri_TRUE_all}) achieves the lowest mean category error, and its checkerboard plot shows concentration of errors near the zero-category line, indicating good discrimination ability.
+The Markov jump process (\Cref{fig:reliability_diag_bidiagonal_TRUE_exp_exp_all_warp}) achieves the lowest mean category error among the single predictors, and its checkerboard plot shows concentration of errors near the zero-category line, indicating good discrimination ability.
 Its reliability curve closely follows the ideal diagonal, suggesting well-calibrated forecasts.
 
-The ensemble forecast (\Cref{fig:reliability_diag_ensemble}) yields slight improvements in calibration at higher quantiles but slight worsening at lower quantiles.
+The ensemble forecast (\Cref{fig:reliability_diag_ensemble_all}) yields slight improvements in calibration at higher quantiles but slight worsening at lower quantiles.
 This behavior can be explained by the interaction of the individual models: while the cumulative link model tends to overpredict severity at higher quantiles, the MJP tends to underpredict, resulting in partial cancellation. However, at lower quantiles, both models tend to underpredict, leading to no corrective effect.
 
 The ensemble forecast appears somewhat less sharp than the MJP alone, as reflected in higher mean category error and more dispersed errors in the checkerboard plots.
 Nevertheless, the differences remain relatively minor, and in all cases, the diagnostic plots confirm the improvements in predictive performance indicated by the aggregate scores.
 
-
-
 \FloatBarrier
 
+\subsection{Proposition for use case}
+From the perspective of an infrastructure manager, probabilistic forecasts in isolation have limited operational value. 
+To turn them into actionable strategies, forecasts must be embedded in decision frameworks that allocate inspection and maintenance resources under uncertainty.
+
+Discussions with BaneNOR and Banedanmark (the infrastructure managers responsible for most of the Norwegian and Danish networks) highlighted that connecting predictions to actionable maintenance strategies is essential for realizing the value of predictive models. In practice, this requires translating forecast distributions of defect severity into decisions that balance safety, cost, and resource constraints. 
+
+One possible implementation pathway is a threshold-based allocation under a fixed budget: for each defect $s\in\mathcal{S}$, generate forecasts over a six-month horizon and allocate resources to the $n$ defects with the highest probability of reaching a critical “rail-break” state, with $n$ bounded by the budget divided by the average per-defect action cost.
+
+Alternatively, the predictive distributions can be embedded into a stochastic optimization problem. 
+Since we consider a discrete stochastic process, it can be represented by a finite set of scenarios over a time partition $\widehat{T}=(T_1,\dots,T_n)$, where $T_n$ is the decision horizon.
+Given active defects $\mathcal{S}$ and a rail line mapping $\ell:\mathcal{S}\to\{\text{rail lines}\}$, let $\widehat{\bm\pi}^{(s)}_j(t)=\mathbb{P}(X^{(s)}(t)=j)$ be the predicted probability for class $j\in\mathcal{J}$ at time $t\in\widehat{T}$ (cf. \cref{eq:transient_dist}). Define
+\[
+y^{(s)}(t)\in\{0,1\}\ \ \text{(inspection at $t$)},\qquad
+z^{(s)}(t)\in\{0,1\}\ \ \text{(maintenance at $t$)},\qquad
+y^{(s)}(t)+z^{(s)}(t)\le 1.
+\]
+Let $q^{(s)}_{\mathrm{break}}(t)=\sum_{j\in\mathcal{J}_{\mathrm{crit}}}\widehat{\bm\pi}^{(s)}_j(t)$ be the predicted probability of being in a critical class set $\mathcal{J}_{\mathrm{crit}}$ by $t$.
+Let $c_{\mathrm{ins}}^{\ell}$ be rail line specific inspection cost, $c_{\mathrm{maint}}^{\ell}(j)$ the (severity-dependent) maintenance cost, and $c_{\mathrm{fail}}^{\ell}$ the monetized expected loss of a rail break on line $\ell$ (e.g. combining derailment risk and societal cost).
+Let $B(t)$ denote the per-period budget (or a total budget $B$).
+The objective (considering risk, repairs, and inspection) can then be written as the expected cost model
+\begin{align}
+\min_{y,z}\ \ 
+&\sum_{t\in\widehat{T}}\sum_{s\in\mathcal{S}}
+\Big[
+c_{\mathrm{ins}}^{\ell(s)}\,y^{(s)}(t)
++ z^{(s)}(t)\,\sum_{j\in\mathcal{J}} c_{\mathrm{maint}}^{\ell(s)}(j)\,\widehat{\bm\pi}^{(s)}_{j}(t)
+\Big]
++ \sum_{t\in\widehat{T}}\sum_{s\in\mathcal{S}} 
+c_{\mathrm{fail}}^{\ell(s)}\, q^{(s)}_{\mathrm{break}}(t)\,\Bigl(1-\!\!\sum_{\tau\le t} z^{(s)}(\tau)\Bigr)
+\label{eq:obj-expected}\\[-0.25em]
+\text{s.t.}\ \ 
+&\sum_{s\in\mathcal{S}}\!\Big(c_{\mathrm{ins}}^{\ell(s)}\,y^{(s)}(t) 
++ z^{(s)}(t)\,\sum_{j\in\mathcal{J}} c_{\mathrm{maint}}^{\ell(s)}(j)\,\widehat{\bm\pi}^{(s)}_{j}(t)\Big)\ \le\ B(t), \quad \forall t\in\widehat{T}, \label{eq:budget}\\
+&y^{(s)}(t),z^{(s)}(t)\in\{0,1\}, \quad \forall s\in\mathcal{S},\ \forall t\in\widehat{T}. \label{eq:binary}
+\end{align}
+The factor $\bigl(1-\sum_{\tau\le t} z^{(s)}(\tau)\bigr)$ switches off break losses once maintenance is performed (assuming maintenance returns the defect to a safe state). The constraints enforce the budget and at most one action per defect and period.
+Extensions can model information gains from inspection (scenario updates), crew logistics, or multi-horizon planning.
+Beyond the expected-cost objective, there are many variants, e.g. robust programs minimizing with respect to worst case scenarios.
+
+The focus of this study has been to develop probabilistic models for forecasting defect severity and evaluate their accuracy. 
+The decision-making program sketched here is intended as a proposal for how such forecasts could be used in infrastructure manager operations, rather than as a prescriptive solution.
+
+
+%
+%\subsection{Proposition for use case}
+%From the perspective of an infrastructure manager, probabilistic forecasts in isolation have limited operational value. 
+%To turn them into actionable strategies, forecasts must be embedded in decision frameworks that allocate inspection and maintenance resources under uncertainty.
+%
+%Discussions with BaneNOR and Banedanmark (the infrastructure managers responsible for most of the Norwegian and Danish networks) highlighted that connecting predictions to actionable maintenance strategies is essential for realizing the value of predictive modeling. In practice, this requires translating forecast distributions of defect severity into decision-making that balances safety, cost, and resource constraints. 
+%
+%One possible implementation pathway is to couple predictive distributions with a threshold-based decision framework under the assumption of a fixed maintenance budget. For instance, forecasts could be generated for each defect $s \in \mathcal{S}$ over a six-month horizon. Resources are then allocated to the $n$ defects with the highest probability of reaching the critical ``rail break'' state within that time, where $n$ is bounded by the budget divided by the average inspection or maintenance cost per defect.
+%
+%Alternatively, the predictive distributions can be embedded into a stochastic optimization problem. 
+%Since we consider a discrete stochastic process, it can be represented by a finite set of scenarios corresponding to all possible combinations of realizations over a finite partition of time, $\widehat{T} = (T_1, T_2, \dots, T_n)$, where $T_n$ denotes the chosen decision horizon of the infrastructure manager.
+%Given a set of active defects, $\mathcal{S}$, on rail line $\ell(s)$ for $s \in \mathcal{S}$, and their predictive distributions $\bm \pi^{(s)}(t)$ (cf. \cref{eq:transient_dist}) for $t \in \widehat{T}$, we define the binary decision variables
+%\[
+%y^{(s)}(t)\in\{0,1\}\quad\text{(perform inspection)},\qquad
+%z^{(s)}(t)\in\{0,1\}\quad\text{(perform maintenance)}.
+%\]
+%for defect $s$ at time $t$.
+%Let 
+%$q^{(s)}_{\text{break}}(t)=\sum_{j\in\mathcal{J}_{\text{crit}}}\bm \pi^{(s)}_j(t)$ denote the probability of being in a critical set of classes $\mathcal{J}_{\text{crit}}$ (e.g., rail-break risk) by time $t$.
+%Let $c_{\text{ins}}^{\ell}$ and $c_{\text{maint}}^{\ell}(j)$ be line-specific inspection and maintenance costs (maintenance may depend on severity $j$ if heavier repairs are needed for worse cracks). 
+%Let $c_{\text{fail}}^{\ell}$ be the monetized expected loss of rail break on line $\ell$, combining derailment risk and societal cost. 
+%Define a severity-to-repair cost mapping $c_{\text{maint}}^{\ell}(j)$ that is low for small cracks (e.g., class~$3$/$2B$) and high once exceeding practical thresholds (requiring rail replacement).  Lastly, define a per-period budget $B(t)$ (or a single horizon budget $B$).
+%The baseline objective (considering risk, repairs, and inspection) can then be written as the expected cost model
+%\begin{align}
+%\min_{y,z}\quad 
+%&\sum_{t\in\widehat{T}}\sum_{s\in\mathcal{S}}
+%\Bigg[
+%\underbrace{c_{\text{ins}}^{\ell(s)}\,y^{(s)}(t)}_{\text{inspection}}
+%+
+%\underbrace{z^{(s)}(t)\,\sum_{j} c_{\text{maint}}^{\ell(s)}(j)\,p^{(s)}_{j}(t)}_{\text{expected maintenance cost at }t}
+%\Bigg]
+%\;+\;
+%\underbrace{\sum_{t\in\widehat{T}}\sum_{s\in\mathcal{S}} 
+%c_{\text{fail}}^{\ell(s)}\; q^{(s)}_{\text{break}}(t)\;\bigl(1-\sum_{\tau\le t} z^{(s)}(\tau)\bigr)}_{\text{expected break loss if not yet maintained}}
+%\label{eq:obj-expected}
+%\end{align}
+%subject to
+%\begin{align}
+%&\sum_{s\in\mathcal{S}}\Big(c_{\text{ins}}^{\ell(s)}\,y^{(s)}(t) 
+%+ \, z^{(s)}(t)\,\sum_{j} c_{\text{maint}}^{\ell(s)}(j)\,p^{(s)}_{j}(t)\Big)\;\le\; B(t), 
+%&&\forall t\in\widehat{T}, \label{eq:budget}\\
+%&y^{(s)}(t)+z^{(s)}(t)\le 1, &&\forall s,\,t, \label{eq:mutual-excl}\\
+%&z^{(s)}(t)\in\{0,1\},\; y^{(s)}(t)\in\{0,1\}, &&\forall s,\,t.
+%\end{align}
+%The constraints ensure the solution respects the budget constraint and that at most one action per defect and period can be performed.
+%The factor $\bigl(1-\sum_{\tau\le t} z^{(s)}(\tau)\bigr)$ turns off break losses once maintenance is performed (we assume maintenance returns the defect to a safe state).
+%Beyond the expected-cost objective, there are many variants, e.g. robust programs minimizing with respect to worst case scenarios.
+%
+%
 
 \section{Conclusion} \label{sec:conclusion}
 We propose modeling partially observed rail defect severity trajectories using a Markov jump process, with transition rates regressed on exogenous information, including tonnage, line speed, rail curvature, grade, and rail profile at the defect locations.

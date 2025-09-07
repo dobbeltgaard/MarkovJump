@@ -9,6 +9,8 @@ library(Matrix)
 #functions to generate figures
 get_pars = function(str, fold_number = 1){read.csv(list.files("estimates", full.names = T)[grepl(str, list.files("estimates"))][fold_number])$par} #get_pars("gerlang_relax_FALSE_exp_exp_all_no_warp")
 
+rel_number = 1
+
 trans_dist_fig <- function(m, states, initial_state, nam, ndays, generator, warp_indicator,
                            base_size = 11, k = 1) {
 
@@ -29,18 +31,18 @@ trans_dist_fig <- function(m, states, initial_state, nam, ndays, generator, warp
   dpp_long$Column <- factor(dpp_long$Column, levels = c("3","2B","2A","1","0"))
 
   ggplot(dpp_long, aes(x = time/365, y = Probability, color = Column)) +
-  geom_line(size = 0.75 * k) +
+  geom_line(size = base_size/11* 0.75 * k) +
   theme(
     text             = element_text(size = base_size * k, family = "serif"),
-    axis.text.x      = element_text(size = rel(0.82), vjust = 0.3),
-    axis.text.y      = element_text(size = rel(0.82)),
+    axis.text.x      = element_text(size = rel(rel_number), vjust = 0.3),
+    axis.text.y      = element_text(size = rel(rel_number)),
     legend.title     = element_blank(),
-    legend.text      = element_text(size = rel(0.8)),
-    legend.key.width = unit(0.8, "lines"),
-    legend.key.height= unit(0.6, "lines"),
+    legend.text      = element_text(size = rel(0.75*rel_number)),
+    legend.key.width = unit(base_size/11*0.75, "lines"),
+    legend.key.height= unit(base_size/11*0.6, "lines"),
     panel.background = element_rect(fill = "white", color = "black"),
     panel.grid.minor = element_line(color = "lightgray"),
-    legend.position  = c(0.55, 0.9),
+    legend.position  = c(0.5, 0.9),
     legend.direction = "horizontal",
     legend.background= element_rect(fill = "transparent", color = NA),
     legend.key       = element_rect(fill = "transparent", color = NA)
@@ -67,8 +69,8 @@ trans_prob_fig <- function(m, states, initial_state, nam, ndays, generator, warp
 
   ggplot(long[long$value != 0, ], aes(x = x, y = y)) +
     geom_tile(aes(fill = value), linewidth = 0) +
-    geom_text(aes(label = sprintf("%.5f", value)),
-              color = "white", size = 3 * k, family = "serif") +
+    geom_text(aes(label = sprintf("%.4f", value)),
+              color = "white", size = rel(1.5), family = "serif") +
     scale_fill_gradient(low = "grey60", high = "black", guide = "none") +
     scale_x_discrete(drop = FALSE, expand = c(0,0)) +
     scale_y_discrete(drop = FALSE, expand = c(0,0), limits = rev(labs_map)) +
@@ -76,13 +78,13 @@ trans_prob_fig <- function(m, states, initial_state, nam, ndays, generator, warp
     labs(x = "To class", y = "From class") +
     theme(
       text             = element_text(size = base_size * k, family = "serif"),
-      axis.text.x      = element_text(size = rel(0.82), vjust = 0.3),
-      axis.text.y      = element_text(size = rel(0.82)),
+      axis.text.x      = element_text(size = rel(rel_number), vjust = 0.3),
+      axis.text.y      = element_text(size = rel(rel_number)),
       panel.background = element_rect(fill = "white", color = "black"),
       panel.grid.minor = element_blank()
     )
     
-
+}
 # helper: scale sizes based on device size versus a reference size (default 4x3 in)
 size_scaler <- function(width_in, height_in, ref_w = 4, ref_h = 3) {
   # use the limiting dimension so proportions stay consistent

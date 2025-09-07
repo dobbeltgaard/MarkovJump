@@ -45,7 +45,7 @@ $\bm{z}^{(s)}$ contains the exogenous information described in \Cref{sec:data}. 
 
 Let $\bm{\pi}^{(s)}(t) = \begin{bmatrix} \pi^{(s)}_1(t), \dots, \pi^{(s)}_m(t) \end{bmatrix}$ denote the time-dependent state distribution of defect $s$, a vector of dimension $1 \times m$ satisfying $\sum_{i = 1}^m \bm{\pi}^{(s)}_i(t) = 1$. For any $t>t_1^{(s)}$, the $i$'th component is given by
 \begin{align}
- \bm{\pi}_i^{(s)}(t) = P\left( X^{(s)}(t) = i \mid X^{(s)}(t_1^{(s)}) = y_1^{(s)}  \right), \quad \forall t\in \mathbb{R}, \forall s \in \mathcal{S}. 
+ \bm{\pi}_i^{(s)}(t) = P\left( X^{(s)}(t) = i \mid X^{(s)}(t_1^{(s)}) = y_1^{(s)}  \right), \quad \forall t\in \mathbb{R}, \forall s \in \mathcal{S}. \label{eq:transient_dist} 
 \end{align}
 Equivalently, $\bm{\pi}^{(s)}(t)$ is called the \textit{transient distribution} of the Markov chain, representing the probability distribution over severity classes at time $t$, conditional on the observed starting state $y_1^{(s)}$.
 Kolmogorov's forward equation, $\Dot{\bm{\pi}}^{(s)}(t) = \bm{\pi}^{(s)}(t) \bm{A}^{(s)}$, governs the change in state probabilities over time, given some initial probabilities \citep{bladt_nielsen}. The transient distribution can be obtained by
