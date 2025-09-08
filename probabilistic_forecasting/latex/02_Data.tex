@@ -2,7 +2,7 @@
 
 
 \section{Empirical setting} \label{sec:data}
-As trains pass over a defect location, stresses accumulate in the rail, causing initiated cracks to grow in size \citep{cannon2003a}. Physically, this crack growth occurs in a continuous domain. However, in practice, defect propagation is classified into discrete severity categories based on inspection. Following procedures prescribed by \citet{UIC_2002_defecthandbook}, the classification depends on the type and size of the defect. For example, transverse cracks with ultrasonic signal amplitudes exceeding artificial reference defects—typically flat-bottom holes (FBH) of 10 mm—are generally considered urgent repairs \citep{banenor_technical_regulations}. 
+As trains pass over a defect location, stresses accumulate in the rail, causing initiated cracks to grow in size \citep{cannon2003a}. Physically, this crack growth occurs in a continuous domain. However, in practice, defect propagation is classified into discrete severity categories based on inspection. Following procedures prescribed by \citet{UIC_2002_defecthandbook}, the classification depends on the type and size of the defect. For example, transverse cracks with ultrasonic signal amplitudes exceeding artificial reference defects (typically flat-bottom holes (FBH) of 10 mm) are generally considered urgent repairs \citep{banenor_technical_regulations}. 
 
 This classification procedure lumps the continuous property of degradation into a finite, ordered state space. In this study, we consider five severity classes: $3 \rightarrow 2B \rightarrow 2A \rightarrow 1 \rightarrow 0$, ranging from nearly visually observable cracks to severe rail damage such as rail break. \Cref{fig:defect_development} provides a visualization of various levels of defect severity.
 \begin{figure}[htb!]
@@ -22,7 +22,7 @@ Defect classifications used in this study follows procedures used by Bane NOR, t
 \subsection{Defect trajectories}\label{sec:defect_trajectories}
 The empirical data consist of $3,658$ defect trajectories recorded over the past two decades, covering $22$ different rail lines in Norway. Each trajectory begins with the identification of a defect and continues with a follow-up inspection. At each inspection, the defect is assigned a severity class, forming a sequence of categorical observations over time.
 
-These trajectories are \textit{partially observable} and subject to multiple forms of censoring. Most notably, they are \textit{interval-censored}, since the exact time at which a defect transitions to a more severe class is unknown—we only observe its state at discrete inspection times. If a crack grew between inspections, the time of change and any intermediate classes visited remain unobserved. In addition, the data may be \textit{left-censored}, as the true initiation time of the defect is unknown, and \textit{right-censored} if the trajectory ends before the defect reaches the most severe class. Consequently, the sojourn times in each class are censored.
+These trajectories are \textit{partially observable} and subject to multiple forms of censoring. Most notably, they are \textit{interval-censored}, since the exact time at which a defect transitions to a more severe class is unknown (we only observe its state at discrete inspection times). If a crack grew between inspections, the time of change and any intermediate classes visited remain unobserved. In addition, the data may be \textit{left-censored}, as the true initiation time of the defect is unknown, and \textit{right-censored} if the trajectory ends before the defect reaches the most severe class. Consequently, the sojourn times in each class are censored.
 
 \Cref{fig:hists_u} shows the empirical distribution of observation intervals, conditioned on observed transitions. As seen, the observation intervals are irregular, and all defects either remain in the current class or progress to a more severe one.
 
@@ -56,7 +56,7 @@ These variables are selected based on their known relevance to rail degradation 
 % The considered covariates are all believed to impact the propagation of initiated cracks in the rail component \citep{UIC_2002_defecthandbook,dick2003a,ghofrani2019a,RASMUSSEN20178}. All covariates are min-max transformed as described by \citet{bisgaard2024A}.
 
 \subsection{Prediction task} \label{sec:prediction_task}
-This study concerns the prediction of rail defect severity progression. Given a known defect class—e.g., a defect classified as $2B$—we aim to forecast its severity distribution over a future time horizon. For instance, what is the probability that the defect will remain in $2B$, or progress to $2A$, $1$, or $0$, after two years?
+This study concerns the prediction of rail defect severity progression. Given a known defect class (e.g., a defect classified as $2B$) we aim to forecast its severity distribution over a future time horizon. For instance, what is the probability that the defect will remain in $2B$, or progress to $2A$, $1$, or $0$, after two years?
 
 \Cref{fig:jump_scenarios} illustrates five simulated trajectories of a $2B$ defect over a two-year period. These simulations are generated from a Markov jump process using a generalized Erlang parameterization. Transition probabilities are calculated from the Kolmogorov forward equation, and the trajectories are sampled step-by-step from the resulting conditional probabilities.
 
@@ -67,9 +67,9 @@ This study concerns the prediction of rail defect severity progression. Given a 
     \label{fig:jump_scenarios}
 \end{figure}
 
-As seen, the simulations terminate in different severity classes, reflecting the inherent uncertainty in degradation processes. When we generate forecasts, we aim to represent this uncertainty through a predictive distribution. A perfect forecast would assign all probability to the correct future state, but in practice, the model must distribute probability mass across possible outcomes.
+As seen, the simulations terminate in different severity classes, reflecting the inherent uncertainty in degradation processes. When generating, we aim to represent this uncertainty through a predictive distribution. A perfect forecast assigns all probability to the correct future state, but in practice, the model must distribute probability mass across possible outcomes.
 
-To assess predictive accuracy, we compare the forecast distribution to the actual observed class at a future time point using proper scoring rules (\Cref{sec:error_metrics}). Well-calibrated forecasts produce probabilities that match observed frequencies across many instances. Additionally, we assess the model’s discrimination ability—its capacity to distinguish between high- and low-risk outcomes (\Cref{sec:reliability_analysis}).
+To assess predictive accuracy, we compare the forecast distribution to the actual observed class at a future time point using proper scoring rules (\Cref{sec:error_metrics}). Well-calibrated forecasts produce probabilities that match observed frequencies across many instances. Additionally, we assess the model’s discrimination ability: its capacity to distinguish between high- and low-risk outcomes (\Cref{sec:reliability_analysis}).
 
 As is standard in predictive modeling, we estimate model parameters using one part of the data and evaluate performance on a separate test set. This procedure is described in more detail in \Cref{sec:prediction_error}.
 

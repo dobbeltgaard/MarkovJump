@@ -58,10 +58,10 @@ Kolmogorov's forward equation, $\Dot{\bm{\pi}}^{(s)}(t) = \bm{\pi}^{(s)}(t) \bm{
 \Cref{eq:markov_eq_solution} demonstrates that the transient distribution of a continuous time Markov chain is calculated as a vector-matrix product between some initial distribution of the chain, $\bm{\pi}^{(s)}(t_0)$, and the matrix exponential of the generator scaled by passed time, $\exp{ ( \Delta t \bm{A}^{(s)} ) }$. Thus, $\exp{ ( \Delta t \bm{A}^{(s)} ) }$ is a transition probability matrix, that is an $m \times m$ matrix whose $(i,j)$-indices represent the probabilities of transitioning from state $i$ to state $j$ over the time span of $\Delta t$.
 
 
-\subsubsection{Temporal warping} \label{sec:warping}
+\subsubsection{Random time change} \label{sec:warping}
 Previous work on Markov jump processes applied to crack growth typically parameterizes progression in terms of calendar time, assuming that all elapsed time contributes equally to defect development, see for instance \citet{bisgaard2024A}. 
 In practice, however, the speed of propagation may depend on which severity class is currently occupied: some states may correspond to slower degradation dynamics, while others may accelerate propagation.
-To allow such flexibility, we propose temporal warping through state-specific weights $\xi_i$.
+To allow such flexibility, we propose a random time change through state-specific weights $\xi_i$.
 Given the collection of tuples $\{ ( y_1^{(s)}, y_2^{(s)}, \tau^{(s)} ) \}_{s \in \mathcal{S}}$, we define the expected sojourn times in state $i$ during the interval $\left[ 0,\tau^{(s)} \right]$ conditional on the initial state $y_1^{(s)}$ as
 \begin{equation}
     \begin{aligned}
@@ -83,8 +83,8 @@ The warped time $\widetilde{\tau}^{(s)}$ for crack $s \in \mathcal S$, is then o
     \end{aligned} \label{eq:warped_time}
 \end{equation}
 where $\bm{\xi} \in \mathbb{R}_+^m$ is a vector of nonnegative weights. We approximate the transient distribution via an Euler scheme, i.e. $\bm{\pi}^{(s)}(t_k) \approx \bm{\pi}^{(s)}(t_{k-1}) + \Delta t \cdot \bm{\pi}^{(s)}(t_{k-1}) \bm{A}^{(s)}$.
-If all $\xi_i = 1$, the model reduces to one without warping, i.e., $\widetilde\tau^{(s)} = \tau^{(s)}$. The weight for the absorbing state is set to $1$ to ensure that arrival at the absorbing state concludes the degradation process in the warped time domain as well.
-We compare models with and without temporal warping in terms of predictive accuracy. For notational simplicity, we use $\tau'$ to denote elapsed time in both the standard covariate-dependent MJP and its temporally warped version.
+If all $\xi_i = 1$, the model reduces to one without the random time change, i.e., $\widetilde\tau^{(s)} = \tau^{(s)}$. The weight for the absorbing state is set to $1$ to ensure that arrival at the absorbing state concludes the degradation process in the warped time domain as well.
+We compare models with and without random time change in terms of predictive accuracy. For notational simplicity, we use $\tau'$ to denote elapsed time in both the standard covariate-dependent MJP and its temporally warped version.
 
 \subsubsection{Parameterization of the infinitesimal generator} \label{sec:generator_params}
 The parameterization of the infinitesimal generator (or just the \textit{generator}) determines how $X^{(s)}$ transitions between states in the Markov chain. 
@@ -128,7 +128,7 @@ The first proposed parameterization assumes that a defect transition can only ha
 where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{1},i,j}$ for $i = 1, \dots, m-1$. 
 \Cref{eq:generator_erlang} results in the \textit{generalized Erlang distribution} or a \textit{hypoexponential distribution} for transition times between states. This is a distribution of the sum of independent exponential random variables \citep{bladt_nielsen}. For the previously outlined observation of a defect jump from class $2B$ to class $1$ between time $t_1^{(s)}$ and $t^{(s)}_2$, \cref{eq:generator_erlang} assumes that $X^{(s)}(t^{(s)})$ has visited class $2A$ where $t^{(s)}_1 < t^{(s)} < t^{(s)}_2$.
 %For brevity of notation, we have dropped the explicit $\bm{z}^{(s)}$-dependence on the $\lambda_{i,j}$'s but we note that we refer to the variables expressed in \cref{eq:trans_rates_covariates}. 
-Given the parameterization in \cref{eq:generator_erlang}, the model setting has $m-1$ parameters, while it with the regression setting in \cref{eq:trans_rates_covariates} and temporal warping in \cref{sec:warping} has $2m-2 + p$ parameters, where $m$ denotes the size of the state space and $p$ denotes the number of covariates.
+Given the parameterization in \cref{eq:generator_erlang}, the model setting has $m-1$ parameters, while it with the regression setting in \cref{eq:trans_rates_covariates} and the random time change in \cref{sec:warping} has $2m-2 + p$ parameters, where $m$ denotes the size of the state space and $p$ denotes the number of covariates.
 
 
 \myparagraph{Relaxed Erlang (harmonic-skip upper)} 
@@ -177,7 +177,7 @@ The \textit{upper bidiagonal} parameterization allows for transitions to both th
 \end{bmatrix}, \label{eq:generator_bidiagonal}
 \end{align}
 where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{3},i,j}$ for $i = 1, \dots, m-1$.
-The total number of base rate parameters is $2m - 3$. With covariates and warping, it becomes $3m - 4 + p$ parameters in total.
+The total number of base rate parameters is $2m - 3$. With covariates and the random time change, it becomes $3m - 4 + p$ parameters in total.
 
 \myparagraph{Upper-banded (max jump = 3)}
 The fourth parameterization, \textit{upper tridiagonal}, allows jumps of up to three severity levels ahead. The generator matrix takes the form
@@ -191,7 +191,7 @@ The fourth parameterization, \textit{upper tridiagonal}, allows jumps of up to t
 \end{bmatrix}, \label{eq:generator_tridiagonal}
 \end{align}
 where again $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{4},i,j}$ for $i = 1, \dots, m-1$.
-This specification enables modeling large defect escalations, where a defect may deteriorate across multiple classes in a single transition. It introduces more flexibility than the previous structures at the cost of increased cardinality of the parameter space. Specifically, this parameterization includes $3m - 6$ base transition rates, yielding a total of $4m - 7 + p$ parameters with covariates and warping.
+This specification enables modeling large defect escalations, where a defect may deteriorate across multiple classes in a single transition. It introduces more flexibility than the previous structures at the cost of increased cardinality of the parameter space. Specifically, this parameterization includes $3m - 6$ base transition rates, yielding a total of $4m - 7 + p$ parameters with covariates and the random time change.
 
 
 \myparagraph{Free upper-triangular}
@@ -207,7 +207,7 @@ The last parameterization assumes that a defect can transition to any class of e
     \end{bmatrix}, \label{eq:generator_free_upper}
 \end{align}
 where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{5},i,j}$ for $i = 1, \dots, m-1$.
-Unlike the reparameterized upper, this formulation does not constrain long-range jumps to have lower rates than neighboring jumps. It introduces more model flexibility at the cost of higher complexity: the number of free parameters increases quadratically with the number of states and linearly with the number of covariates, that is, $(m^2 + m)/2 - 1 +p$ parameters in total with regression and warping.
+Unlike the reparameterized upper, this formulation does not constrain long-range jumps to have lower rates than neighboring jumps. It introduces more model flexibility at the cost of higher complexity: the number of free parameters increases quadratically with the number of states and linearly with the number of covariates, that is, $(m^2 + m)/2 - 1 +p$ parameters in total with regression and the random time change.
 
 
 \FloatBarrier
@@ -331,7 +331,7 @@ Previous work by \citet{bisgaard2024A} leveraged \texttt{C++} speed in \texttt{R
 As that study only considered a single generator parameterization with maximum likelihood estimation, closed-form gradients were cumbersome but tractable.”
 In contrast, when now considering a broad variety of model settings, deriving gradients by hand becomes infeasible, and finite-difference approximations are both slow and potentially inaccurate. TMB circumvents this issue by providing exact gradients via automatic differentiation (AD), based on the computation graph of elementary calculus operations, using the \texttt{CppAD} package \citep{CppAD}.
 
-Our implementation is flexible: users may choose the scoring rule (log-score and/or ranked probability score), select among the five generator parameterizations in \cref{sec:generator_params}, and optionally incorporate covariates and temporal warping (\cref{sec:warping}).
+Our implementation is flexible: users may choose the scoring rule (log-score and/or ranked probability score), select among the five generator parameterizations in \cref{sec:generator_params}, and optionally incorporate covariates and the random time change (\cref{sec:warping}).
  
 Prediction is performed by applying the solution to the Kolmogorov differential equation in \cref{eq:markov_eq_solution} using the aforementioned scoring rules for assessment of accuracy.
 The \texttt{Rcpp} model implementation accommodates three calculation methods for the transient distribution of the Markov chain. The first is a Padé approximation of the matrix exponential. The second method is to calculate the transient distribution via \textit{uniformization} (or \textit{randomization}). Uniformization provides an alternative representation of a Markov jump process such that all holding times distributions have the same intensity parameter \citep{bladt_nielsen}. We refer to \citet{sherlock2021a} for a detailed algorithmic description. The third method is by applying the eigendecomposition

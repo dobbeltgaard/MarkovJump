@@ -40,5 +40,12 @@ test/
 .Rproj.user/
 *.Rproj
 
+# Microsoft Word
+*.doc
+*.docx
+*.dotx
+*.docm
+
 # Temporary/editor backups
 *.save
+
