@@ -67,6 +67,7 @@ Eigen::MatrixXd make_A3(int m, const Eigen::VectorXd& lambda) {
   return A;
 }
 
+// [[Rcpp::export]]
 Eigen::MatrixXd make_A4(int m, const Eigen::VectorXd& lambda){
   Eigen::MatrixXd A = Eigen::MatrixXd::Zero(m, m); //init A
   for(int i = 0; i < (m-1); i++){ A(i, i + 1) = lambda(i); }
@@ -75,7 +76,7 @@ Eigen::MatrixXd make_A4(int m, const Eigen::VectorXd& lambda){
   return A;
 }
 
-
+// [[Rcpp::export]]
 Eigen::MatrixXd make_A5(int m, const Eigen::VectorXd& lambda){
   Eigen::MatrixXd A = Eigen::MatrixXd::Zero(m, m); //init A
   for(int i = 0; i < (m-1); i++){ A(i, i + 1) = lambda(i); }
@@ -354,6 +355,7 @@ double square_double(double x){
 /* ********************************************************** */
 /* FUNCTION: SCORE for Markov jump process given partial data */
 /* ********************************************************** */
+// [[Rcpp::export]]
 Eigen::RowVectorXd expected_sojourn(int m, double u, Eigen::RowVectorXd p, Eigen::MatrixXd A, double dt = 0.005) {
   Eigen::RowVectorXd mu = Eigen::RowVectorXd::Zero(m);
   int K = static_cast<int>(u / dt);
@@ -365,7 +367,21 @@ Eigen::RowVectorXd expected_sojourn(int m, double u, Eigen::RowVectorXd p, Eigen
   return mu;
 }
 
-
+// [[Rcpp::export]]
+Eigen::RowVectorXd expected_sojourn_exact(int m, double u, Eigen::RowVectorXd p, Eigen::MatrixXd A) {
+  Eigen::MatrixXd S = A.topLeftCorner(m - 1, m - 1);
+  Eigen::MatrixXd expSu = (S * u).exp();
+  Eigen::MatrixXd I = Eigen::MatrixXd::Identity(m - 1, m - 1);
+  Eigen::MatrixXd rhs = I - expSu;
+  Eigen::MatrixXd F = (-S).fullPivLu().solve(rhs);
+  Eigen::RowVectorXd alpha = p.head(m - 1);
+  Eigen::RowVectorXd mu_trans = alpha * F;
+  double mu_abs = u - mu_trans.sum();
+  Eigen::RowVectorXd mu(m);
+  mu.head(m - 1) = mu_trans;
+  mu(m - 1) = mu_abs;
+  return mu;
+}
 
 // [[Rcpp::export]]
 double MJP_score(int m,
@@ -544,7 +560,7 @@ double MJP_score(int m,
         obs.setZero();
         Pt(start_idx) = 1 ;
         obs(end_idx) = 1 ;
-        Eigen::RowVectorXd mu = expected_sojourn(m, u(i), Pt, A);
+        Eigen::RowVectorXd mu = expected_sojourn_exact(m, u(i), Pt, A);
         double tau_eff = 0;
         for (int j = 0; j < m; ++j) tau_eff += mu(j) * xi(j);
         cov_time = tau_eff; 
@@ -578,7 +594,7 @@ double MJP_score(int m,
         Pt(start_idx) = 1.0;
         obs.setZero();
         obs(end_idx) = 1 ;
-        Eigen::RowVectorXd mu = expected_sojourn(m, u(i), Pt, A);
+        Eigen::RowVectorXd mu = expected_sojourn_exact(m, u(i), Pt, A);
         double tau_eff = 0;
         for (int j = 0; j < m; ++j) tau_eff += mu(j) * xi(j);
         cov_time = link_function_covs( beta_covs.dot(z.row(i)) ) * tau_eff; 
@@ -742,7 +758,7 @@ Eigen::MatrixXd MJP_predict(int m,
         start_idx = int(s1(i)-1);
         Pt.setZero();
         Pt(start_idx) = 1.0;
-        Eigen::RowVectorXd mu = expected_sojourn(m, u(i), Pt, A);
+        Eigen::RowVectorXd mu = expected_sojourn_exact(m, u(i), Pt, A);
         double tau_eff = 0;
         for (int j = 0; j < m; ++j) tau_eff += mu(j) * xi(j);
         cov_time = tau_eff; 
@@ -771,7 +787,7 @@ Eigen::MatrixXd MJP_predict(int m,
         Pt.setZero();
         Pt(start_idx) = 1.0;
         
-        Eigen::RowVectorXd mu = expected_sojourn(m, u(i), Pt, A);
+        Eigen::RowVectorXd mu = expected_sojourn_exact(m, u(i), Pt, A);
         double tau_eff = 0;
         for (int j = 0; j < m; ++j) tau_eff += mu(j) * xi(j);
         cov_time = link_function_covs( beta_covs.dot(z.row(i)) ) * tau_eff; 
@@ -876,4 +892,92 @@ Eigen::VectorXd BrierScore_vectors(int m, const Eigen::MatrixXd& pred, const Eig
   return res;
 }
 
+
+
+// ---------- reachability on the graph induced by Q ----------
+static void reach(const Eigen::MatrixXd& Q,
+                  int s,                      // 0-based
+                  std::vector<int>& ok,       // output mask (0/1)
+                  bool forward = true)        // true: edges a->b if q_ab>0; false: reverse
+{
+  const int m = Q.rows();
+  ok.assign(m, 0);
+  ok[s] = 1;
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    for (int a = 0; a < m; ++a) if (ok[a]) {
+      for (int b = 0; b < m; ++b) {
+        if (a == b) continue;
+        const bool edge = forward ? (Q(a,b) > 0.0) : (Q(b,a) > 0.0);
+        if (edge && !ok[b]) { ok[b] = 1; changed = true; }
+      }
+    }
+  }
+}
+
+// ---------- Van Loan + pruning (double) ----------
+// [[Rcpp::export]]
+static Eigen::VectorXd expected_sojourn_bridge_impl(const Eigen::MatrixXd& A,
+                                                    double u,
+                                                    int s1,  // 0-based
+                                                    int s2)  // 0-based
+{
+  const int m = A.rows();
+  Eigen::VectorXd mu = Eigen::VectorXd::Zero(m);
+  if (u <= 0.0) return mu;
+  
+  // Denominator: P_ij(u) = [exp(A u)]_{s1,s2}
+  Eigen::MatrixXd P = (A * u).exp();
+  const double denom = P(s1, s2);
+  if (!(denom > 1e-14)) {
+    // numerically impossible bridge → zeros
+    return mu;
+  }
+  
+  // Prune states: must be reachable from s1 and must reach s2
+  std::vector<int> from_s1(m), to_s2(m);
+  reach(A, s1, from_s1, /*forward=*/true);
+  reach(A, s2, to_s2,   /*forward=*/false);
+  
+  // Prebuild block matrix B = [A  0; 0  A]; then set TR = Δ_k per k
+  Eigen::MatrixXd B = Eigen::MatrixXd::Zero(2*m, 2*m);
+  B.block(0,   0,   m, m) = A;
+  B.block(m,   m,   m, m) = A;
+  
+  for (int k = 0; k < m; ++k) {
+    if (!(from_s1[k] && to_s2[k])) {
+      mu(k) = 0.0;
+      continue;
+    }
+    // Top-right block = Δ_k (all zeros except (k,k)=1)
+    B.block(0, m, m, m).setZero();
+    B(k, m + k) = 1.0;
+    
+    // Van Loan block exponential
+    Eigen::MatrixXd E = (B * u).exp();
+    
+    // Upper-right block entry (s1, s2) gives ∫ e^{A t} Δ_k e^{A(u-t)} dt, entry (s1,s2)
+    mu(k) = E(s1, m + s2) / denom;
+  }
+  return mu;
+}
+
+Rcpp::NumericVector expected_sojourn_bridge_rcpp(const Eigen::Map<Eigen::MatrixXd>& Q,
+                                                 double u,
+                                                 int s1,
+                                                 int s2,
+                                                 bool one_based = true)
+{
+  if (Q.rows() != Q.cols())
+    Rcpp::stop("Q must be square");
+  int m = Q.rows();
+  int i = one_based ? (s1 - 1) : s1;
+  int j = one_based ? (s2 - 1) : s2;
+  if (i < 0 || i >= m || j < 0 || j >= m)
+    Rcpp::stop("s1/s2 out of range after indexing adjustment");
+  
+  Eigen::VectorXd mu = expected_sojourn_bridge_impl(Q, u, i, j);
+  return Rcpp::wrap(mu);
+}
 

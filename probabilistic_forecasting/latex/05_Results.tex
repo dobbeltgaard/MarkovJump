@@ -20,7 +20,7 @@ The prediction errors are calculated using a $k$-fold cross-validation procedure
     \item For each model with the corresponding set of predictions, compute the average prediction errors given all end point observations $y_2^{(s)}$ for $s \in \mathcal{S}$ for each metric described in \Cref{sec:error_metrics}.
 \end{enumerate}
 
-We assess the predictive performance of each generator parameterization and assess how exogenous rail characteristics and the random time change affect prediction accuracy. We use the link function, $g(x) = \exp(x)$, for \cref{eq:trans_rates_covariates}. 
+We assess the predictive performance of each generator parameterization and assess how exogenous rail characteristics and the state-dependent time scaling affect prediction accuracy. We use the link function, $g(x) = \exp(x)$, for \cref{eq:trans_rates_covariates}. 
 As outlined in \Cref{sec:cumulative_link_model}, we benchmark against cumulative link models (CLMs) with logistic, probit, and complementary log-log link functions. As with the MJP, we also investigate the effect of including exogenous rail characteristics.
 The results from the described procedure are presented in \Cref{tab:forecast_error_tab} (page \pageref{tab:forecast_error_tab}). An ensemble forecast is constructed by averaging all predictive distributions from all other predictors in the table.
 
@@ -36,7 +36,7 @@ The results from the described procedure are presented in \Cref{tab:forecast_err
 
 Among the CLMs, the logistic link achieves the best scores, while the complementary log-log link performs worst. Although the logistic assumption underlies the latent variable, this should not be interpreted as evidence that defect propagation itself follows a logistic distribution—only that it provides the most effective link function in this context.
 
-CLMs provide strong static baselines, but MJPs consistently outperform them in log score, reflecting the advantage in capturing temporal dynamics and state dependence. For RPS, the relative difference is smaller: while MJPs are favored in most cases (and especially for the more complex generators), parameterizations $\bm{A}{\RN{1}}$ and $\bm{A}{\RN{2}}$ without the random time change slightly underperform compared to the logistic CLM.
+CLMs provide strong static baselines, but MJPs consistently outperform them in log score, reflecting the advantage in capturing temporal dynamics and state dependence. For RPS, the relative difference is smaller: while MJPs are favored in most cases (and especially for the more complex generators), parameterizations $\bm{A}{\RN{1}}$ and $\bm{A}{\RN{2}}$ without the state-dependent time scaling slightly underperform compared to the logistic CLM.
 This pattern is expected: the log score is particularly sensitive to forecast sharpness and the ability to assign high probability to the realized outcome, while the RPS also rewards calibration across the ordinal scale. 
 This reflects the trade-off between sharpness and calibration: the generalized Erlang MJP exhibits stronger discrimination but weaker calibration compared to the logistic CLM.
 %Consequently, the MJP with the generalized Erlang parameterization demonstrates stronger discrimination ability but weaker calibration relative to the CLM with logistic. %A similar trade-off is observed between the ensemble forecast and the free upper parameterization $\bm{A}'''^{(s)}$.
@@ -48,9 +48,9 @@ In \Cref{sec:results_transient_dist_markov}, we further compare and discuss the 
 
 %also write which numerical optimizer was used
 %Among all models in \Cref{tab:forecast_error_tab}, the free upper Markov jump process achieves the highest log score, while the ensemble forecast achieves the best ranked probability score and Brier score.
-The random time change (see \cref{sec:warping}) consistently improves prediction accuracy across all parameterizations, indicating that state-dependent rescaling of time can correct for biases introduced by severity classification schemes that do not necessarily align with underlying physical crack sizes. 
+The state-dependent time scaling (see \cref{sec:warping}) consistently improves prediction accuracy across all parameterizations, indicating that state-dependent rescaling of time can correct for biases introduced by severity classification schemes that do not necessarily align with underlying physical crack sizes. 
 
-Remark: The $\bm{A}_{\RN{2}}$ parameterization is not included under the warped MJP, as estimation did not converge. This could be due to the interaction between the harmonic skip of $\bm{A}_{\RN{2}}$ and the weights of the random time change, creating identifiability issues.
+Remark: The $\bm{A}_{\RN{2}}$ parameterization is not included under the time scaled MJP, as estimation did not converge. This could be due to the interaction between the harmonic skip of $\bm{A}_{\RN{2}}$ and the weights of the state-dependent time scaling, creating identifiability issues.
 
 Including exogenous track characteristics likewise reduces prediction error across all investigated model settings of both the MJP and CLM. This is consistent with \citet{bisgaard2024A}, who found that such covariates explain structural variability between rail lines, and supports the notion that the rail network is heterogeneous and that local conditions at the crack location must be accounted for.
 
@@ -105,7 +105,7 @@ In summary, $\bm{A}_{\RN{1}}$ enforces gradual progression via neighboring class
 %For all folds, the coefficients on the covariates have constant sign and are of similar magnitude, with the only exception of the complementary loglog link for the cumulative link model. However as shown in \cref{tab:forecast_error_tab}, the complementary loglog link has the worst prediction performance of all investigated parametric models, suggesting that the assumption of a min-Gumbell distributed latent variable is not suitable. With that aside, the fact that different settings (link functions and generator parameterizations) of two distinct statistical models lead to similar estimated coefficients for the covariates on all studied subsets of the data strongly suggests that the estimations are robust and that the statistical interpretation of the influence of the covariates is sound. We conclude that the models associate increases in tonnage, line speed, steel hardness and curvature with faster propagation of defect severity. Increasing rail profile is associated with slower propagation of defect severity. As argued by \citet{bisgaard2024A}, these associations are in accordance with railway domain knowledge \citep{UIC_2002_defecthandbook,RASMUSSEN20178}
 
 \subsection{Forecast diagnostics of reliability and discrimination} \label{sec:reliability_analysis}
-So far, forecast evaluation has relied on proper scoring rules. These showed that flexible MJP parameterizations outperform reference predictors, and that the random time change, exogenous information, and that averaging over all predictors in an ensemble further improve accuracy. However, such scores reduce forecast quality to single summary values, and therefore cannot reveal the specific sources of deficiencies \citep{hamill1997,Dimitriadis_2024}.
+So far, forecast evaluation has relied on proper scoring rules. These showed that flexible MJP parameterizations outperform reference predictors, and that state-dependent time scaling, exogenous information, and averaging over all predictors in an ensemble further improve accuracy. However, such scores reduce forecast quality to single summary values, and therefore cannot reveal the specific sources of deficiencies \citep{hamill1997,Dimitriadis_2024}.
 
 To provide a more detailed analysis, we generate multicategorical reliability diagrams to assess forecast calibration, and checkerboard plots to evaluate discrimination ability.
 We follow the methodology proposed by \citet{hamill1997}, extending the framework of reliability diagrams initially introduced for binary forecasts by \citet{wilks1995a}.
@@ -129,7 +129,7 @@ Error bars are calculated via a bootstrap procedure, which repeats the above ste
 To illustrate, we focus on four representative predictors: 
 (1) the uniform predictor, providing a simplistic lower bound; 
 (2) the logistic CLM with exogenous information, representing the strongest static baseline; 
-(3) the MJP with parameterization $\bm{A}_{\RN{3}}$ including exogenous information and the random time change, as a representative dynamic model; and 
+(3) the MJP with parameterization $\bm{A}_{\RN{3}}$ including exogenous information and the state-dependent time scaling, as a representative dynamic model; and 
 (4) the ensemble forecast, combining all predictors. 
 Results are shown in \Cref{fig:reliability_diagrams}. Bootstrapping was performed with 200 resamples, and 10\% and 90\% confidence intervals are reported.
 
@@ -168,11 +168,10 @@ One possible implementation pathway is a threshold-based allocation under a fixe
 
 Alternatively, the predictive distributions can be embedded into a stochastic optimization problem. 
 Since we consider a discrete stochastic process, it can be represented by a finite set of scenarios over a time partition $\widehat{T}=(T_1,\dots,T_n)$, where $T_n$ is the decision horizon.
-Given active defects $\mathcal{S}$ and a rail line mapping $\ell:\mathcal{S}\to\{\text{rail lines}\}$, let $\widehat{\bm\pi}^{(s)}_j(t)=\mathbb{P}(X^{(s)}(t)=j)$ be the predicted probability for class $j\in\mathcal{J}$ at time $t\in\widehat{T}$ (cf. \cref{eq:transient_dist}). Define
+Given active defects $\mathcal{S}$ and a rail line mapping $\ell:\mathcal{S}\to\{\text{rail lines}\}$, let $\widehat{\bm\pi}^{(s)}_j(t)=\mathds{P}(X^{(s)}(t)=j)$ be the predicted probability for class $j\in\mathcal{J}$ at time $t\in\widehat{T}$ (cf. \cref{eq:transient_dist}). Define
 \[
 y^{(s)}(t)\in\{0,1\}\ \ \text{(inspection at $t$)},\qquad
-z^{(s)}(t)\in\{0,1\}\ \ \text{(maintenance at $t$)},\qquad
-y^{(s)}(t)+z^{(s)}(t)\le 1.
+z^{(s)}(t)\in\{0,1\}\ \ \text{(maintenance at $t$)}.
 \]
 Let $q^{(s)}_{\mathrm{break}}(t)=\sum_{j\in\mathcal{J}_{\mathrm{crit}}}\widehat{\bm\pi}^{(s)}_j(t)$ be the predicted probability of being in a critical class set $\mathcal{J}_{\mathrm{crit}}$ by $t$.
 Let $c_{\mathrm{ins}}^{\ell}$ be rail line specific inspection cost, $c_{\mathrm{maint}}^{\ell}(j)$ the (severity-dependent) maintenance cost, and $c_{\mathrm{fail}}^{\ell}$ the monetized expected loss of a rail break on line $\ell$ (e.g. combining derailment risk and societal cost).
@@ -191,7 +190,8 @@ c_{\mathrm{fail}}^{\ell(s)}\, q^{(s)}_{\mathrm{break}}(t)\,\Bigl(1-\!\!\sum_{\ta
 \text{s.t.}\ \ 
 &\sum_{s\in\mathcal{S}}\!\Big(c_{\mathrm{ins}}^{\ell(s)}\,y^{(s)}(t) 
 + z^{(s)}(t)\,\sum_{j\in\mathcal{J}} c_{\mathrm{maint}}^{\ell(s)}(j)\,\widehat{\bm\pi}^{(s)}_{j}(t)\Big)\ \le\ B(t), \quad \forall t\in\widehat{T}, \label{eq:budget}\\
-&y^{(s)}(t),z^{(s)}(t)\in\{0,1\}, \quad \forall s\in\mathcal{S},\ \forall t\in\widehat{T}. \label{eq:binary}
+&y^{(s)}(t),z^{(s)}(t)\in\{0,1\}, \qquad
+y^{(s)}(t)+z^{(s)}(t)\le 1, \quad \forall s\in\mathcal{S},\ \forall t\in\widehat{T}. \label{eq:binary}
 \end{align}
 The factor $\bigl(1-\sum_{\tau\le t} z^{(s)}(\tau)\bigr)$ switches off break losses once maintenance is performed (assuming maintenance returns the defect to a safe state). The constraints enforce the budget and at most one action per defect and period.
 Extensions can model information gains from inspection (scenario updates), crew logistics, or multi-horizon planning.
@@ -252,13 +252,13 @@ The decision-making program sketched here is intended as a proposal for how such
 %
 
 \section{Conclusion} \label{sec:conclusion}
-We have proposed modeling partially observed rail defect severity trajectories using a Markov jump process (MJP) estimated via optimum score estimation, aligning training with the chosen forecast evaluation metric. The framework accommodates covariate-dependent transition rates (tonnage, line speed, curvature, grade, rail profile), multiple generator parameterizations, and a random time change that rescales the effective process clock across severity classes.
+We have proposed modeling partially observed rail defect severity trajectories using a Markov jump process (MJP) estimated via optimum score estimation, aligning training with the chosen forecast evaluation metric. The framework accommodates covariate-dependent transition rates (tonnage, line speed, curvature, grade, rail profile), multiple generator parameterizations, and a scaling of the effective process clock across severity classes.
 
 Through systematic forecast evaluation with proper scoring rules, we benchmarked MJPs against reference predictors, including a uniform predictor and cumulative link models with logistic, probit, and complementary log-log links. Results from cross-validation show that MJPs consistently outperform all reference predictors, achieving higher accuracy across both log score and ranked probability score. Forecast diagnostics confirm that MJPs provide better calibration and discrimination ability, while ensemble forecasts further enhance accuracy.
 
-The choice of generator parameterization strongly affects predictive performance: more flexible structures, which allow larger or skip transitions, yield higher accuracy. Temporal warping through random time change improves performance across all parameterizations, and including exogenous information further enhances predictive accuracy, reflecting the heterogeneity of local track conditions.
+The choice of generator parameterization strongly affects predictive performance: more flexible structures, which allow larger or skip transitions, yield higher accuracy. State-dependent time scaling improves performance across all parameterizations, and including exogenous information further enhances predictive accuracy, reflecting the heterogeneity of local track conditions.
 
 Finally, we sketched how predictive distributions can be embedded in a stochastic optimization program to allocate inspection and maintenance actions under budget constraints. This illustrates how probabilistic forecasts can be connected to actionable decision-making for infrastructure managers, bridging the gap between statistical modeling and practical maintenance planning.
 
-The proposed methodology thus contributes both theoretically and practically: it advances CTMC-based degradation modeling by introducing state-dependent random time change and scoring-rule-consistent estimation, and it demonstrates how probabilistic forecasts can support infrastructure management. Beyond railways, the framework is broadly applicable to multicategorical forecasting problems in other domains where degradation processes evolve over ordinal state spaces and inspection intervals are irregular.
+The proposed methodology thus contributes both theoretically and practically: it advances CTMC-based degradation modeling by introducing state-dependent time scaling and scoring-rule-consistent estimation, and it demonstrates how probabilistic forecasts can support infrastructure management. Beyond railways, the framework is broadly applicable to multicategorical forecasting problems in other domains where degradation processes evolve over ordinal state spaces and inspection intervals are irregular.
 

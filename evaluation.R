@@ -16,6 +16,7 @@ sourceCpp("FUNCS_MJP_with_eigen.cpp")
 #brier = read.csv("results/brier_score.csv")
 
 files <- list.files("predictions", pattern = "\\.csv$", full.names = TRUE)
+files = files[!grepl("v2",files)]
 file_names <- basename(files)
 base_names <- sub("_fold_\\d+\\.csv$", "", file_names)
 fold_numbers <- as.integer(sub(".*_fold_(\\d+)\\.csv$", "\\1", file_names))
@@ -38,9 +39,7 @@ for(i in seq_along(pred_list[["ensemble_all"]])) {
   pred_list[["ensemble_all"]][[i]] <- Reduce("+", preds_i) / length(preds_i)
 }
 
-for(i in 1:5){
-  pred_list[["ensemble"]][[i]] = 1/2*(pred_list[["tridiagonal_TRUE_exp_exp_all_warp"]][[i]] + pred_list[["olr_cov"]][[i]])
-  }
+for(i in 1:5){pred_list[["ensemble"]][[i]] = 1/2*(pred_list[["tridiagonal_TRUE_exp_exp_all_warp"]][[i]] + pred_list[["olr_cov"]][[i]])}
 
 #######################
 ### Forecast Scores ###

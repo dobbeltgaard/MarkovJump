@@ -153,3 +153,59 @@ size_scaler <- function(width_in, height_in, ref_w = 4, ref_h = 3) {
   	# return(p11)
 # }
 
+
+
+simulate_ctmc_one <- function(Q, s0, Tt, scenario_id = 1, max_jumps = 1e6) {
+  m <- nrow(Q)
+  stopifnot(ncol(Q) == m, s0 %in% seq_len(m), Tt > 0)
+
+  t <- 0.0
+  s <- s0
+  times <- c(0.0)
+  states <- c(s0)
+
+  for (k in seq_len(max_jumps)) {
+    rate_out <- -Q[s, s]         
+    if (rate_out <= 0) { 
+      break
+    }
+    dt <- rexp(1, rate_out)           
+    if (t + dt >= Tt) {    
+      break
+    }
+    t <- t + dt
+    probs <- pmax(Q[s, ], 0.0)
+    probs[s] <- 0.0
+    if (sum(probs) <= 0) break
+    probs <- probs / sum(probs)
+    s <- sample.int(m, size = 1, prob = probs)
+
+    times <- c(times, t)
+    states <- c(states, s)
+  }
+  times <- c(times, Tt)
+  states <- c(states, tail(states, 1))
+
+  tibble(
+    scenario = factor(scenario_id),
+    t = times,
+    state = states
+  )
+}
+
+# Simulate N scenarios
+simulate_ctmc <- function(Q, s0, Tt, N = 5, seed = 123) {
+  set.seed(seed)
+  map_dfr(seq_len(N), ~simulate_ctmc_one(Q, s0, Tt, scenario_id = .x))
+}
+
+as_step_df <- function(paths) {
+  paths %>%
+    group_by(scenario) %>%
+    arrange(t, .by_group = TRUE) %>%
+    mutate(t_next = lead(t),
+           state_next = lead(state)) %>%
+    filter(!is.na(t_next)) %>%
+    ungroup()
+}
+

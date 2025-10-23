@@ -18,6 +18,80 @@ sourceCpp("FUNCS_MJP_with_eigen.cpp")
 
 
 
+
+# Jumps scenarios plot
+rm(list = ls()) #clear memory
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(purrr)
+library(Rcpp)
+library(RcppEigen)
+source("plot_functions.R")
+
+m = 5
+A = make_A1(m,rep(0.8,m))
+s0 <- 2     # initial state (1..nrow(Q))
+Tt  <- 2    # time horizon
+N  <- 5     # number of scenarios
+
+paths <- simulate_ctmc(A, s0, Tt, N = N, seed = sample(1:10000,1))
+steps <- as_step_df(paths)
+
+expand_stairs <- function(paths) {
+  paths %>%
+    group_by(scenario) %>%
+    arrange(t, .by_group = TRUE) %>%
+    mutate(t2 = lead(t), state2 = lead(state)) %>%
+    filter(!is.na(t2)) %>%
+    reframe(
+      t = c(t, t2),
+      state = c(state, state2)
+    )
+}
+stairs <- expand_stairs(paths)
+
+
+
+text.size <- 9
+state_labels <- c("3", "2B", "2A", "1", "0")
+m <- nrow(A)
+
+start_t <- 0
+start_state <- 2
+
+offsetval = 0.06
+offsets <- seq(-offsetval, offsetval, length.out = N)
+names(offsets) <- levels(paths$scenario)
+
+stairs <- stairs %>%
+  left_join(
+    tibble(scenario = names(offsets), offset = offsets),
+    by = "scenario"
+  ) %>%
+  mutate(state_jit = state + offset)
+
+
+pad <- 0.12  # a bit larger than your max jitter
+p2 <- ggplot(stairs, aes(x = t, y = state_jit, color = scenario, group = scenario)) +
+  geom_step(linewidth = 0.65, direction = "hv") +
+  annotate("point", x = start_t, y = start_state, shape = 15, size = 3) +
+  annotate("text", x = start_t + 0.05, y = start_state - 0.25,
+           label = "Observation", family = "serif", size = text.size / 3) +
+  scale_y_continuous(breaks = 1:m, labels = state_labels,
+                     limits = c(1 - pad, m + pad)) +
+  labs(x = "Time [years]", y = "Defect class") +
+  theme(text = element_text(size = text.size, family = "serif"),
+        panel.background = element_rect(fill = "white", color = "black"),
+        panel.grid.minor = element_line(color = "lightgray"),
+        legend.position = "none")
+
+
+ggsave("figures/jump_scenarios_v2.pdf", p2, width = 15, height = 8, units = "cm")
+
+
+
+
 #############################
 ### Plot of survival func ###
 #############################
@@ -136,7 +210,7 @@ Dtot <- d
 Dtot$`s-` <- convert.to.num.inv(Dtot$s1)
 Dtot$`s` <- convert.to.num.inv(Dtot$s2)
 states <- c("3", "2B", "2A", "1", "0") #define states
-plist <- list(); text.size <- 14; text.size2 = 5; 
+plist <- list(); text.size <- 17; text.size2 = 6; 
 
 #plist <- list(); text.size <- 16; text.size2 = 7;text.size3 = 18; 
 
@@ -165,7 +239,7 @@ for(i in states){
         scale_y_continuous(labels = scales::percent) +
         scale_x_continuous(breaks = 
                              c(300,600,900), limits = c(0,1200) ) +
-        labs(x = "Observation Interval [days]", y = "Relative Freq.") + 
+        labs(x = "Observation Intervals", y = "Relative Freq.") + 
         annotate("text", x=Inf, y=Inf,size=text.size2, label = lab, family="serif", vjust = 1, hjust = 1, fontface =2) +
         annotate("text", x=Inf, y=Inf,size=text.size2, label = lab2, family="serif", vjust = 2.5, hjust = 1) 
       
@@ -192,7 +266,7 @@ p1 <- grid.arrange(grobs = plist, ncol = m, nrow = m,widths = rep(1, m), heights
 sum
 
 #ggsave("hists_u.pdf", p1, width = 15, height = 12, units = "in")
-ggsave("hists_u.pdf", p1, width = 15, height = 10, units = "in")
+ggsave("figures/hists_u_v2.pdf", p1, width = 15, height = 10, units = "in")
 
 
 ### Interval censored data idea ###

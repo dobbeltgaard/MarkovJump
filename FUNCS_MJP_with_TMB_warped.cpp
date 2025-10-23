@@ -169,6 +169,31 @@ vector<Type> expected_sojourn(int m, Type u, int s1, matrix<Type> A, Type dt = T
   return mu;
 }
 
+template<class Type>
+vector<Type> expected_sojourn_exact(int m, Type u, int s1, matrix<Type> A, Type dt = Type(0.005)) {
+  vector<Type> mu(m);
+  mu.setZero();
+  if (s1 >= m - 1) {
+    mu(m - 1) = u;
+    return mu;
+  }
+  matrix<Type> S = A.block(0, 0, m - 1, m - 1);
+  matrix<Type> expSu = atomic::expm(matrix<Type>(S * u));
+  matrix<Type> I(m - 1, m - 1);
+  I.setZero();
+  for (int i = 0; i < m - 1; ++i) I(i, i) = Type(1);
+  matrix<Type> rhs = I - expSu;
+  matrix<Type> Minv = matrix<Type>(-S).inverse();
+  matrix<Type> F = Minv * rhs;
+  Type sum_trans = Type(0);
+  for (int j = 0; j < m - 1; ++j) {
+    mu(j) = F(s1, j);
+    sum_trans += mu(j);
+  }
+  mu(m - 1) = u - sum_trans;
+  
+  return mu;
+}
 
 
 template<class Type>
@@ -230,7 +255,7 @@ Type objective_function<Type>::operator() () {
       int end   = s2(i) - int(1);
       obs(end)  = Type(1.0);
       
-      vector<Type> mu = expected_sojourn(m, u(i), start, A);
+      vector<Type> mu = expected_sojourn_exact(m, u(i), start, A);
       //vector<Type> mu=compute_conditional_sojourn(A, start, end, u(i));  // correct
       Type tau_eff = 0.0; 
       for (int j = 0; j < xi.size(); ++j) {tau_eff += mu(j) * xi(j);} // dot product
@@ -251,7 +276,7 @@ Type objective_function<Type>::operator() () {
       for (int j = 0; j < z.cols(); ++j) {cov_linpred += z(i, j) * theta_cov(j);}
       obs(end)  = Type(1.0);
       //vector<Type> mu=compute_conditional_sojourn(A, start, end, u(i));  // correct
-      vector<Type> mu = expected_sojourn(m, u(i), start, A);
+      vector<Type> mu = expected_sojourn_exact(m, u(i), start, A);
       Type tau_eff = 0.0; 
       for (int j = 0; j < xi.size(); ++j) {tau_eff += mu(j) * xi(j);} // dot product
       Type cov_scaling = exp(cov_linpred); //log(1 + exp(cov_linpred));  // softplus

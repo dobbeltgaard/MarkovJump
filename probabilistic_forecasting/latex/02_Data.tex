@@ -2,7 +2,7 @@
 
 
 \section{Empirical setting} \label{sec:data}
-As trains pass over a defect location, stresses accumulate in the rail, causing initiated cracks to grow in size \citep{cannon2003a}. Physically, this crack growth occurs in a continuous domain. However, in practice, defect propagation is classified into discrete severity categories based on inspection. Following procedures prescribed by \citet{UIC_2002_defecthandbook}, the classification depends on the type and size of the defect. For example, transverse cracks with ultrasonic signal amplitudes exceeding artificial reference defects (typically flat-bottom holes (FBH) of 10 mm) are generally considered urgent repairs \citep{banenor_technical_regulations}. 
+As trains pass over a defect location, stresses accumulate in the rail, causing initiated cracks to grow in size \citep{cannon2003a}. Physically, this crack growth occurs in a continuous domain. However, in practice, defect propagation is classified into discrete severity categories based on inspection. Following procedures prescribed by the \citet{UIC_2002_defecthandbook}, the classification depends on the type and size of the defect. For example, transverse cracks with ultrasonic signal amplitudes exceeding artificial reference defects (typically flat-bottom holes (FBH) of 10 mm) are generally considered urgent repairs \citep{banenor_technical_regulations}. 
 
 This classification procedure lumps the continuous property of degradation into a finite, ordered state space. In this study, we consider five severity classes: $3 \rightarrow 2B \rightarrow 2A \rightarrow 1 \rightarrow 0$, ranging from nearly visually observable cracks to severe rail damage such as rail break. \Cref{fig:defect_development} provides a visualization of various levels of defect severity.
 \begin{figure}[htb!]
@@ -28,8 +28,8 @@ These trajectories are \textit{partially observable} and subject to multiple for
 
 \begin{figure}[htb!]
     \centering
-    \includegraphics[width = \textwidth]{hists_u.pdf}
-    \caption{Histograms of observation intervals for all defect transitions, given the trajectory $3 \rightarrow 2B \rightarrow 2A \rightarrow 1 \rightarrow 0$. \nth{1} axes are observation intervals in number of days and \nth{2} axes represent relative frequencies wrt. the number of jumps from one category to another. In total 3658 jumps are displayed. The figure is reproduced from \citet{bisgaard2024A}.}
+    \includegraphics[width = \textwidth]{hists_u_v2.pdf}
+    \caption{Histograms of observation intervals in days for all defect transitions, given the trajectory $3 \rightarrow 2B \rightarrow 2A \rightarrow 1 \rightarrow 0$. \nth{1} axes are observation intervals in number of days and \nth{2} axes represent relative frequencies wrt. the number of jumps from one category to another. In total 3658 jumps are displayed. The figure is reproduced from \citet{bisgaard2024A}.}
     \label{fig:hists_u}
 \end{figure}
 
@@ -62,7 +62,7 @@ This study concerns the prediction of rail defect severity progression. Given a 
 
 \begin{figure}[htb!]
     \centering
-    \includegraphics[width=0.8\linewidth]{figures/jump_scenarios.pdf}
+    \includegraphics[width=0.8\linewidth]{jump_scenarios_v2.pdf}
     \caption{The propagation of a class $2B$ defect over two years, showing five simulated scenarios.}
     \label{fig:jump_scenarios}
 \end{figure}
