@@ -1,0 +1,83 @@
+- decide whether to report on temporal warping
+--- if so, decide whether to use tau or tau'. Be consistent.
+--- if so, consider formulating "mu" as the unconditional expectation of sojourn time (i.e. not conditioned on observed endpoint but only starting point)
+
+- decide on optimum score estimation
+
+- At first: decide on what results to report on
+-- how to do that? By running the models
+--- use exponential link (both in warping and trans rates)
+--- use all generators
+--- use all scores
+--- replace average score by total score
+--- Brier score is on his way out probably
+--- gerlang relax is on his out as well: or at least, it causes issues in tmb framework. Consider calculating gradient by finite difference, and then estimating using optim. Only code to redo is the MJP score function that would need warping option. UPDATE: Gerlang relax is kept without warping, and report on not possible to estimate with warping.
+
+
+-- Naive predictors: only report on uniform
+-- rewrite section 3.4 to only regard cumulative link models. Provide expression for uniform predictor in the results section inside bulk text
+
+
+
+
+
+
+Plan for finishing paper:
+- Empirical Setting
+- Methods
+- Results and Discussion (decision flow diagram for action; use case)
+- Conclusion
+- Introduction (read through Stevens corrections)
+- Abstract 
+- Title
+
+- make plan for exchange <3
+--- what you wanna do? Prioritize writing papers, 
+--- MJP forecast paper (first two weeks)
+--- SDE paper (October/November/December/January)
+--- data analysis paper (October/November/December/January)
+
+
+
+%%history
+
+Plan for Sunday: 
+- fix trans dist figures and rewrite their section %tjek
+- corrections on reliability diagrams section %tjek
+- formulate proposition for use case and stochastic decision making program %tjek
+
+
+Plan for Friday and Saturday:
+- fix weird tpm figure pixeling %tjek
+- remake workflow for R.code and latex %tjek
+- Empirical setting %tjek
+--- placement (consider placing after Methods) %tjek (nope)
+--- consider using term tuples %tjek
+- Methods
+--- remove link functions %tjek
+--- correct framing of temporal warping %tjek
+--- restate optimum score estimation %tjek
+--- restate metrics %tjek
+--- computational remarks: mention TMB implementation, automatic diff, how it acted on the gerlang_relax, and that warping under this model setting was not able to be estimated (consider placing some of this under Results and Discussions) %tjek
+--- restate reference predictor. Remove the term NAIVE. State cumu link first. Then say briefly that you for reference also use a uniform distribution predictor. cumu link needs revision. z' is a design matrix also containing indicators for the starting state for s1 = 2, s1 = 3, ..., s1 = 5. Also express the likelihood as conditionals probs %tjek
+--- look though Bo's comments %tjek
+
+
+Plan for Wednesday: 
+- report on prediction accuracy (tabling) %tjek
+- remake figures with transient distribution %tjek
+- consider deleting table 4
+- remake reliability diagrams %tjek
+
+
+
+
+Meeting with Bo:
+- Given the collection of tuples -- remove y2
+- Markov jump process inspired method / or other naming
+- simulate MJP data and calculate prediction error using MJP and warped MJP. To see if it is better on data that doesnt come from the model itself.
+
+
+
+
+

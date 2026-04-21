@@ -29,6 +29,7 @@ library(Rcpp)
 library(RcppEigen)
 source("plot_functions.R")
 
+set.seed(1997)
 m = 5
 A = make_A1(m,rep(0.8,m))
 s0 <- 2     # initial state (1..nrow(Q))
@@ -72,7 +73,7 @@ stairs <- stairs %>%
   mutate(state_jit = state + offset)
 
 
-pad <- 0.12  # a bit larger than your max jitter
+pad <- 0.12  # a bit larger than max jitter
 p2 <- ggplot(stairs, aes(x = t, y = state_jit, color = scenario, group = scenario)) +
   geom_step(linewidth = 0.65, direction = "hv") +
   annotate("point", x = start_t, y = start_state, shape = 15, size = 3) +
@@ -80,9 +81,9 @@ p2 <- ggplot(stairs, aes(x = t, y = state_jit, color = scenario, group = scenari
            label = "Observation", family = "serif", size = text.size / 3) +
   scale_y_continuous(breaks = 1:m, labels = state_labels,
                      limits = c(1 - pad, m + pad)) +
-  labs(x = "Time [years]", y = "Defect class") +
+  labs(x = "Time (years)", y = "Defect class") +
   theme(text = element_text(size = text.size, family = "serif"),
-        panel.background = element_rect(fill = "white", color = "black"),
+        panel.background = element_rect(fill = "white", color = "grey"),
         panel.grid.minor = element_line(color = "lightgray"),
         legend.position = "none")
 
@@ -210,9 +211,10 @@ Dtot <- d
 Dtot$`s-` <- convert.to.num.inv(Dtot$s1)
 Dtot$`s` <- convert.to.num.inv(Dtot$s2)
 states <- c("3", "2B", "2A", "1", "0") #define states
-plist <- list(); text.size <- 17; text.size2 = 6; 
+plist <- list(); text.size <- 18.5; text.size2 = 6.5; 
 
 #plist <- list(); text.size <- 16; text.size2 = 7;text.size3 = 18; 
+
 
 icount <- 0; jcount <- 0; pcount <- 0; sum = 0;
 for(i in states){
@@ -222,37 +224,29 @@ for(i in states){
     if(jcount >= icount){
       pcount <- pcount + 1
       idx <- Dtot$`s-` == i & Dtot$s == j
-      lab <- bquote(.(i) ~ symbol('\256') ~ .(j))
+      lab <- deparse(bquote(.(i) ~ symbol('\256') ~ .(j)))
       dtemp = Dtot[idx, ]
       lab2 <- paste("#Obs. = ", NROW(dtemp))
       sum = sum + NROW(dtemp);
       p <- ggplot(dtemp, aes(x=u)) + 
         geom_histogram(aes(y =  after_stat(count / sum(count)) ), binwidth = 100,color="black", fill="grey") + 
         theme(text = element_text(size = text.size, family = "serif"),
-              panel.background = element_rect(fill = "white", color = "white"),
+              panel.background = element_rect(fill = "white", color = "grey"),
               panel.grid.minor = element_line(color = "lightgray"),
-              plot.background = element_rect(color = "black"), 
+              plot.background = element_rect(color = "white"), 
               #axis.title.x=element_blank(),
               #axis.title.y=element_blank()
               #plot.margin = margin(5, 5, 5, 5, "mm")
         ) + 
         scale_y_continuous(labels = scales::percent) +
-        scale_x_continuous(breaks = 
-                             c(300,600,900), limits = c(0,1200) ) +
-        labs(x = "Observation Intervals", y = "Relative Freq.") + 
-        annotate("text", x=Inf, y=Inf,size=text.size2, label = lab, family="serif", vjust = 1, hjust = 1, fontface =2) +
-        annotate("text", x=Inf, y=Inf,size=text.size2, label = lab2, family="serif", vjust = 2.5, hjust = 1) 
+        scale_x_continuous(breaks =c(300,600,900), limits = c(0,1200) ) +
+        labs(x = "", y = "") + 
+        annotate("text", x=Inf, y=Inf,size=text.size2, label =  lab, family="serif", vjust = 1.1, hjust = 1.05, fontface =2, parse = T) +
+        annotate("text", x=Inf, y=Inf,size=text.size2, label = lab2, family="serif", vjust = 2.6, hjust = 1.05) 
       
-      # if(icount < 6){
-      #   scale_x_continuous(breaks = 
-      #                        #round(c(max(Dtot$u[idx])/4, max(Dtot$u[idx])/4*2, max(Dtot$u[idx])/4*3 )/25,0)*25
-      #                        c(300,600,900,1200)
-      #   )  
-      # } else {
-      # scale_x_continuous(breaks = 
-      #                      #round(c(max(Dtot$u[idx])/4, max(Dtot$u[idx])/4*2, max(Dtot$u[idx])/4*3 )/25,0)*25
-      #                       c(90,180,270)
-      #                      )}
+      if(i == j){
+        p <- p + labs(x = "Obs. intervals (days)", y = "Relative freq.") #+ theme(axis.title.x = element_text(margin = margin(t = 0)))
+      }
       plist[[pcount]] <- p
     } else {
       pcount <- pcount + 1
@@ -263,10 +257,7 @@ for(i in states){
   jcount <- 0
 }
 p1 <- grid.arrange(grobs = plist, ncol = m, nrow = m,widths = rep(1, m), heights = rep(1, m))
-sum
-
-#ggsave("hists_u.pdf", p1, width = 15, height = 12, units = "in")
-ggsave("figures/hists_u_v2.pdf", p1, width = 15, height = 10, units = "in")
+ggsave("figures/hists_u_v2.pdf", p1, width = 15, height = 11, units = "in")
 
 
 ### Interval censored data idea ###

@@ -1,0 +1,14 @@
+rm -rf probabilistic_forecasting_diff && \
+mkdir -p probabilistic_forecasting_diff && \
+cp -R probabilistic_forecasting_v2/latex probabilistic_forecasting_diff/latex && \
+latexdiff \
+  --flatten \
+  -t CTRADITIONAL \
+  --subtype=SAFE \
+  --graphics-markup=none \
+  --math-markup=0 \
+  --replace-context2cmd='title,date,institute,corrauthor' \
+  --config 'PICTUREENV=(?:picture|DIFnomarkup|tikzpicture)' \
+  probabilistic_forecasting_v1/latex/main.tex \
+  probabilistic_forecasting_v2/latex/main.tex \
+  > probabilistic_forecasting_diff/latex/diff.tex

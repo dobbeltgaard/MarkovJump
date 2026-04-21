@@ -1,6 +1,13 @@
+%!TEX TS-program = Latexmk
+
+
 \documentclass{article}
 \usepackage{graphicx} 
 \graphicspath{{../../figures/}}
+\makeatletter
+\def\input@path{{../../tables/}{../../figures/}} 
+\makeatother
+ 
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage[capitalise]{cleveref}
@@ -12,11 +19,11 @@
 \DeclareMathOperator*{\argmin}{arg\,min}
 \Crefname{equation}{Eq.}{Eqs.}
 \usepackage{booktabs}
-\usepackage{xcolor}
+\usepackage{xcolor} 
 \usepackage{svg}
 \usepackage[super]{nth}
 \usepackage{siunitx}
- \usepackage{array,multirow,graphicx}
+ \usepackage{array,multirow,graphicx} 
 \usepackage{arydshln}
 \usepackage{algpseudocode}
 \usepackage{subcaption}

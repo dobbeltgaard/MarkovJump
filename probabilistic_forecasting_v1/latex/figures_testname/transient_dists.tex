@@ -1,0 +1,32 @@
+
+ \begin{figure*}[htb!]
+        \centering
+        \begin{subfigure}[t]{1 \textwidth}
+            \centering
+            \includegraphics[width=0.475\textwidth]{trans_dist_gerlang.pdf}
+            \includegraphics[width=0.475\textwidth]{tpm_dist_gerlang.pdf}
+            \caption[]%
+            {{\small Nearest class, that is $\bm{A}_{\RN{1}}$ in \cref{eq:generator_erlang}.}}   
+            \label{fig:trans_dist_gerlang}
+        \end{subfigure}
+        \\ 
+        \begin{subfigure}[t]{1 \textwidth}   
+            \centering 
+            \includegraphics[width=0.475\textwidth]{trans_dist_gerlang_relax.pdf}
+             \includegraphics[width=0.475\textwidth]{tpm_dist_gerlang_relax.pdf}
+            \caption[]%
+            {{\small Relaxed Erlang, that is $\bm{A}_{\RN{2}}$ with mean degradation time following \cref{eq:trans_rate_param}.}}
+            \label{fig:trans_dist_gerlang_relax}
+        \end{subfigure}
+        \\
+        \begin{subfigure}[t]{1 \textwidth}  
+            \centering 
+            \includegraphics[width=0.475\textwidth]{trans_dist_tridiagonal.pdf}
+             \includegraphics[width=0.475\textwidth]{tpm_dist_tridiagonal.pdf}
+            \caption[]%
+            {{\small Up to 3 classes ahead, that is $\bm{A}_{\RN{4}}$ in \cref{eq:generator_tridiagonal}.}}    
+            \label{fig:trans_dist_tridiagonal}
+        \end{subfigure} \\
+        \caption{Left column: Transient distribution over time of the Markov jump process wrt. the parameterization of the generator. The initial distribution of the chain is $\bm{\pi}^{(s)}(0) = \begin{bmatrix}1 & 0 & 0 & 0 & 0 \end{bmatrix}$. Right column: Transition probability matrix, that is, the matrix exponential, $\exp\left(\bm{A}^{(s)}\tau'^{(s)}\right)$, where $\bm{A}^{(s)}$ refers to a chosen parameterization of the generator and $\tau'^{(s)}$ is eight years.}
+        \label{fig:transient_dists}
+    \end{figure*}

@@ -1,0 +1,67 @@
+
+\begin{tabular}[t]{>{}llcccc}
+\toprule
+ & Model & Exo. info. & \#\,Parameters & RPS & Log S.\\
+\midrule
+\addlinespace[0.3em]
+\multicolumn{2}{l}{\textbf{Uniform predictor}}  & No & 0 & 0.60270 & -1.30240\\
+
+\cmidrule{1-6}
+\addlinespace[0.3em]
+\multicolumn{6}{l}{\textbf{\textbf{Cumulative Link Model}}}\\
+\hspace{1em} & Logistic link & No & 9 & 0.45490 & -1.19217\\
+
+\hspace{1em} &  & Yes & 14 & 0.45015 & -1.18360\\ \cdashline{2-6} \addlinespace[0.3em]
+
+\hspace{1em} & Probit link & No & 9 & 0.45740 & -1.19418\\
+
+\hspace{1em} &  & Yes & 14 & 0.45240 & -1.18484\\ \cdashline{2-6} \addlinespace[0.3em]
+
+\hspace{1em} & Cloglog link & No & 9 & 0.48543 & -1.26428\\
+
+\hspace{1em} &  & Yes & 14 & 0.48009 & -1.25312\\
+\cmidrule{1-6}
+\addlinespace[0.3em]
+\multicolumn{6}{l}{\textbf{Markov jump process}}\\
+\hspace{1em} & $\bm{A}_{\RN{1}}$: Nearest class & No & 4 & 0.47199 & -1.18362\\
+
+\hspace{1em} &  & Yes & 9 & 0.46551 & -1.17246\\ \cdashline{2-6} \addlinespace[0.3em]
+
+\hspace{1em} & $\bm{A}_{\RN{2}}$: Relaxed Erlang & No & 4 & 0.45273 & -1.08264\\
+
+\hspace{1em} &  & Yes & 9 & 0.44591 & -1.07281\\ \cdashline{2-6} \addlinespace[0.3em]
+
+\hspace{1em} & $\bm{A}_{\RN{3}}$: Up to 2 classes ahead & No & 7 & 0.44773 & -1.04477\\
+
+\hspace{1em} &  & Yes & 12 & 0.44127 & -1.03317\\ \cdashline{2-6} \addlinespace[0.3em]
+
+\hspace{1em} & $\bm{A}_{\RN{4}}$: Up to 3 classes ahead & No & 9 & 0.44682 & -1.03755\\
+
+\hspace{1em} &  & Yes & 14 & 0.44023 & -1.02544\\ \cdashline{2-6} \addlinespace[0.3em]
+
+\hspace{1em} & $\bm{A}_{\RN{5}}$: Free upper-triangular & No & 10 & 0.44681 & -1.03771\\
+
+\hspace{1em} &  & Yes & 15 & 0.44022 & -1.02551\\
+\cmidrule{1-6}
+\addlinespace[0.3em]
+\multicolumn{6}{l}{\makecell[l]{\textbf{Model with modified}\\ \textbf{sojourn time estimates}}}\\
+\hspace{1em} & $\bm{A}_{\RN{1}}$: Nearest class & No & 8 & 0.45434 & -1.12022\\
+
+\hspace{1em} &  & Yes & 13 & 0.44683 & -1.10450\\ \cdashline{2-6} \addlinespace[0.3em]
+
+\hspace{1em} & $\bm{A}_{\RN{3}}$: Up to 2 classes ahead & No & 11 & 0.44252 & -1.03837\\
+
+\hspace{1em} &  & Yes & 16 & 0.43584 & -1.02645\\ \cdashline{2-6} \addlinespace[0.3em]
+
+\hspace{1em} & $\bm{A}_{\RN{4}}$: Up to 3 classes ahead & No & 13 & 0.44255 & -1.03637\\
+
+\hspace{1em} &  & Yes & 18 & 0.43587 & -1.02470\\ \cdashline{2-6} \addlinespace[0.3em]
+
+\hspace{1em} & $\bm{A}_{\RN{5}}$: Free upper-triangular & No & 14 & 0.44257 & -1.03649\\
+
+\hspace{1em} &  & Yes & 19 & 0.43588 & -1.02481\\
+\cmidrule{1-6}
+\addlinespace[0.3em]
+\multicolumn{2}{l}{\textbf{Ensemble}}  & Yes & 274 & \textbf{0.39665} & \textbf{-0.92208}\\ %69+93+112 = 274
+\bottomrule
+\end{tabular}

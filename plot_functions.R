@@ -7,31 +7,32 @@ library(Matrix)
 
 
 #functions to generate figures
-get_pars = function(str, fold_number = 1){read.csv(list.files("estimates", full.names = T)[grepl(str, list.files("estimates"))][fold_number])$par} #get_pars("gerlang_relax_FALSE_exp_exp_all_no_warp")
+get_pars = function(str, fold_number = 1){read.csv(list.files("estimates_V3", full.names = T)[grepl(str, list.files("estimates_V3"))][fold_number])$par} #get_pars("gerlang_relax_FALSE_exp_exp_all_no_warp")
 
 rel_number = 1
 
 trans_dist_fig <- function(m, states, initial_state, nam, ndays, generator, warp_indicator,
-                           base_size = 11, k = 1) {
+                           base_size = 11, k = 1, mixture = FALSE, K = 1, state_covs = F, defect_idx =1 ) {
 
   sol1 <- matrix(NA, nrow = ndays, ncol = m)
+  sol2 <- matrix(NA, nrow = ndays, ncol = 1)
+  
   count <- 0
-  for (t in (1:ndays)/365) {
+  for (t in (0:(ndays-1)/365)) {
     count <- count + 1
-    sol1[count, ] <- MJP_predict(m = m, s1 = c(initial_state), u = c(t),
-      get_pars(nam), z = matrix(z[idx, ], nrow = 1),
+    sol1[count, ] <- MJP_predict(m = m, s1 = c(initial_state), u = c(t), pars = get_pars(nam), z = matrix(z[defect_idx, , drop = FALSE], nrow = 1),
       generator = generator, link_type_base = "exp", link_type_covs = "exp",
-      covs_bin = TRUE, transient_dist_method = "eigen_decomp", warping = warp_indicator)
+      covs_bin = TRUE, transient_dist_method = "pade", warping = warp_indicator, mixture = mixture, K = K, state_covs = state_covs)
   }
 
   dpp <- as.data.frame(sol1)
   colnames(dpp) <- states
-  dpp$time <- 1:ndays
+  dpp$time <- 0:(ndays-1)
   dpp_long <- tidyr::gather(dpp, key = "Column", value = "Probability", -time)
   dpp_long$Column <- factor(dpp_long$Column, levels = c("3","2B","2A","1","0"))
 
   ggplot(dpp_long, aes(x = time/365, y = Probability, color = Column)) +
-  geom_line(size = base_size/11* 0.75 * k) +
+  geom_line(size = base_size/11* 0.5 * k) +
   theme(
     text             = element_text(size = base_size * k, family = "serif"),
     axis.text.x      = element_text(size = rel(rel_number), vjust = 0.3),
@@ -40,7 +41,7 @@ trans_dist_fig <- function(m, states, initial_state, nam, ndays, generator, warp
     legend.text      = element_text(size = rel(0.75*rel_number)),
     legend.key.width = unit(base_size/11*0.75, "lines"),
     legend.key.height= unit(base_size/11*0.6, "lines"),
-    panel.background = element_rect(fill = "white", color = "black"),
+    panel.background = element_rect(fill = "white", color = "grey"),
     panel.grid.minor = element_line(color = "lightgray"),
     legend.position  = c(0.5, 0.9),
     legend.direction = "horizontal",
@@ -48,17 +49,17 @@ trans_dist_fig <- function(m, states, initial_state, nam, ndays, generator, warp
     legend.key       = element_rect(fill = "transparent", color = NA)
   ) +
   guides(color = guide_legend(nrow = 1)) +
-  xlab("Time [years]") + ylab("Probability")
-}
+  xlab("Time (years)") + ylab("Probability")
+  }
 
 trans_prob_fig <- function(m, states, initial_state, nam, ndays, generator, warp_indicator,
-                           base_size = 11, k = 1) {
+                           base_size = 11, k = 1, mixture = FALSE, K = 1, state_covs = F) {
   A1 <- matrix(0, m, m)
   for (i in 1:m) {
-    A1[i, ] <- MJP_predict(m = m, s1 = c(i), u = c(ndays/365),
+    A1[i, ] <- MJP_predict(m = m, s1 = c(i), u = c((ndays-1)/365),
       get_pars(nam), z = matrix(z[idx, ], nrow = 1),
       generator = generator, link_type_base = "exp", link_type_covs = "exp",
-      covs_bin = TRUE, transient_dist_method = "eigen_decomp", warping = warp_indicator)
+      covs_bin = TRUE, transient_dist_method = "eigen_decomp", warping = warp_indicator, mixture = mixture, K = K, state_covs = state_covs)
   }
   colnames(A1) <- 1:5; rownames(A1) <- 1:5
   long <- reshape2::melt(A1)
@@ -66,11 +67,17 @@ trans_prob_fig <- function(m, states, initial_state, nam, ndays, generator, warp
   labs_map <- c("3","2B","2A","1","0")
   long$x <- factor(long$Var2, levels = 1:5, labels = labs_map)
   long$y <- factor(long$Var1, levels = 1:5, labels = labs_map)
+  
+  #lab <- "bold(P)*'(' * X(t+u)==j*'|'*X(t)==i * ')' * ','~~u==8~years"
+  lab <- sprintf("TPM (%d years)", round(ndays/365))
+  
 
   ggplot(long[long$value != 0, ], aes(x = x, y = y)) +
     geom_tile(aes(fill = value), linewidth = 0) +
     geom_text(aes(label = sprintf("%.4f", value)),
               color = "white", size = rel(1.5), family = "serif") +
+    annotate("text",x = "2B", y = "0", label = lab, parse = FALSE,
+             family = "serif", size = base_size/11 * 3, color = "grey30") +
     scale_fill_gradient(low = "grey60", high = "black", guide = "none") +
     scale_x_discrete(drop = FALSE, expand = c(0,0)) +
     scale_y_discrete(drop = FALSE, expand = c(0,0), limits = rev(labs_map)) +
@@ -80,11 +87,12 @@ trans_prob_fig <- function(m, states, initial_state, nam, ndays, generator, warp
       text             = element_text(size = base_size * k, family = "serif"),
       axis.text.x      = element_text(size = rel(rel_number), vjust = 0.3),
       axis.text.y      = element_text(size = rel(rel_number)),
-      panel.background = element_rect(fill = "white", color = "black"),
+      panel.background = element_rect(fill = "white", color = "grey"),
       panel.grid.minor = element_blank()
     )
     
 }
+
 # helper: scale sizes based on device size versus a reference size (default 4x3 in)
 size_scaler <- function(width_in, height_in, ref_w = 4, ref_h = 3) {
   # use the limiting dimension so proportions stay consistent

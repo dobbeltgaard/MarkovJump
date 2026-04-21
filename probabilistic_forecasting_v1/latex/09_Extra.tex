@@ -1,0 +1,42 @@
+% !TEX root = main.tex
+
+
+
+\nomenclature{\(X\)}{Discretely valued Markov process in continuous time}
+\nomenclature{\(\mathcal{E}\)}{Finite state space of $X$}
+\nomenclature{\(m\)}{Size of state space}
+\nomenclature{\(\mathcal{S}\)}{Set of rail defects}
+\nomenclature{\(\mathcal{J}\)}{Index set of $\mathcal{E}$}
+\nomenclature{\(\lambda\)}{Transition rate, scalar}
+\nomenclature{\(\bm{A}\)}{Transition rate matrix of size $m \times m$ }
+\nomenclature{\(\bm{P}\)}{State-dependent probability vector of size $1 \times m$}
+\nomenclature{\(\bm{\Lambda}\)}{Diagonal matrix of size $m \times m$ with elements corresponding to eigenvalues of transition rate matrix}
+\nomenclature{\(\bm{U}\)}{Matrix of size $m \times m$ with columns corresponding to eigenvectors of transition rate matrix}
+\nomenclature{\(\bm{z}\)}{Set of covariates with $p$ different defect-dependent variables}
+\nomenclature{\(\beta\)}{Model coefficients}
+\nomenclature{\(L_c\)}{Complete data likelihood}
+\nomenclature{\(\ell_c\)}{Complete data log-likelihood}
+\nomenclature{\(L_d\)}{Incomplete data likelihood}
+\nomenclature{\(\ell_d\)}{Incomplete data log-likelihood}
+\nomenclature{\(N_{i,j}\)}{Number of transitions between state $i$ and $j$ }
+\nomenclature{\(R_{i}\)}{Total holding time at state $i$ }
+\nomenclature{\(\tau\)}{Time difference between $y_1$'s and $y_2$'s time stamps}
+\nomenclature{\(Y\)}{Partially observed defect trajectories}
+\nomenclature{\(y_1\)}{First observed defect state }
+\nomenclature{\(y_2\)}{Second observed defect state }
+\nomenclature{\(\bm{\Delta}\)}{Diagonal matrix of size $m \times m$ given by $\exp{ \left( \bm{\Lambda} \tau \right)}$}
+\nomenclature{\(\bm{E}_{i,j}\)}{Matrix of zeros with a single $1$-element at $(i,j)$'th position.}
+\nomenclature{\(\bm{e}_{i}\)}{Row vector of zeros with a single $1$-element at $i$'th position.}
+
+
+
+
+\section*{Software}
+Model implementation is carried out in \texttt{R} version 4.3.1 \citep{R_stats} and \texttt{C++} integrated with \texttt{R} via \texttt{Rcpp} \citep{Rcpp}, \texttt{Eigen} \citep{eigenweb}, and \texttt{TMB} \citep{TMB}. Computations are performed on an Apple M4 Pro (12-core CPU). Illustrative figures are created using \verb|ggplot2| by \citet{ggplot2}. The code repository can be accessed on \url{https://github.com/dobbeltgaard/MarkovJump.git}.
+
+\section*{Data statement}
+Due to sensitivity of data, Bane NOR has been assured that the names of the individual rail lines are anonymized. Raw data is confidential and can therefore not be shared. Further information on the defect data is available from the authors.
+
+\section*{Funding sources}
+This work was supported by Innovation Fund Denmark [3194-00014B]; and COWIfonden [C-163\_01].
+

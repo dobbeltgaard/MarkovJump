@@ -1,0 +1,25 @@
+\nomenclatureentry{a\(X\)@[{\(X\)}]\begingroup Discretely valued Markov process in continuous time\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\mathcal{E}\)@[{\(\mathcal{E}\)}]\begingroup Finite state space of $X$\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(m\)@[{\(m\)}]\begingroup Size of state space\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\mathcal{S}\)@[{\(\mathcal{S}\)}]\begingroup Set of rail defects\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\mathcal{J}\)@[{\(\mathcal{J}\)}]\begingroup Index set of $\mathcal{E}$\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\lambda\)@[{\(\lambda\)}]\begingroup Transition rate, scalar\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\bm{A}\)@[{\(\bm{A}\)}]\begingroup Transition rate matrix of size $m \times m$ \nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\bm{P}\)@[{\(\bm{P}\)}]\begingroup State-dependent probability vector of size $1 \times m$\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\bm{\Lambda}\)@[{\(\bm{\Lambda}\)}]\begingroup Diagonal matrix of size $m \times m$ with elements corresponding to eigenvalues of transition rate matrix\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\bm{U}\)@[{\(\bm{U}\)}]\begingroup Matrix of size $m \times m$ with columns corresponding to eigenvectors of transition rate matrix\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\bm{z}\)@[{\(\bm{z}\)}]\begingroup Set of covariates with $p$ different defect-dependent variables\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\beta\)@[{\(\beta\)}]\begingroup Model coefficients\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(L_c\)@[{\(L_c\)}]\begingroup Complete data likelihood\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\ell_c\)@[{\(\ell_c\)}]\begingroup Complete data log-likelihood\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(L_d\)@[{\(L_d\)}]\begingroup Incomplete data likelihood\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\ell_d\)@[{\(\ell_d\)}]\begingroup Incomplete data log-likelihood\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(N_{i,j}\)@[{\(N_{i,j}\)}]\begingroup Number of transitions between state $i$ and $j$ \nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(R_{i}\)@[{\(R_{i}\)}]\begingroup Total holding time at state $i$ \nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\tau\)@[{\(\tau\)}]\begingroup Time difference between $y_1$'s and $y_2$'s time stamps\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(Y\)@[{\(Y\)}]\begingroup Partially observed defect trajectories\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(y_1\)@[{\(y_1\)}]\begingroup First observed defect state \nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(y_2\)@[{\(y_2\)}]\begingroup Second observed defect state \nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\bm{\Delta}\)@[{\(\bm{\Delta}\)}]\begingroup Diagonal matrix of size $m \times m$ given by $\exp{ \left( \bm{\Lambda} \tau \right)}$\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\bm{E}_{i,j}\)@[{\(\bm{E}_{i,j}\)}]\begingroup Matrix of zeros with a single $1$-element at $(i,j)$'th position.\nomeqref {30}|nompageref}{45}
+\nomenclatureentry{a\(\bm{e}_{i}\)@[{\(\bm{e}_{i}\)}]\begingroup Row vector of zeros with a single $1$-element at $i$'th position.\nomeqref {30}|nompageref}{45}

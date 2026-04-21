@@ -6,17 +6,9 @@ library(Rcpp)
 library(RcppEigen)
 library(dplyr); library(kableExtra)
 sourceCpp("FUNCS_MJP_with_eigen.cpp")
-# pred_list = readRDS("results/model_predictions_V3.Rdata")
-# pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] )/2#+ pred_list[["empirical_dist_corr"]])/3
-# pred_list[["ensemble2"]] =(pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/2
-# pred_list[["ensemble3"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/3
 
-#logs = read.csv("results/log_score.csv")
-#rps = read.csv("results/rps_score.csv")
-#brier = read.csv("results/brier_score.csv")
 
-files <- list.files("predictions", pattern = "\\.csv$", full.names = TRUE)
-files = files[!grepl("v2",files)]
+files <- list.files("predictions_V3", pattern = "\\.csv$", full.names = TRUE)
 file_names <- basename(files)
 base_names <- sub("_fold_\\d+\\.csv$", "", file_names)
 fold_numbers <- as.integer(sub(".*_fold_(\\d+)\\.csv$", "\\1", file_names))
@@ -29,17 +21,14 @@ predictor_data <- lapply(predictor_list, function(group) {
   out
 })
 pred_list = predictor_data
-#pred_list[["ensemble"]] = pred_list[["empirical_dist_smart"]]
 
-predictor_names <- names(pred_list)[grepl("_all_",names(pred_list)) | grepl("^o", names(pred_list)) | grepl("uniform", names(pred_list))]
+#Make ensemble prediction
+predictor_names <- names(pred_list)[ (grepl("_cov2_",names(pred_list)) & grepl("_no_warp",names(pred_list))) |  ( (grepl("_cov0_",names(pred_list)) | grepl("_cov1_",names(pred_list))) & !grepl("mixture",names(pred_list)) ) | grepl("mixture4",names(pred_list)) | grepl("ocllr", names(pred_list)) | grepl("olr", names(pred_list)) | grepl("opr", names(pred_list)) | grepl("uniform", names(pred_list)) | grepl("random_", names(pred_list)) ]
 pred_list[["ensemble_all"]] <- vector("list", length = length(pred_list[[ predictor_names[1] ]]))
-
 for(i in seq_along(pred_list[["ensemble_all"]])) {
   preds_i <- lapply(predictor_names, function(name) pred_list[[name]][[i]])
   pred_list[["ensemble_all"]][[i]] <- Reduce("+", preds_i) / length(preds_i)
 }
-
-for(i in 1:5){pred_list[["ensemble"]][[i]] = 1/2*(pred_list[["tridiagonal_TRUE_exp_exp_all_warp"]][[i]] + pred_list[["olr_cov"]][[i]])}
 
 #######################
 ### Forecast Scores ###
@@ -66,83 +55,540 @@ rownames(Brier_e) = names(pred_list)
 errs = cbind(rowMeans(RPS_err),rowMeans(log_err))
 errs[grepl("_all_", rownames(errs)) | !grepl("_exp", rownames(errs)),1:2]
 
-#Errors in link function combinations
-# link_combinations <- gsub(".*?(exp|softplus|square)_(exp|softplus|square)_.*", "\\1_\\2", rownames(errs[1:54,]))
-# rps_values <- errs[1:54, 1]
-# average_rps <- tapply(rps_values, link_combinations, mean)
-# print(average_rps)
+mk_summary <- function(mat) {
+  mu <- rowMeans(mat, na.rm = TRUE)
+  sd <- apply(mat, 1, sd, na.rm = TRUE)
+  sprintf("%.4f (%.4f)", mu, sd)
+}
+errs_fmt <- cbind(
+  RPS  = mk_summary(RPS_err),
+  LogS = mk_summary(log_err)
+)
+rownames(errs_fmt) <- rownames(RPS_err)
+errs_fmt[grepl("_all_", rownames(errs_fmt)) | !grepl("_exp", rownames(errs_fmt)), , drop = FALSE]
 
+#namfoo = c("exp_exp_all", "uniform", "olr", "opr", "ocllr", "random_", "ensemble")
+#idx = rowSums(sapply(namfoo, FUN = grepl, x = rownames(errs_fmt))) > 0
+#foo = errs_fmt[idx, ]
+# nams =
+#   c("uniform", 
+#     "olr", "olr_cov", "opr", "opr_cov", "ocllr", "ocllr_cov",
+#     "random_forest", "random_forest_cov",
+#     "gerlang_cov0_exp_exp_all_no_warp", "gerlang_cov1_exp_exp_all_no_warp", 
+#     "gerlang_relax_cov0_exp_exp_all_no_warp", "gerlang_relax_cov1_exp_exp_all_no_warp", 
+#     "bidiagonal_cov0_exp_exp_all_no_warp", "bidiagonal_cov1_exp_exp_all_no_warp", 
+#     "tridiagonal_cov0_exp_exp_all_no_warp", "tridiagonal_cov1_exp_exp_all_no_warp", 
+#     "free_upper_tri_cov0_exp_exp_all_no_warp", "free_upper_tri_cov1_exp_exp_all_no_warp",
+#     "gerlang_cov0_exp_exp_all_warp", "gerlang_cov1_exp_exp_all_warp", "gerlang_cov2_exp_exp_all_no_warp",
+#     "gerlang_relax_cov0_exp_exp_all_warp", "gerlang_relax_cov1_exp_exp_all_warp", "gerlang_relax_cov2_exp_exp_all_no_warp",
+#     "bidiagonal_cov0_exp_exp_all_warp", "bidiagonal_cov1_exp_exp_all_warp", "bidiagonal_cov2_exp_exp_all_no_warp",
+#     "tridiagonal_cov0_exp_exp_all_warp", "tridiagonal_cov1_exp_exp_all_warp", "tridiagonal_cov2_exp_exp_all_no_warp",
+#     "free_upper_tri_cov0_exp_exp_all_warp", "free_upper_tri_cov1_exp_exp_all_warp", "free_upper_tri_cov2_exp_exp_all_no_warp",
+#     "ensemble_all"
+#     )
 
-namfoo = c("exp_exp_all", "uniform", "olr", "opr", "ocllr", "ensemble")
-idx = rowSums(sapply(namfoo, FUN = grepl, x = rownames(errs))) > 0
-foo = errs[idx, ]
-nams =
-  c("uniform", 
-    "olr", "olr_cov", "opr", "opr_cov", "ocllr", "ocllr_cov", 
-    "gerlang_FALSE_exp_exp_all_no_warp", "gerlang_TRUE_exp_exp_all_no_warp",
-    "gerlang_relax_FALSE_exp_exp_all_no_warp", "gerlang_relax_TRUE_exp_exp_all_no_warp",
-    "bidiagonal_FALSE_exp_exp_all_no_warp", "bidiagonal_TRUE_exp_exp_all_no_warp",
-    "tridiagonal_FALSE_exp_exp_all_no_warp", "tridiagonal_TRUE_exp_exp_all_no_warp",
-    "free_upper_tri_FALSE_exp_exp_all_no_warp", "free_upper_tri_TRUE_exp_exp_all_no_warp",
-    "gerlang_FALSE_exp_exp_all_warp", "gerlang_TRUE_exp_exp_all_warp",
-    "bidiagonal_FALSE_exp_exp_all_warp", "bidiagonal_TRUE_exp_exp_all_warp",
-    "tridiagonal_FALSE_exp_exp_all_warp", "tridiagonal_TRUE_exp_exp_all_warp",
-    "free_upper_tri_FALSE_exp_exp_all_warp", "free_upper_tri_TRUE_exp_exp_all_warp",
-    "ensemble", "ensemble_all"
-    )
-nams_idx = rep(NA, length(nams));for(i in 1:length(nams)){nams_idx[i] = which(nams[i] == rownames(foo))}
+nams_ref = c("uniform","olr", "olr_cov", "opr", "opr_cov", "ocllr", "ocllr_cov", "DTMC")#, "nnet", "nnet_cov")#,"random_forest", "random_forest_cov")
+nams_MJP = 
+  c("gerlang_cov0_exp_exp_all_no_warp", "gerlang_cov1_exp_exp_all_no_warp","gerlang_cov2_exp_exp_all_no_warp", 
+             "gerlang_relax_cov0_exp_exp_all_no_warp", "gerlang_relax_cov1_exp_exp_all_no_warp","gerlang_relax_cov2_exp_exp_all_no_warp",
+             "bidiagonal_cov0_exp_exp_all_no_warp", "bidiagonal_cov1_exp_exp_all_no_warp","bidiagonal_cov2_exp_exp_all_no_warp", 
+             "tridiagonal_cov0_exp_exp_all_no_warp", "tridiagonal_cov1_exp_exp_all_no_warp","tridiagonal_cov2_exp_exp_all_no_warp", 
+             "free_upper_tri_cov0_exp_exp_all_no_warp", "free_upper_tri_cov1_exp_exp_all_no_warp", "free_upper_tri_cov2_exp_exp_all_no_warp")
+nams_MJP_warp = 
+  c("gerlang_cov0_exp_exp_all_warp", "gerlang_cov1_exp_exp_all_warp",
+             "gerlang_relax_cov0_exp_exp_all_warp", "gerlang_relax_cov1_exp_exp_all_warp",
+             "bidiagonal_cov0_exp_exp_all_warp", "bidiagonal_cov1_exp_exp_all_warp",
+             "tridiagonal_cov0_exp_exp_all_warp", "tridiagonal_cov1_exp_exp_all_warp",
+             "free_upper_tri_cov0_exp_exp_all_warp", "free_upper_tri_cov1_exp_exp_all_warp")
+nams_MJP_mixture = 
+  c("gerlang_cov0_exp_exp_all_no_warp_mixture4", "gerlang_cov1_exp_exp_all_no_warp_mixture4", 
+    "gerlang_relax_cov0_exp_exp_all_no_warp_mixture4", "gerlang_relax_cov1_exp_exp_all_no_warp_mixture4", 
+    "bidiagonal_cov0_exp_exp_all_no_warp_mixture4", "bidiagonal_cov1_exp_exp_all_no_warp_mixture4", 
+    "tridiagonal_cov0_exp_exp_all_no_warp_mixture4", "tridiagonal_cov1_exp_exp_all_no_warp_mixture4", 
+    "free_upper_tri_cov0_exp_exp_all_no_warp_mixture4", "free_upper_tri_cov1_exp_exp_all_no_warp_mixture4")
+nams_ensemble = c("ensemble_all")
+
+#nams_idx = rep(NA, length(nams));for(i in 1:length(nams)){nams_idx[i] = which(nams[i] == rownames(foo))} 
 library(kableExtra)
 naive = expand.grid(
   Covariates = c("No"), #covariates
-  Model = c("Naïve predictors"), #näive,olr,mjp 
+  Model = c("Naïve predictor"), #näive,olr,mjp 
   param = c("Uniform distribution")
 )
 regression = expand.grid(
   Covariates = c("No","Yes"), #covariates
-  Model = c("Ordered multinomial regression"), #näive,olr,mjp 
+  Model = c("Cumulative link model"), #näive,olr,mjp 
   param = c("Logistic link", "Probit link", "Cloglog link")
 )
+forest = expand.grid(
+  Covariates = c("No"),
+  Model = c("Discrete-time Markov chain"),
+  param = c("")
+)
 mjp = expand.grid(
-  Covariates = c("No","Yes"), #covariates
+  Covariates = c("No","Yes (global)", "Yes (state-spec.)"), #covariates
   Model = c("Markov jump process"), #näive,olr,mjp 
-  param = c("Generalized Erlang, $\\bm{A}'$", "Parameterized upper, $\\bm{A}''$", "Bi","Tri", "Free upper, $\\bm{A}'''$")
+  param = c("$\\bm{A}_{\\RN{1}}$: Nearest class", "$\\bm{A}_{\\RN{2}}$: Relaxed Erlang", "$\\bm{A}_{\\RN{3}}$: Up to 2 classes ahead","$\\bm{A}_{\\RN{4}}$: Up to 3 classes ahead", "$\\bm{A}_{\\RN{5}}$: Free upper-triangular")
 )
 mjp_warp = expand.grid(
-  Covariates = c("No","Yes"), #covariates
-  Model = c("Markov jump process WARP"), #näive,olr,mjp 
-  param = c("Generalized Erlang, $\\bm{A}'$", "Bi","Tri", "Free upper, $\\bm{A}'''$")
+  Covariates = c("No","Yes (global)"), #covariates
+  Model = c("Model with modified sojourn time estimates"), #näive,olr,mjp 
+  param = c("$\\bm{A}_{\\RN{1}}$: Nearest class", "$\\bm{A}_{\\RN{2}}$: Relaxed Erlang", "$\\bm{A}_{\\RN{3}}$: Up to 2 classes ahead","$\\bm{A}_{\\RN{4}}$: Up to 3 classes ahead", "$\\bm{A}_{\\RN{5}}$: Free upper-triangular")
+)
+mjp_mixture = expand.grid(
+  Covariates = c("No","Yes (global)"), #covariates
+  Model = c("Mixture Markov jump process ($G=4$)"), #näive,olr,mjp 
+  param = c("$\\bm{A}_{\\RN{1}}$: Nearest class", "$\\bm{A}_{\\RN{2}}$: Relaxed Erlang", "$\\bm{A}_{\\RN{3}}$: Up to 2 classes ahead","$\\bm{A}_{\\RN{4}}$: Up to 3 classes ahead", "$\\bm{A}_{\\RN{5}}$: Free upper-triangular")
 )
 ensemble = expand.grid(
-  Covariates = c("Yes"), #covariates
+  Covariates = c("Mixed"), #covariates
   Model = c("Ensemble"), #näive,olr,mjp 
-  param = c("MJP + OLR", "Naïve + MJP + OLR")
+  param = c("All")
 )
-collapse_rows_dt = rbind(naive, regression, mjp,mjp_warp ,ensemble)
-collapse_rows_dt <- collapse_rows_dt[c("Model", "param", "Covariates")]
+#collapse_rows_dt = rbind(naive, regression, forest, mjp,mjp_warp ,ensemble)
+#collapse_rows_dt <- collapse_rows_dt[c("Model", "param", "Covariates")]
 
-#par_list  = pred_list
-npars = rep(0,length(nams)); count = 0;
-for(i in head(nams,-2)){
-  count = count + 1
-  if(grepl("all_",i)){
-    dfoo = read.csv(list.files("estimates", full.names = T)[grepl(i, list.files("estimates"))][1])
-    npars[count] = NROW(dfoo)#(NCOL(par_list[[i]])); 
-    }
+tab_ref = rbind(naive, regression,forest); tab_ref = tab_ref[c("Model", "param", "Covariates")]; 
+tab_MJP = rbind(mjp); tab_MJP = tab_MJP[c("Model", "param", "Covariates")]; 
+tab_MJP_warp = rbind(mjp_warp); tab_MJP_warp = tab_MJP_warp[c("Model", "param", "Covariates")]; 
+tab_MJP_mixture = rbind(mjp_mixture); tab_MJP_mixture = tab_MJP_mixture[c("Model", "param", "Covariates")]; 
+tab_ensemble = rbind(ensemble); tab_ensemble = tab_ensemble[c("Model", "param", "Covariates")];
+
+# #par_list  = pred_list
+# npars = rep(0,length(nams)); count = 0;
+# for(i in head(nams,-1)){
+#   count = count + 1
+#     dfoo = read.csv(list.files("estimates_V3", full.names = T)[grepl(paste0(i,"_fold"), list.files("estimates_V3"))][1])
+#     npars[count] = NROW(dfoo)#(NCOL(par_list[[i]])); 
+# }
+# npars[npars == 1 | npars == 0] = "--"
+
+get_npars <- function(nams, dir = "estimates_V3", skip_last = FALSE) {
+  if (skip_last) { nams <- head(nams, -1)}
+  files <- list.files(dir, full.names = TRUE)
+  file_names <- basename(files)
+  out <- sapply(nams, function(nm) {
+    matches <- files[grepl(paste0("^", nm, "_fold"), file_names)]
+    if (length(matches) == 0) {return(NA_character_)}
+    dfoo <- read.csv(matches[1])
+    npar <- nrow(dfoo)
+    if (npar %in% c(0, 1,NA, "NA")) "--" else as.character(npar)
+  }, USE.NAMES = TRUE)
+  unname(out)
 }
-# npars[length(nams)-1] =  NCOL(par_list[["free_upper_tri_TRUE_softplus_softplus_all"]]) + NCOL(par_list[["olr_cov"]])
-# npars[length(nams)] =  NCOL(par_list[["free_upper_tri_TRUE_softplus_softplus_all"]]) + NCOL(par_list[["olr_cov"]])
-collapse_rows_dt$npars = npars
-collapse_rows_dt$RPS = foo[nams_idx, 1]
-collapse_rows_dt$LogS = foo[nams_idx, 2]
-#collapse_rows_dt$Brier = foo[nams_idx, 3]
-colnames(collapse_rows_dt) = c("Method", "Model", "Covariates", "\\# Parameters", "RPS", "Log S.")
+
+npars_MJP = get_npars(nams = nams_MJP); npars_MJP_warp = get_npars(nams = nams_MJP_warp); npars_MJP_mixture = get_npars(nams = nams_MJP_mixture); npars_ref = get_npars(nams = nams_ref); npars_ensemble = c("--")
+
+
+fill_tab <- function(tab, nams, errs_fmt, dir = "estimates_V3", npars_bin = T) {
+  stopifnot(nrow(tab) == length(nams))
+  npars <- get_npars(nams, dir = dir)
+  idx <- match(nams, rownames(errs_fmt))
+  if (anyNA(idx)) {
+    warning("Some model names were not found in errs_fmt: ",
+            paste(nams[is.na(idx)], collapse = ", "))
+  }
+  if(npars_bin) tab$npars <- npars
+  tab$RPS   <- errs_fmt[idx, "RPS"]
+  tab$LogS  <- errs_fmt[idx, "LogS"]
+  tab
+}
+
+tab_ref         <- fill_tab(tab_ref,         nams_ref,         errs_fmt)
+tab_MJP         <- fill_tab(tab_MJP,         nams_MJP,         errs_fmt)
+tab_MJP_warp    <- fill_tab(tab_MJP_warp,    nams_MJP_warp,    errs_fmt)
+tab_MJP_mixture <- fill_tab(tab_MJP_mixture, nams_MJP_mixture, errs_fmt)
+tab_ensemble    <- fill_tab(tab_ensemble,    nams_ensemble,    errs_fmt); tab_ensemble$npars= "--"
+
+
+
+
+colnams = c("Method", "Model", "Exogenous info.", "\\# Pars.", "RPS", "Log S.")
+#colnams = c("Method", "Model", "Exogenous info.", "RPS", "Log S.")
+
+
+# 
+# colnames(tab_ref) = colnams
+# row_group_label_fonts <- list(list(bold = T, italic = F),list(bold = F, italic = F))
+# n_cols = length(colnams)
+# kableExtra::kbl(tab_ref,booktabs = T, align = c("l","l","l","c","c","c"), linesep = '', format = "latex",escape = FALSE, digits = 5) %>%
+#   column_spec(1, bold=T) %>%
+#   collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts) %>%
+#   row_spec(3,  extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   row_spec(5,  extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   footnote(number = c(
+#     "Exogenous information indicates whether the rail characteristics described in \\\\Cref{sec:data} are included."),
+#     escape = FALSE, general_title = "", threeparttable = TRUE) %>%
+#   writeLines(con = paste0("figures/forecast_error_tab_ref",".tex"))
+# 
+# colnames(tab_MJP) = colnams
+# row_group_label_fonts <- list(list(bold = T, italic = F),list(bold = F, italic = F))
+# n_cols = length(colnams)
+# kableExtra::kbl(tab_MJP,booktabs = T, align = c("l","l","l","c","c","c","c"), linesep = '', format = "latex",escape = FALSE, digits = 5) %>%
+#   column_spec(1, bold=T) %>%
+#   collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts) %>%
+#   row_spec(3,  extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   row_spec(6,  extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   row_spec(9, extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   row_spec(12, extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   footnote(number = c(
+#     "Exogenous information indicates whether the rail characteristics described in \\\\Cref{sec:data} are included: Yes (global) uses \\\\cref{eq:trans_rates_covariates}; Yes (state-spec.) uses \\\\cref{eq:trans_rates_covariates2}."),
+#     escape = FALSE, general_title = "", threeparttable = TRUE) %>%
+#   writeLines(con = paste0("figures/forecast_error_tab_MJP",".tex"))
+# 
+# colnames(tab_MJP_warp) = colnams
+# row_group_label_fonts <- list(list(bold = T, italic = F),list(bold = F, italic = F))
+# n_cols = length(colnams)
+# kableExtra::kbl(tab_MJP_warp,booktabs = T, align = c("l","l","l","c","c","c","c"), linesep = '', format = "latex",escape = FALSE, digits = 5) %>%
+#   column_spec(1, bold=T) %>%
+#   collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts) %>%
+#   row_spec(2,  extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   row_spec(4,  extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   row_spec(6, extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   row_spec(8, extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   footnote(number = c(
+#     "Exogenous information indicates whether the rail characteristics described in \\\\Cref{sec:data} are included: Yes (global) uses \\\\cref{eq:trans_rates_covariates}."),
+#     escape = FALSE, general_title = "", threeparttable = TRUE) %>%
+#   writeLines(con = paste0("figures/forecast_error_tab_MJP_warp",".tex"))
+# 
+# colnames(tab_MJP_mixture) =colnams
+# row_group_label_fonts <- list(list(bold = T, italic = F),list(bold = F, italic = F))
+# n_cols = length(colnams)
+# kableExtra::kbl(tab_MJP_mixture,booktabs = T, align = c("l","l","l","c","c","c","c"), linesep = '', format = "latex",escape = FALSE, digits = 5) %>%
+#   column_spec(1, bold=T) %>%
+#   collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts) %>%
+#   row_spec(2,  extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   row_spec(4,  extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   row_spec(6, extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   row_spec(8, extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+#   footnote(number = c(
+#     "Exogenous information indicates whether the rail characteristics described in \\\\Cref{sec:data} are included: Yes (global) uses \\\\cref{eq:trans_rates_covariates}."),
+#     escape = FALSE, general_title = "", threeparttable = TRUE) %>%
+#   writeLines(con = paste0("figures/forecast_error_tab_MJP_mixture",".tex"))
+
+
+tab_tot = rbind(tab_ref,tab_MJP,tab_MJP_warp,tab_MJP_mixture,tab_ensemble)
+
+
+colnames(tab_tot) =colnams
+row_group_label_fonts <- list(list(bold = T, italic = F),list(bold = F, italic = F))
+n_cols = length(colnams)
+tab_tex = kableExtra::kbl(tab_tot,booktabs = T, align = c("l","l","l","c","c","c","c","c"), linesep = '', format = "latex",escape = FALSE, digits = 5, longtable = T, label = "prediction_scores",
+                          caption = "Prediction scores from $k$-fold cross-prediction procedures in terms of average ranked probability score and average log score, with standard deviations across folds in parentheses. ``Exogenous info.'' indicates whether the rail characteristics described in \\Cref{sec:data} are included: Yes (global) uses \\cref{eq:trans_rates_covariates}; Yes (state-spec.) uses \\cref{eq:trans_rates_covariates2}. ``\\# Pars.'' indicates the number of estimated model parameters. Bold numbers indicate best performance within a model class (where applicable).", 
+                          ) %>%
+  column_spec(1, bold=T) %>%
+  collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts) %>%
+  row_spec(3, extra_latex_after = "\n\\addlinespace[0.5em]")   %>%
+  row_spec(5, extra_latex_after = "\n\\addlinespace[0.5em]")   %>%
+  row_spec(11, extra_latex_after = "\n\\addlinespace[0.5em]")   %>%
+  row_spec(14, extra_latex_after = "\n\\addlinespace[0.5em]")   %>%
+  row_spec(17, extra_latex_after = "\n\\addlinespace[0.5em]")   %>%
+  row_spec(20, extra_latex_after = "\n\\addlinespace[0.5em]")   %>%
+  row_spec(25, extra_latex_after = "\n\\addlinespace[0.5em]")   %>%
+  row_spec(27, extra_latex_after = "\n\\addlinespace[0.5em]")   %>%
+  row_spec(29, extra_latex_after = "\n\\addlinespace[0.5em]")   %>%
+  row_spec(31, extra_latex_after = "\n\\addlinespace[0.5em]")   %>%
+  row_spec(35, extra_latex_after = "\n\\addlinespace[0.5em]")   %>%
+  row_spec(37, extra_latex_after = "\n\\addlinespace[0.5em]")   %>%
+  row_spec(39, extra_latex_after = "\n\\addlinespace[0.5em]")   %>%
+  row_spec(41, extra_latex_after = "\n\\addlinespace[0.5em]") %>%
+  kable_styling(latex_options = c("repeat_header"),
+                #repeat_header_continued = "\\textit{(Continued on next page...)}", 
+                repeat_header_text = "\\textit{(continued)}", 
+                repeat_header_method = "replace") 
+tab_tex <- as.character(tab_tex)
+tab_tex <- gsub("\\\\pagebreak\\[0\\]", "", tab_tex)
+tab_tex <- gsub("\\\\\\\\(\\s*\n)","\\\\\\\\*\\1",tab_tex,perl = TRUE)
+writeLines(tab_tex, "figures/forecast_error_tab_tot.tex")
+
+
+  # row_spec(4,  extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  # row_spec(6, extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  # row_spec(8, extra_latex_after = sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  #footnote(number = c("Exogenous information indicates whether the rail characteristics described in \\\\Cref{sec:data} are included: Yes (global) uses \\\\cref{eq:trans_rates_covariates}."),escape = FALSE, general_title = "", threeparttable = TRUE) %>%
+
+# tab_tex <- as.character(tab_tex)
+# lines <- strsplit(tab_tex, "\n", fixed = TRUE)[[1]]
+# start <- grep("^\\\\toprule$", lines)[1] 
+# end   <- tail(grep("^\\\\bottomrule$", lines), 1)
+# body_lines <- lines[start:end]
+# writeLines(body_lines, "figures/forecast_error_tab_tot_rows.tex", useBytes = TRUE)
+
+
+
+
+# colnames(tab_ensemble) = colnams
+# row_group_label_fonts <- list(list(bold = T, italic = F),list(bold = F, italic = F))
+# n_cols = 6
+# kableExtra::kbl(tab_ensemble,booktabs = T, align = c("l","l","l","c","c","c","c"), linesep = '', format = "latex",escape = FALSE, digits = 5) %>%
+#   column_spec(1, bold=T) %>%
+#   collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts) %>%
+#   writeLines(con = paste0("figures/forecast_error_tab_ensemble",".tex"))
+
+
+
+
+
+##############################
+### ESTIMATION DIAGNOSTICS ###
+##############################
+
+files <- list.files("diagnostics_V3", pattern = "\\.csv$", full.names = TRUE)
+#files = files[!grepl("v2",files)]
+file_names <- basename(files)
+base_names <- sub("_fold_\\d+\\.csv$", "", file_names)
+fold_numbers <- as.integer(sub(".*_fold_(\\d+)\\.csv$", "\\1", file_names))
+file_info <- data.frame(file = files,name = file_names,base = base_names,fold = fold_numbers,stringsAsFactors = FALSE)
+file_info <- file_info[order(file_info$base, file_info$fold), ]
+diagnostics_list <- split(file_info, file_info$base)
+diagnostics_data <- lapply(diagnostics_list, function(group) {
+  out <- lapply(seq_len(nrow(group)), function(i) {df <- read.csv(group$file[i]); df;})
+  names(out) <- paste0("fold_", group$fold)
+  out
+})
+
+diag_df <- do.call(rbind, lapply(names(diagnostics_data), function(model) {
+  folds_list <- diagnostics_data[[model]]
+  do.call(rbind, lapply(names(folds_list), function(fold_name) {
+    df <- folds_list[[fold_name]]
+    df$model <- model
+    df$fold  <- as.integer(sub("fold_", "", fold_name))
+    df
+  }))
+}))
+diag_df <- diag_df[, c("model", "fold", "convergence", "grad_norm", "AIC")]
+diag_df <- diag_df[order(diag_df$model, diag_df$fold), ]
+
+#187       gerlang_cov1_exp_exp_all_no_warp_mixture4    2           1 8.958703e-04 5641.536
+#260 gerlang_relax_cov1_exp_exp_all_no_warp_mixture4    5           1 1.192478e-04 5673.201
+#296   tridiagonal_cov0_exp_exp_all_no_warp_mixture4    1           1 6.085386e-05 5758.775
+
+
+diag_df$fold <- as.integer(diag_df$fold)
+AIC_w <- with(diag_df, tapply(AIC, list(model, fold), identity))
+AIC_w <- AIC_w[, order(as.integer(colnames(AIC_w))), drop = FALSE]
+colnames(AIC_w) <- paste0("AICf", colnames(AIC_w))
+GN_w <- with(diag_df, tapply(grad_norm, list(model, fold), identity))
+GN_w <- GN_w[, order(as.integer(colnames(GN_w))), drop = FALSE]
+colnames(GN_w) <- paste0("gradf", colnames(GN_w))
+folds <- sort(unique(diag_df$fold))
+AIC_GN_tab <- cbind(AIC_w, GN_w)
+AIC_GN_tab <- AIC_GN_tab[, as.vector(rbind(paste0("AICf", folds),paste0("gradf", folds))), drop = FALSE]
+
+nams2 = c(nams_MJP, nams_MJP_warp,nams_MJP_mixture )
+missing <- setdiff(nams2, rownames(AIC_GN_tab))
+if(length(missing) > 0) warning("These names in nams2 are not in AIC_GN_tab: ", paste(missing, collapse=", "))
+keep <- intersect(nams2, rownames(AIC_GN_tab))
+AIC_GN_tab <- AIC_GN_tab[keep, , drop = FALSE]
+param_map <- c(
+  gerlang = "$\\bm{A}_{\\RN{1}}$: Nearest class",
+  gerlang_relax = "$\\bm{A}_{\\RN{2}}$: Relaxed Erlang",
+  bidiagonal = "$\\bm{A}_{\\RN{3}}$: Up to 2 classes ahead",
+  tridiagonal = "$\\bm{A}_{\\RN{4}}$: Up to 3 classes ahead",
+  free_upper_tri = "$\\bm{A}_{\\RN{5}}$: Free upper-triangular"
+)
+cov_map <- c(
+  cov0 = "No",
+  cov1 = "Yes (global)",
+  cov2 = "Yes (state-spec.)"
+)
+model_map <- c(
+  no_warp = "Markov jump process",
+  warp    = "\\makecell[l]{\\textbf{Model with modified}\\\\ \\textbf{sojourn time estimates}}",
+  mixture = "Mixture Markov jump process ($G=4$)"
+)
+rn <- rownames(AIC_GN_tab)
+gen <- sub("_cov\\d+_.*$", "", rn)
+cov <- sub("^.*_(cov\\d)_.*$", "\\1", rn)
+model_type <- ifelse(
+  grepl("_mixture\\d+$", rn), "mixture",
+  ifelse(grepl("_no_warp$", rn), "no_warp",
+         ifelse(grepl("_warp$", rn), "warp", NA))
+)
+pretty_df <- data.frame(
+  Model = unname(model_map[model_type]),
+  param = unname(param_map[gen]),
+  Covariates = unname(cov_map[cov]),
+  stringsAsFactors = FALSE
+)
+AIC_GN_df <- cbind(pretty_df, data.frame(AIC_GN_tab, check.names = FALSE))
+
+AIC_GN_df_fmt <- AIC_GN_df
+num_cols <- names(AIC_GN_df_fmt)[sapply(AIC_GN_df_fmt, is.numeric)]
+grad_cols <- grep("grad_norm|GN|grad", num_cols, value = TRUE, ignore.case = TRUE)
+aic_cols  <- setdiff(num_cols, grad_cols)
+fmt_sci <- function(x, digits = 2) formatC(x, format = "e", digits = digits)
+fmt_fix <- function(x, digits = 2) formatC(x, format = "f", digits = digits)
+
+AIC_GN_df_fmt[grad_cols] <- lapply(AIC_GN_df_fmt[grad_cols], fmt_sci, digits = 2)
+AIC_GN_df_fmt[aic_cols]  <- lapply(AIC_GN_df_fmt[aic_cols],  fmt_fix, digits = 1)
+
+rownames(AIC_GN_df_fmt) = 1:NROW(AIC_GN_df_fmt)
 row_group_label_fonts <- list(
   list(bold = T, italic = F),
   list(bold = F, italic = F)
 )
-kableExtra::kbl(collapse_rows_dt,booktabs = T, align = c("l","l","c","c","c","c","c"), linesep = '', format = "latex",escape = FALSE, digits = 5) %>%
+
+n_cols = 13
+colnames(AIC_GN_df_fmt) = c(c("Method", "Model", "Exogenous info."),rep(c("AIC", "$\\frac{1}{n}||\\nabla \\mathcal{D} (\\bm \\theta)||_2$"), 5))
+kableExtra::kbl(AIC_GN_df_fmt,booktabs = T, linesep = '', format = "latex",escape = FALSE, 
+                align = c("l","l","l","c","c","c","c","c","c","c","c", "c", "c")) %>%
   column_spec(1, bold=T) %>%
-  collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts)
+  collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts) %>%
+  footnote(number = c("Exogenous information indicates whether the rail characteristics described in \\\\Cref{sec:data} are included: Yes (global) uses \\\\cref{eq:trans_rates_covariates}; Yes (state-spec.) uses \\\\cref{eq:trans_rates_covariates2}."),escape = FALSE, general_title = "", threeparttable = TRUE) %>%
+  row_spec(3,  extra_latex_after = "\n\\addlinespace[0.5em]") %>%# sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(6,  extra_latex_after = "\n\\addlinespace[0.5em]")%>%# sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(9,  extra_latex_after = "\n\\addlinespace[0.5em]")%>%# sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(12,  extra_latex_after = "\n\\addlinespace[0.5em]")%>%# sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(17,  extra_latex_after = "\n\\addlinespace[0.5em]")%>%# sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(19,  extra_latex_after = "\n\\addlinespace[0.5em]")%>%# sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(21,  extra_latex_after = "\n\\addlinespace[0.5em]")%>%# sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(23,  extra_latex_after = "\n\\addlinespace[0.5em]")%>%# sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(27,  extra_latex_after = "\n\\addlinespace[0.5em]")%>%# sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(29,  extra_latex_after = "\n\\addlinespace[0.5em]")%>%# sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(31,  extra_latex_after = "\n\\addlinespace[0.5em]")%>%# sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(33,  extra_latex_after = "\n\\addlinespace[0.5em]")%>%# sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  add_header_above(c(" " = 3,"Fold 1" = 2,"Fold 2" = 2,"Fold 3" = 2,"Fold 4" = 2,"Fold 5" = 2),escape = FALSE) %>%
+  writeLines(con = paste0("figures/AIC_tab",".tex"))
+
+#row_spec(3, extra_latex_after = "\n\\addlinespace[0.5em]")
+
+###########################
+### TRANSITION PATTERNS ###
+###########################
+d = read.csv("defect_data.csv"); states <- c(1,2,3,4,5); m <- length(states) ; track <- unique(d$Track); exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm")
+set.seed(1); k= 5; bin_km= 0.1
+d$pos_bin=floor(d$pos / bin_km); d$group_id=interaction(d$Track0, d$pos_bin, drop = TRUE); 
+groups=levels(d$group_id); G=length(groups)
+fold_id=sample(rep(1:k, length.out = G)); names(fold_id)=groups; fold_size=integer(k)
+
+N_obs_by_fold <- vector("list", k)
+names(N_obs_by_fold) <- paste0("fold_", 1:k)
+N_exp_by_model <- setNames(vector("list", length(pred_list)), names(pred_list))
+for(j in names(pred_list)) {
+  N_exp_by_model[[j]] <- vector("list", k)
+  names(N_exp_by_model[[j]]) <- paste0("fold_", 1:k)
+}
+for(i in 1:k){
+  test_grps <- names(fold_id)[fold_id == i]
+  pred.idx  <- which(d$group_id %in% test_grps)
+  d.test    <- d[pred.idx, , drop = FALSE]
+  s1i <- d.test$s1
+  N_obs_by_fold[[i]] <- with(d.test, table(factor(s1, levels = states),factor(s2, levels = states)))
+  for(j in names(pred_list)){
+    pred <- as.matrix(pred_list[[j]][[i]])
+    Nhat <- matrix(0, nrow = m, ncol = m,dimnames = list(from = states, to = states))
+    for(a in states){
+      idx <- which(s1i == a)
+      if(length(idx) > 0){Nhat[a, ] <- colSums(pred[idx, , drop = FALSE])}
+    }
+    N_exp_by_model[[j]][[i]] <- Nhat
+  }
+}
+
+pool_counts <- function(N_list) Reduce(`+`, lapply(N_list, as.matrix))
+N_obs_pool <- pool_counts(N_obs_by_fold)
+N_exp_pool_by_model <- lapply(N_exp_by_model, pool_counts)
+row_norm_diff <- function(N_obs, N_hat, eps = 1e-12) {
+  row_tot <- rowSums(N_obs)
+  sweep(N_obs - N_hat, 1, pmax(row_tot, eps), "/")
+}
+R_pool_by_model <- lapply(N_exp_pool_by_model, function(Nhat_pool) {
+  row_norm_diff(N_obs_pool, Nhat_pool)
+})
+
+P_obs_pool <- sweep(N_obs_pool, 1, pmax(rowSums(N_obs_pool), 1), "/")
+P_obs_pool <- round(P_obs_pool, 3)
+
+fmt_transition_table <- function(mat, states_nams, digits = 3) {
+  n <- nrow(mat)
+  out <- matrix("0", nrow = n, ncol = n)
+  upper_idx <- upper.tri(mat, diag = TRUE)
+  out[upper_idx] <- formatC(mat[upper_idx], format = "f", digits = digits)
+  out <- cbind(Class = states_nams, out)
+  out <- as.data.frame(out, stringsAsFactors = FALSE)
+  colnames(out) <- c("Class", states_nams)
+  out
+}
+
+m1 = "bidiagonal_cov1_exp_exp_all_no_warp"
+m2 = "bidiagonal_cov2_exp_exp_all_no_warp"
+m3 = "bidiagonal_cov1_exp_exp_all_no_warp_mixture4"
+states_nams = c("3", "2B", "2A", "1", "0")
+
+
+P_tbl <- fmt_transition_table(P_obs_pool, states_nams, digits = 3)
+kableExtra::kbl(P_tbl, booktabs = TRUE, linesep = '', format = "latex", escape = FALSE, align = "c|ccccc") %>% writeLines(con = paste0("figures/transition_matrix",".tex"))
+
+R_bl <- fmt_transition_table(R_pool_by_model[[m1]], states_nams, digits = 3)
+kableExtra::kbl(R_bl, booktabs = TRUE, linesep = '', format = "latex", escape = FALSE, align = "c|ccccc") %>% writeLines(con = paste0("figures/", "expected_transition_", m1, ".tex"))
+
+R_bl <- fmt_transition_table(R_pool_by_model[[m2]], states_nams, digits = 3)
+kableExtra::kbl(R_bl, booktabs = TRUE, linesep = '', format = "latex", escape = FALSE, align = "c|ccccc") %>% writeLines(con = paste0("figures/", "expected_transition_", m2, ".tex"))
+
+R_bl <- fmt_transition_table(R_pool_by_model[[m3]], states_nams, digits = 3)
+kableExtra::kbl(R_bl, booktabs = TRUE, linesep = '', format = "latex", escape = FALSE, align = "c|ccccc") %>% writeLines(con = paste0("figures/", "expected_transition_", m3, ".tex"))
+
+
+L1 <- sapply(R_pool_by_model, function(R) {
+  R2 <- R[-m, -m, drop = FALSE]
+  sum(abs(R2), na.rm = TRUE)
+})
+
+nams_all <- c(nams_ref, nams_MJP, nams_MJP_warp, nams_MJP_mixture)
+
+
+#Predictive entropy (sharpness)
+entropy_rows <- function(P, eps = 1e-12) {P <- pmax(P, eps); -rowSums(P * log(P))}
+
+mean_entropy_fold <- function(P, eps = 1e-12) {  mean(entropy_rows(P, eps = eps))}
+mean_entropy_fold_norm <- function(P, m, eps = 1e-12) {mean_entropy_fold(P, eps = eps) / log(m)}
+fold_wts <- sapply(seq_len(k), function(i) nrow(pred_list[[names(pred_list)[1]]][[i]]))
+fold_wts <- fold_wts / sum(fold_wts)
+
+H_mean_by_model <- sapply(names(pred_list), function(mod) {
+  H_folds <- sapply(seq_len(k), function(i) mean_entropy_fold(as.matrix(pred_list[[mod]][[i]])))
+  sum(fold_wts * H_folds)
+})
+Hnorm_mean_by_model <- sapply(names(pred_list), function(mod) {
+  Hn_folds <- sapply(seq_len(k), function(i) mean_entropy_fold_norm(as.matrix(pred_list[[mod]][[i]]), m = m))
+  sum(fold_wts * Hn_folds)
+})
+Htab= H_mean_by_model[names(H_mean_by_model) %in% nams_all]
+Hnormtab <- Hnorm_mean_by_model[names(Hnorm_mean_by_model) %in% nams_all]
+
+
+L1tab <- L1[names(L1) %in% nams_all]
+collapse_rows_dt1 <- rbind(naive, regression, forest, mjp, mjp_warp, mjp_mixture)
+collapse_rows_dt1 <- collapse_rows_dt1[c("Model", "param", "Covariates")]
+nams_idx2 <- match(nams_all, names(L1tab))
+collapse_rows_dt1$L1 <- L1tab[nams_idx2]
+
+nams_idx3 <- match(nams_all, names(Hnormtab))
+
+collapse_rows_dt1$Entropy_norm <- Hnormtab[nams_idx3]
+
+colnames(collapse_rows_dt1) <- c("Method", "Model", "Exogenous info.", "L1-norm", "Entropy")
+n_cols = 5
+kableExtra::kbl(collapse_rows_dt1,booktabs = T, align = c("l","l","l"), linesep = '', format = "latex",escape = FALSE, digits = 4) %>%
+  column_spec(1, bold=T) %>% collapse_rows(1:2, latex_hline = 'major',row_group_label_position = 'stack',row_group_label_fonts = row_group_label_fonts) %>%
+  row_spec(3,  extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(5,  extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(11, extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(14, extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(17, extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(20,  extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(25,  extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(27, extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(29, extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(31,  extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(35, extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(37, extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(39, extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  row_spec(41, extra_latex_after = "\n\\addlinespace[0.5em]") %>%#sprintf("\\addlinespace[0.3em]\n\\cdashline{2-%d}\n\\addlinespace[0.3em]", n_cols)) %>%
+  #footnote(number = c("Exogenous information indicates whether the rail characteristics described in \\\\Cref{sec:data} are included: Yes (global) uses \\\\cref{eq:trans_rates_covariates}; Yes (state-spec.) uses \\\\cref{eq:trans_rates_covariates2}."),escape = FALSE, general_title = "", threeparttable = TRUE) %>%
+  writeLines(con = paste0("figures/transition_structure_L1",".tex"))
+
 
 
 ##############################
@@ -207,8 +653,6 @@ library(reshape2)
 library(tidyr)
 
 
-
-
 m = 5
 states = c("3", "2B", "2A", "1", "0")
 #par_list = readRDS("results/estimated_model_pars.Rdata")
@@ -217,77 +661,99 @@ exo.cols <- c("MBT.norm","speed.norm","profil.norm", "steel.norm", "invRad.norm"
 z = as.matrix(d[,exo.cols])
 idx = 1 #sample(1:NROW(d), size = 1)
 text.size <- 11
-ndays = 365*8
-
-
-source("plot_functions.R")
-nam = "gerlang_TRUE_exp_exp_all_no_warp"; generator = "gerlang"; warp_indicator = F;
-k = 1; base_size=11;
-trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
-trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
+ndays = 365*10
 
 
 source("plot_functions.R")
 w <- 2; h <- 1.5  # target PDF size in inches
 #k <- size_scaler(w, h, 3, 3) 
 k = 1; base_size=6;
-nam = "gerlang_TRUE_exp_exp_all_no_warp"; generator = "gerlang"; warp_indicator = F;
-p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
-p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
-ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")
-ggplot2::ggsave(paste0("figures/tpm_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p2,width = w, height = h, units = "in")
-
-nam = "gerlang_relax_TRUE_exp_exp_all_no_warp"; generator = "gerlang_relax"; warp_indicator = F;
-p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
-p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
-ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")
-ggplot2::ggsave(paste0("figures/tpm_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p2,width = w, height = h, units = "in")
+nam = "bidiagonal_cov1_exp_exp_all_no_warp"; generator = "bidiagonal"; warp_indicator = F; mixtures = FALSE; K = 4; state_covs = F;
+p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k, mixture = mixtures, state_covs = state_covs, K = K)
+p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k, mixture = mixtures, state_covs = state_covs, K = K)
+ggplot2::ggsave(paste0("figures/trans_dist_", nam,".pdf"), p1,width = w, height = h, units = "in")
+ggplot2::ggsave(paste0("figures/tpm_dist_", nam,".pdf"), p2,width = w, height = h, units = "in")
 
 
-nam = "bidiagonal_TRUE_exp_exp_all_no_warp"; generator = "bidiagonal"; warp_indicator = F;
-p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
-p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
-ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")
-ggplot2::ggsave(paste0("figures/tpm_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p2,width = w, height = h, units = "in")
+nam = "bidiagonal_cov2_exp_exp_all_no_warp"; generator = "bidiagonal"; warp_indicator = F; mixtures = FALSE; K = 1; state_covs = T;
+p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k, mixture = mixtures, state_covs = state_covs, K = K)
+p1
+p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k, mixture = mixtures, state_covs = state_covs, K = K)
+ggplot2::ggsave(paste0("figures/trans_dist_", nam,".pdf"), p1,width = w, height = h, units = "in")
+ggplot2::ggsave(paste0("figures/tpm_dist_", nam,".pdf"), p2,width = w, height = h, units = "in")
+
+nam = "bidiagonal_cov1_exp_exp_all_no_warp_mixture4"; generator = "bidiagonal"; warp_indicator = F; mixtures = TRUE; K = 4; state_covs = F;
+p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k, mixture = mixtures, state_covs = state_covs, K = K)
+p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k, mixture = mixtures, state_covs = state_covs, K = K)
+ggplot2::ggsave(paste0("figures/trans_dist_", nam,".pdf"), p1,width = w, height = h, units = "in")
+ggplot2::ggsave(paste0("figures/tpm_dist_", nam,".pdf"), p2,width = w, height = h, units = "in")
 
 
-nam = "tridiagonal_TRUE_exp_exp_all_no_warp"; generator = "tridiagonal"; warp_indicator = F;
-p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
-p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
-ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")
-ggplot2::ggsave(paste0("figures/tpm_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p2,width = w, height = h, units = "in")
-
-nam = "free_upper_tri_TRUE_exp_exp_all_no_warp"; generator = "free_upper_tri"; warp_indicator = F;
-p1 <- trans_dist_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
-p2 <- trans_prob_fig(m, states, 1, nam, ndays, generator, warp_indicator,base_size = base_size, k = k)
-ggplot2::ggsave(paste0("figures/trans_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p1,width = w, height = h, units = "in")
-ggplot2::ggsave(paste0("figures/tpm_dist_", generator, ifelse(warp_indicator, "_warping", ""),".pdf"), p2,width = w, height = h, units = "in")
-
-
-# ggplot2::ggsave("figures/trans_prob_gerlang.pdf", p2,
-                # width = w, height = h, units = "in", device = cairo_pdf)
-# pdf(file = "figures/trans_dist_gerlang.pdf",width = 4, height = 3) 
-# p1
-# dev.off()
-# pdf(file = "figures/trans_dist_gerlang_warping.pdf",width = 4, height = 3) 
-# p2
-# dev.off()
-# pdf(file = "figures/trans_dist_bidiagonal_warping.pdf",width = 4, height = 3) 
-# p3
-# dev.off()
-
-# pdf(file = "figures/tpm_gerlang.pdf",width = 4, height = 3) 
-# p11
-# dev.off()
-# pdf(file = "figures/tpm_gerlang_warping.pdf",width = 4, height = 3) 
-# p22
-# dev.off()
-# pdf(file = "figures/tpm_bidiagonal_warping.pdf",width = 4, height = 3) 
-# p33
-# dev.off()
-
-
-
+### SOME TESTING
+# #test on effective time
+# nam = "bidiagonal_cov2_exp_exp_all_no_warp"; generator = "bidiagonal"; source("plot_functions.R")
+# tt <- (0:(ndays-1))/365
+# teff_list = rep(NA, length(tt)); count = 0
+# w_list = matrix(NA, nrow = length(tt), ncol = 5)
+# A_list = list()
+# dist = matrix(NA, nrow = (length(tt)), ncol =  5); count = 0
+# for(ttt in tt){
+#   count = count + 1
+#   teff <- MJP_effective_time(m, s1 = c(1), u = ttt,pars = get_pars(nam), z = matrix(z[idx, , drop = FALSE], nrow = 1), generator = generator, state_covs = T, covs_bin = T, mixture = F, warping = F,transient_dist_method = "pade")
+#   dist[count,] = MJP_predict(m, s1 = c(1), u = ttt,pars = get_pars(nam), z = matrix(z[idx, , drop = FALSE], nrow = 1), generator = generator, state_covs = T, covs_bin = T, mixture = F, warping = F,transient_dist_method = "pade", K=4)
+#   teff_list[count] = teff$t_eff
+#   w_list[count,] = teff$w
+#   A_list[[count]] = teff$A
+# }
+# 
+# 
+# count = 0; init =t(as.matrix(c(1,0,0,0,0)))
+# dist = matrix(NA, nrow = (length(tt)), ncol =  5); count = 0
+# for(ttt in tt){
+#   count = count + 1
+#   A = A_list[[count]]
+#   dist[count,] = init %*% as.matrix(expm(A*teff_list[count]))
+# }
+# 
+# plot(tt, dist[,1], type = "l")
+# lines(tt, dist[,2], col = 2)
+# lines(tt, dist[,3], col = 3)
+# lines(tt, dist[,4], col = 4)
+# lines(tt, dist[,5], col = 5)
+# 
+# 
+# plot(tt, w_list[,1], type = "l")
+# lines(tt, w_list[,2], col = 2)
+# lines(tt, w_list[,3], col = 3)
+# lines(tt, w_list[,4], col = 4)
+# lines(tt, w_list[,5], col = 5)
+# 
+# plot(tt, teff_list, type="l")
+# 
+# plot(tt, w_list[,1], type ="l")
+# lines(tt, w_list[,2], col = 2)
+# lines(tt, w_list[,3], col = 3)
+# lines(tt, w_list[,4], col = 4)
+# lines(tt, w_list[,5], col = 5)
+# 
+# 
+# A = make_A3(m = 5, c(1,0,100,0,
+#                     2,0,0,
+#                      .3,0,
+#                      50))
+#  
+# 
+# dist = matrix(NA, nrow = (length(tt)), ncol =  5); count = 0
+# for(ttt in tt/10){
+#   count = count + 1
+#   dist[count,] = t(as.matrix(c(1,0,0,0,0))) %*% as.matrix(expm(A*ttt))
+# }
+# 
+# plot(tt, dist[,1], type = "l")
+# lines(tt, dist[,2], col = 2)
+# lines(tt, dist[,3], col = 3)
+# lines(tt, dist[,4], col = 4)
+# lines(tt, dist[,5], col = 5)
 
 ### OLR logistic ###
 olr_cov = MASS::polr(as.factor(s2) ~ as.factor(s1) + t + MBT.norm + speed.norm + profil.norm + steel.norm + invRad.norm, data = d, method = "logistic")
@@ -389,7 +855,7 @@ make_boots = function(obs, y, quantiles, iters){
 }
 
 
-checkerboard_plot = function(obs, y, quantiles){
+checkerboard_plot = function(obs, y, quantiles, base_size = 11){
   forecast_quantile_matrix <- t(apply(y, 1, forecast_category, quantiles = quantiles))
   forecast_diff_matrix <- forecast_quantile_matrix - obs
   diff_df <- data.frame(forecast_diff_matrix)
@@ -397,13 +863,14 @@ checkerboard_plot = function(obs, y, quantiles){
   diff_df$Observation <- obs
   diff_df$ID <- 1:nrow(diff_df)  # Create an ID for each observation
   diff_df_long <- melt(diff_df, id.vars = c("ID", "Observation"), variable.name = "Quantile", value.name = "Forecast_Diff")
-  text.size=10
+  text.size=base_size #10
 
   diff_df_long$Quantile <- as.numeric(as.character(diff_df_long$Quantile))
   
   p1 = ggplot(diff_df_long, aes(x = Quantile, y = Forecast_Diff)) +
     geom_tile(aes(fill = after_stat(count)), color = "white", stat = "bin2d", binwidth =  c(length(quantiles)/100, 1)) +
-    scale_fill_gradient(low = "white", high = "black") +
+    scale_fill_gradient(low = "grey90", high = "black") +
+    #scale_fill_gradient(low = "white", high = "black") +
     labs(x = "Forecast quantiles", y = "Category error") +
     scale_x_continuous(breaks = seq(min(diff_df_long$Quantile), max(diff_df_long$Quantile), by = 0.4)) + # Adjust 'by' as needed
     theme(
@@ -413,20 +880,20 @@ checkerboard_plot = function(obs, y, quantiles){
       plot.background = element_rect(fill = NA, color = NA),  
       panel.grid.minor = element_blank(),  
       panel.grid.major = element_blank(),
-      panel.border = element_rect(color = "black", fill = NA, linewidth = .5)
+      panel.border = element_rect(color = "grey", fill = NA, linewidth = .5)
     )
   return(p1)
 }
 
 
-reliability_plot = function(Cq, CqCI, quantiles ){
+reliability_plot = function(Cq, CqCI, quantiles, base_size = 11 ){
   data <- data.frame(
     Time = quantiles,
     Value = r$Cq,
     Lower = rb$Cq[1,],
     Upper = rb$Cq[2,]
   )
-  text.size = 11
+  text.size = base_size
   p2 = ggplot(data, aes(x = Time, y = Value)) +
     geom_abline(slope = 1, intercept = 0, color = "black", linetype = "dashed") +  
     geom_line(color = "black") +                
@@ -440,7 +907,7 @@ reliability_plot = function(Cq, CqCI, quantiles ){
     theme(
       legend.position = "none", 
       text = element_text(size = text.size, family = "serif"),  
-      panel.background = element_rect(fill = "white", color = "black"),
+      panel.background = element_rect(fill = "white", color = "grey"),
       panel.grid.minor = element_blank(),  
       panel.grid.major = element_blank(),  
       plot.background = element_rect(fill = "white", color = NA)
@@ -455,37 +922,87 @@ reliability_plot = function(Cq, CqCI, quantiles ){
   return(p2)
 }
 
+pool_cv_preds <- function(pred_list, model, k) {
+  OBS_all <- integer(0)
+  Y_all   <- NULL
+  for (fold in 1:k) {
+    obs <- pred_list[["obs"]][[fold]]
+    OBS <- apply(obs, 1, which.max)
+    y   <- as.matrix(pred_list[[model]][[fold]])
+    OBS_all <- c(OBS_all, OBS)
+    Y_all   <- rbind(Y_all, y)
+  }
+  list(OBS = OBS_all, Y = Y_all)
+}
 
 #pred_list = readRDS("results/model_predictions_V3.Rdata")
 #pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] )/2#+ pred_list[["empirical_dist_corr"]])/3
 #pred_list[["ensemble2"]] =(pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/2
 #pred_list[["ensemble3"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_softplus_softplus_all"]] + pred_list[["empirical_dist_smart"]])/3
 #pred_list[["ensemble"]] = (pred_list[["olr_cov"]] + pred_list[["free_upper_tri_TRUE_all"]] )/2
-nams = c("uniform","olr_cov", "bidiagonal_TRUE_exp_exp_all_warp", "ensemble_all")
-fold_numbers = 1
-for(i in 1:length(nams)){
-  obs = pred_list[["obs"]][[fold_numbers]]
-  OBS = apply(obs, 1, which.max)
-  y = pred_list[[nams[i]]][[fold_numbers]]
-  quantiles = seq(0.05, 0.95, by = 0.1)
-  iters = 200
-  text.size = 11
+
+
+nams <- c("uniform","olr_cov", "random_forest_cov",
+          "bidiagonal_cov1_exp_exp_all_no_warp",
+          "bidiagonal_cov2_exp_exp_all_no_warp",
+          "bidiagonal_cov1_exp_exp_all_warp",
+          "bidiagonal_cov1_exp_exp_all_no_warp_mixture4",
+          "ensemble_all")
+
+quantiles <- seq(0.05, 0.95, by = 0.1)
+iters <- 200
+text.size <- 11
+k <- 5
+
+for (mod in nams) {
+  pooled <- pool_cv_preds(pred_list, mod, k = k)
+  OBS <- pooled$OBS
+  y   <- pooled$Y
   
-  r = multi.reliable(OBS, y,quantiles)
-  rb = make_boots(OBS, y, quantiles, iters)
+  r  <- multi.reliable(OBS, y, quantiles)
+  rb <- make_boots(OBS, y, quantiles, iters)
   
-  p1 = checkerboard_plot(OBS, y, quantiles)
-  p2 = reliability_plot(r, rb, quantiles)
-  p3 = ggdraw() + draw_plot(p2) + draw_plot(p1, x = 0.6, y = 0.15, width = .35, height = .5)
+  p1 <- checkerboard_plot(OBS, y, quantiles)
+  p2 <- reliability_plot(r, rb, quantiles)
+  p3 <- ggdraw() + draw_plot(p2) + draw_plot(p1, x = 0.59, y = 0.15, width = .4, height = .5)
   
-  nfil = paste0("figures/reliability_diag_", nams[i],".pdf")
-  pdf(file = nfil,width = 4, height = 3) 
+  nfil <- paste0("figures/reliability_diag_", mod, "_pooledCV.pdf")
+  pdf(file = nfil, width = 4, height = 3)
   print(p3)
   dev.off()
   graphics.off()
   
-  print(nams[i])
+  print(mod)
 }
+
+
+# 
+# 
+# nams = c("uniform","olr_cov", "random_forest_cov", "bidiagonal_cov1_exp_exp_all_no_warp", "bidiagonal_cov2_exp_exp_all_no_warp", "bidiagonal_cov1_exp_exp_all_warp", "bidiagonal_cov1_exp_exp_all_no_warp_mixture4", "ensemble_all")
+# fold_numbers = 1
+# for(i in 1:length(nams)){
+#   obs = pred_list[["obs"]][[fold_numbers]]
+#   OBS = apply(obs, 1, which.max)
+#   y = pred_list[[nams[i]]][[fold_numbers]]
+#   quantiles = seq(0.05, 0.95, by = 0.1)
+#   iters = 200
+#   text.size = 11
+#   
+#   r = multi.reliable(OBS, y,quantiles)
+#   rb = make_boots(OBS, y, quantiles, iters)
+#   
+#   p1 = checkerboard_plot(OBS, y, quantiles)
+#   p2 = reliability_plot(r, rb, quantiles)
+#   p3 = ggdraw() + draw_plot(p2) + draw_plot(p1, x = 0.59, y = 0.15, width = .4, height = .5)
+#   
+#   nfil = paste0("figures/reliability_diag_", nams[i],".pdf")
+#   pdf(file = nfil,width = 4, height = 3) 
+#   print(p3)
+#   dev.off()
+#   graphics.off()
+#   
+#   print(nams[i])
+# }
 #good
 
 ####################

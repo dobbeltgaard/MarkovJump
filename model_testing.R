@@ -30,7 +30,7 @@ obs = make_Ptu_obs(m, d.test$s2)
 
 
 
-gen = "bidiagonal"; 
+gen = "gerlang"; 
 if(gen == "gerlang"){generator_type = 0; beta_base = rep(-1,m-1); }
 if(gen == "gerlang_relax"){generator_type = 1; beta_base = rep(-1,m-1); }
 if(gen == "free_upper_tri"){generator_type = 2; beta_base = rep(-1,m*(m-1)/2); }
@@ -64,6 +64,23 @@ foo2 = NULL; foo2 <- nlminb(l$par, l$fn, l$gr, control = list(eval.max = 2000, i
 foo2
 
 
+## WITH APPENDED STATES
+gen = "gerlang"; k = as.integer(2)
+if(gen == "gerlang"){generator_type = 0; beta_base = rep(0,m-1); }
+tmb_nam = "FUNCS_MJP_with_TMB_appended"
+reload_tmb(paste0(tmb_nam, ".cpp"))
+data <- list(s1 = d.train$s1,s2 = d.train$s2,u = d.train$t,z = as.matrix(d.train[, exo.cols]),m = m,generator_type = generator_type,cov_type = as.integer(T),use_log_score = as.integer(T),use_rps_score = as.integer(T), use_brier_score = 0,
+             k=k)
+beta = c(beta_base, rep(0,length(exo.cols)))
+parameters <- list(theta = beta)
+l <- MakeADFun(data = data, parameters = parameters, DLL = tmb_nam)
+foo1 = NULL; #foo1 <- nlminb(l$par, l$fn, l$gr, control = list(eval.max = 2000, iter.max = 2000))
+foo1 <- nlminb(l$par, l$fn, l$gr)
+pred = MJP_predict(m = m, s1 = d.test$s1, u = d.test$t, pars = foo1$par, z = as.matrix(d.test[,exo.cols]), generator = gen, link_type_base = "exp", link_type_covs ="exp", covs_bin = T, transient_dist_method = "pade", 
+                   warping = F, append = T, k = k )
+err1 = rps_vectors(m, pred, obs)
+mean(logscore_vectors(m, pred, obs))
+mean(rps_vectors(m, pred, obs))
 
 
 
@@ -91,8 +108,7 @@ simulate_MCM = function(m, A, N,Tt){
 }
 
 
-m <- 5
-A <- make_A3(m, rep(0.5, m^3))
+
 set.seed(1)
 
 d = as.data.frame(simulate_MCM(m, A, 3600, 0.5))

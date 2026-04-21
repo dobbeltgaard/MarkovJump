@@ -31,7 +31,8 @@ matrix<Type> make_A2(int m, const vector<Type> &lambda) {
       }
     }
   }
-  for (int i = 0; i < m; ++i) {A(i, i) = -A.row(i).sum(); }
+  for (int i = 0; i < m; ++i) A(i,i) = Type(0);
+  for (int i = 0; i < m; ++i) { A(i, i) = -A.row(i).sum();}
   return A;
 }
 
@@ -108,6 +109,32 @@ Type rps_score(const vector<Type> &pred, const vector<Type> &obs) {
 }
 
 template<class Type>
+vector<Type> expected_sojourn_exact(int m, Type u, int s1, matrix<Type> A, Type dt = Type(0.005)) {
+  vector<Type> mu(m);
+  mu.setZero();
+  if (s1 >= m - 1) {
+    mu(m - 1) = u;
+    return mu;
+  }
+  matrix<Type> S = A.block(0, 0, m - 1, m - 1);
+  matrix<Type> expSu = atomic::expm(matrix<Type>(S * u));
+  matrix<Type> I(m - 1, m - 1);
+  I.setZero();
+  for (int i = 0; i < m - 1; ++i) I(i, i) = Type(1);
+  matrix<Type> rhs = I - expSu;
+  matrix<Type> Minv = matrix<Type>(-S).inverse();
+  matrix<Type> F = Minv * rhs;
+  Type sum_trans = Type(0);
+  for (int j = 0; j < m - 1; ++j) {
+    mu(j) = F(s1, j);
+    sum_trans += mu(j);
+  }
+  mu(m - 1) = u - sum_trans;
+  
+  return mu;
+}
+
+template<class Type>
 Type objective_function<Type>::operator() () {
   DATA_IVECTOR(s1);
   DATA_IVECTOR(s2);
@@ -122,6 +149,7 @@ Type objective_function<Type>::operator() () {
   PARAMETER_VECTOR(theta);
   
   const int n = s1.size();
+  int p = z.cols();
   Type total_score = 0.0;
   
   // --- Build A and compute base_len ---
@@ -174,7 +202,7 @@ Type objective_function<Type>::operator() () {
       if (use_brier_score) total_score += brier_score(pred, obs);
       if (use_rps_score)   total_score += rps_score(pred, obs);
     }
-  } else { // cov_type == 1
+  } else if(cov_type == 1) { // cov_type == 1
     vector<Type> theta_cov = theta.segment(base_len, theta.size() - base_len);
     for (int i = 0; i < n; ++i) {
       vector<Type> obs(m); obs.setZero();
@@ -189,6 +217,35 @@ Type objective_function<Type>::operator() () {
       matrix<Type> tpm = atomic::expm( matrix<Type>(A * cov_time) );
       vector<Type> pred = tpm.row(start).transpose();
       
+      if (use_log_score)   total_score += log_score(pred, obs);
+      if (use_brier_score) total_score += brier_score(pred, obs);
+      if (use_rps_score)   total_score += rps_score(pred, obs);
+      } 
+  } else if(cov_type == 2) {
+    vector<Type> theta_cov = theta.segment(base_len, theta.size() - base_len);
+    for (int i = 0; i < n; ++i) {
+      vector<Type> obs(m); obs.setZero();
+      int start = s1(i) - int(1);
+      int end   = s2(i) - int(1);
+      obs(end)  = Type(1);
+
+      vector<Type> mu = expected_sojourn_exact(m, u(i), start, A);
+
+      //vector<Type> mu_trans = mu.head(m-1);
+      //vector<Type> w = mu_trans / mu_trans.sum();
+      vector<Type> w = mu;
+      w /= mu.sum();
+
+      Type cov_linpred = 0.0;
+      for (int ii = 0; ii < m - 1; ++ii) {
+        Type lp_ii = 0.0;
+        for (int j = 0; j < p; ++j) lp_ii += z(i,j) * theta_cov(ii * p + j);
+        cov_linpred += w(ii) * lp_ii;
+      }
+
+      Type cov_time = exp(cov_linpred) * u(i);
+      matrix<Type> tpm = atomic::expm( matrix<Type>(A * cov_time) );
+      vector<Type> pred = tpm.row(start).transpose();
       if (use_log_score)   total_score += log_score(pred, obs);
       if (use_brier_score) total_score += brier_score(pred, obs);
       if (use_rps_score)   total_score += rps_score(pred, obs);

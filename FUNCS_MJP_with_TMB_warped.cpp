@@ -34,9 +34,8 @@ matrix<Type> make_A2(int m, const vector<Type> &lambda) {
       }
     }
   }
-  for (int i = 0; i < m; ++i) {
-    A(i, i) = -A.row(i).sum();
-  }
+  for (int i = 0; i < m; ++i) A(i,i) = Type(0);
+  for (int i = 0; i < m; ++i) { A(i, i) = -A.row(i).sum();}
   return A;
 }
 
@@ -210,6 +209,7 @@ Type objective_function<Type>::operator() () {
   DATA_INTEGER(use_brier_score);
   PARAMETER_VECTOR(theta);
   int n = s1.size();
+  int p = z.cols();
   
   Type total_score = 0.0;
   matrix<Type> A(m, m);
@@ -247,6 +247,12 @@ Type objective_function<Type>::operator() () {
   vector<Type> xi(m);
   xi.setOnes();                           // initialize all to 1
   xi.head(m - 1) = softplus(xii);         // overwrite first m - 1 entries
+  xi(m - 1) = Type(1.0);
+  
+  Type meanlog = 0.0;
+  for (int j = 0; j < m - 1; ++j) meanlog += log(xi(j));
+  meanlog /= Type(m - 1);
+  xi.head(m - 1) = xi.head(m - 1) * exp(-meanlog);
   
   if (cov_type == 0) {
     for (int i = 0; i < n; ++i) {
@@ -256,7 +262,6 @@ Type objective_function<Type>::operator() () {
       obs(end)  = Type(1.0);
       
       vector<Type> mu = expected_sojourn_exact(m, u(i), start, A);
-      //vector<Type> mu=compute_conditional_sojourn(A, start, end, u(i));  // correct
       Type tau_eff = 0.0; 
       for (int j = 0; j < xi.size(); ++j) {tau_eff += mu(j) * xi(j);} // dot product
       
@@ -275,7 +280,6 @@ Type objective_function<Type>::operator() () {
       Type cov_linpred = 0.0;
       for (int j = 0; j < z.cols(); ++j) {cov_linpred += z(i, j) * theta_cov(j);}
       obs(end)  = Type(1.0);
-      //vector<Type> mu=compute_conditional_sojourn(A, start, end, u(i));  // correct
       vector<Type> mu = expected_sojourn_exact(m, u(i), start, A);
       Type tau_eff = 0.0; 
       for (int j = 0; j < xi.size(); ++j) {tau_eff += mu(j) * xi(j);} // dot product
@@ -286,10 +290,87 @@ Type objective_function<Type>::operator() () {
       if (use_log_score) { total_score += log_score(pred, obs);}
       if (use_brier_score) {total_score += brier_score(pred, obs);}
       if (use_rps_score) {total_score += rps_score(pred, obs);}
+    } 
+    // } else if (cov_type == 2) {
+    //   vector<Type> theta_cov = theta.segment(lambda_len + xii.size(), p * (m - 1));
+    //   for (int i = 0; i < n; ++i) {
+    //     vector<Type> obs(m); obs.setZero();
+    //     int start = s1(i) - int(1);
+    //     int end   = s2(i) - int(1);
+    //     obs(end)  = Type(1.0);
+    //     
+    //     matrix<Type> Az = A;
+    //     for (int r = 0; r < m - 1; ++r) {
+    //       Type lp = Type(0.0);
+    //       for (int j = 0; j < p; ++j) lp += z(i,j) * theta_cov(r * p + j);
+    //       Type g = exp(lp);
+    //       Az.row(r) *= g;
+    //     }
+    //     
+    //     vector<Type> mu = expected_sojourn_exact(m, u(i), start, A);
+    //     
+    //     Type tau_eff = Type(0.0);
+    //     for (int j = 0; j < m; ++j) tau_eff += mu(j) * xi(j);
+    //     
+    //     matrix<Type> tpm = atomic::expm(matrix<Type>(Az * tau_eff));
+    //     vector<Type> pred = tpm.row(start).transpose();
+    //     
+    //     if (use_log_score)   total_score += log_score(pred, obs);
+    //     if (use_brier_score) total_score += brier_score(pred, obs);
+    //     if (use_rps_score)   total_score += rps_score(pred, obs);
+    //   }
+    // }
+  } else if (cov_type == 2) {
+    vector<Type> theta_cov = theta.segment(lambda_len + xii.size(), p * (m - 1));
+    for (int i = 0; i < n; ++i) {
+      vector<Type> obs(m); obs.setZero();
+      int start = s1(i) - int(1);
+      int end   = s2(i) - int(1);
+      obs(end)  = Type(1.0);
+
+      vector<Type> mu = expected_sojourn_exact(m, u(i), start, A);
+      Type tau_eff = 0.0;
+      for (int j = 0; j < m; ++j) tau_eff += mu(j) * xi(j);
+
+      //vector<Type> mu_trans = mu.head(m-1);
+      //vector<Type> w = mu_trans / mu_trans.sum();
+      vector<Type> w = mu;
+      w /= mu.sum();
+
+      Type cov_linpred = 0.0;
+      for (int ii = 0; ii < m - 1; ++ii) {
+        Type lp_ii = 0.0;
+        for (int j = 0; j < p; ++j) lp_ii += z(i,j) * theta_cov(ii * p + j);
+        cov_linpred += w(ii) * lp_ii;
+      }
+
+      Type cov_scaling = exp(cov_linpred);
+      tau_eff *= cov_scaling;
+
+      matrix<Type> tpm = atomic::expm(matrix<Type>(A * tau_eff));
+      vector<Type> pred = tpm.row(start).transpose();
+
+      if (use_log_score)   total_score += log_score(pred, obs);
+      if (use_brier_score) total_score += brier_score(pred, obs);
+      if (use_rps_score)   total_score += rps_score(pred, obs);
     }
   }
-  return total_score; /// Type(n);
+  return total_score;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

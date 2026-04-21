@@ -1,0 +1,38 @@
+
+
+ \begin{figure*}[htb!]
+        \centering
+        \begin{subfigure}[t]{0.475\textwidth}
+            \centering
+            \includegraphics[width=\textwidth]{reliability_diag_uniform.pdf}
+            \caption[]%
+            {{\small Uniform distribution predictor from \cref{eq:uniform_predictor}}}    
+            \label{fig:reliability_diag_uniform}
+        \end{subfigure}
+        \hfill
+        \begin{subfigure}[t]{0.475\textwidth}  
+            \centering 
+            \includegraphics[width=\textwidth]{reliability_diag_olr_cov.pdf}
+            \caption[]%
+            {{\small Cumulative logistic link with exogenous information}}    
+            \label{fig:reliability_diag_olr_cov}
+        \end{subfigure}
+        \hfill
+        \begin{subfigure}[t]{0.475\textwidth}   
+            \centering 
+            \includegraphics[width=\textwidth]{reliability_diag_bidiagonal_TRUE_exp_exp_all_warp.pdf}
+            \caption[]%
+            {{\small Up to 2 classes ahead with exogenous information and modified sojourn time estimates, that is $\bm{A}_{\RN{3}}$ in \cref{eq:generator_bidiagonal} using \cref{eq:trans_rates_covariates} and \cref{eq:warped_time}.}}    
+            \label{fig:reliability_diag_bidiagonal_TRUE_exp_exp_all_warp}
+        \end{subfigure}
+        \hfill
+        \begin{subfigure}[t]{0.475\textwidth}   
+            \centering 
+            \includegraphics[width=\textwidth]{reliability_diag_ensemble_all.pdf}
+            \caption[]%
+            {{\small Ensemble}}    
+            \label{fig:reliability_diag_ensemble_all}
+        \end{subfigure}
+        \caption{Multicategorical reliability diagrams showing the fraction of observations below the forecast quantile. We use 10 quantiles, that is ($0.05, 0.15, \dots, 0.95$). The dotted line represents a perfectly calibrated forecast. Error bars are calculated using bootstrap testing. Inset checkerboard plots show the average category error wrt. the quantiles. Highly populated bins are darker colored. Perfect forecasts have 0 category error.}
+        \label{fig:reliability_diagrams}
+    \end{figure*}

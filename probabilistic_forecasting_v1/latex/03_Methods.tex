@@ -1,9 +1,9 @@
 % !TEX root = main.tex
 
-
+ 
 \section{Methods} \label{sec:methods}
 This section describes the methodological basis to address the prediction task outlined in \Cref{sec:prediction_task} given the recorded defect severity trajectories in \Cref{sec:data}. 
-We propose the Markov jump process (or \textit{continuous-time Markov chain}) for the prediction and modeling task as defect growth is measured as jumps in the state space, from one class to another.
+We propose the Markov jump process (MJP) for the prediction and modeling task of defect progression.
 We describe its mathematical properties with computational remarks, if any, and lay out how it is estimated and applied for prediction. In addition, we describe the evaluation methodology with respect to error metrics and reference predictors. 
 We denote the complete set of rail defects by $\mathcal{S}$. The set of possible defect classifications is defined as $\mathcal{E} = \{3, 2B, 2A, 1, 0\}$, where $\mathcal{E}$ is ordered with index set denoted $\mathcal{J}$.
 Further, we define a stochastic process by $\{ X^{(s)}(t) \; \vert \; t \in \mathbb R_+\}$ for each $s \in \mathcal{S}$, and let its range be given by the defect classifications such that $ X^{(s)}(t) \in \mathcal{J}, \; \forall t \in \mathbb R_+$. Hence, the state space of $X^{(s)}(t)$ is discretely valued and finite. 
@@ -71,7 +71,7 @@ Since rails can degrade both gradually and through sudden shocks, the generator�
 \toprule
 Generator & Allowed jumps & \#Parameters \\% base rates & \makecell{Total parameters} \\
 \midrule
-$\bm{A}_{\RN{1}}$ & Nearest-class & $m - 1$ \\%& $2m - 2 + p$ \\
+$\bm{A}_{\RN{1}}$ & Nearest class & $m - 1$ \\%& $2m - 2 + p$ \\
 $\bm{A}_{\RN{2}}$ & Any forward jump & $m - 1$ \\%& $2m - 2 + p$ \\
 $\bm{A}_{\RN{3}}$ & Up to 2 classes ahead & $2m - 3$ \\%& $3m - 4 + p$ \\
 $\bm{A}_{\RN{4}}$ & Up to 3 classes ahead & $3m - 6$ \\%& $4m - 7 + p$ \\
@@ -82,7 +82,7 @@ $\bm{A}_{\RN{5}}$ & Any forward jump (free) & $m(m-1)/2$ \\%& $\frac{m(m+1)}{2} 
 
 \FloatBarrier
 
-\myparagraph{Generalized Erlang}
+\myparagraph{Nearest class}
 The first proposed parameterization assumes that a defect transition can only happen to a neighboring defect class. The generator can then be expressed as
 \begin{align}
     \bm{A}_{\RN{1}} = \begin{bmatrix} 
@@ -100,7 +100,7 @@ Given the parameterization in \cref{eq:generator_erlang}, the model setting has 
 
 
 \myparagraph{Relaxed Erlang} 
-We introduce an alternative parameterization that retains the same number of free parameters as the generalized Erlang, but permits longer jumps. %In this setting, longer jumps occur with lower transition rates, reflecting accumulated degradation over multiple intermediate classes. 
+We introduce an alternative parameterization that retains the same number of free parameters as the nearest class generator, but permits longer jumps. %In this setting, longer jumps occur with lower transition rates, reflecting accumulated degradation over multiple intermediate classes. 
 Specifically, we parameterize the effective rate between two non-adjacent states as if the mean transition time were accumulated over the intermediate classes, yielding lower effective rates for longer jumps.
 %Specifically, we assume that the mean degradation time between two states is the sum of the mean degradation times through each intermediate class. 
 For instance, we have that
@@ -114,7 +114,7 @@ Formally, this is expressed as
     \frac{1}{\lambda_{i,j}} = \sum_{k = i}^{j-1} \frac{1}{\lambda_{k,k+1}}, \quad i < j. \label{eq:trans_rate_param}
 \end{align}
 \Cref{eq:trans_rate_param} should not be interpreted as the mean transition time between non-adjacent states, which would depend on the conditional path probabilities. Rather, it is a structural assumption that ensures longer jumps receive proportionally lower mean rates, reflecting accumulated degradation through intermediate levels.
-We let $\bm{A}_{\RN{2}}$ denote the generator subject to the reparameterized upper triangle of the generalized Erlang in \cref{eq:generator_erlang}.
+We let $\bm{A}_{\RN{2}}$ denote the generator subject to the reparameterized upper triangle of the nearest class generator in \cref{eq:generator_erlang}.
 Upon determination of the upper triangle using \cref{eq:trans_rate_param}, the diagonal elements are updated accordingly so that they still satisfy $A_{\RN{2},i,i}= -\sum_{j=1, i \neq j}^m A_{\RN{2},i,j}$ for $i = 1, \dots, m$. For completeness, we provide its somewhat cumbersome algebraic expression, i.e.
 \begin{align*}
   \bm{A}_{\RN{2}}=\begin{bmatrix}
@@ -136,10 +136,10 @@ Upon determination of the upper triangle using \cref{eq:trans_rate_param}, the d
 \end{align*}
 where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{2},i,j}$ for $i = 1, \dots, m-1$. 
 
-\myparagraph{Upper-banded (max jump = 2)}
-The \textit{upper bidiagonal} parameterization allows for transitions to both the immediate next class and the class two steps ahead in severity. Compared to the generalized Erlang, this formulation introduces additional flexibility, while still restricting long jumps. The generator is given by
+\myparagraph{Up to 2 classes ahead}
+The \textit{upper bidiagonal} parameterization allows for transitions to both the immediate next class and the class two steps ahead in severity. Compared to the nearest class generator, this formulation introduces additional flexibility, while still restricting long jumps. The generator is given by
 \begin{align}
-\bm{A}_{\RN{3}}^{(s)} = \begin{bmatrix}
+\bm{A}_{\RN{3}} = \begin{bmatrix}
 \Sigma_1 & \lambda_{3,2B} & \lambda_{3,2A} & 0 & 0 \\
 0 & \Sigma_2 & \lambda_{2B,2A} & \lambda_{2B,1} & 0 \\
 0 & 0 & \Sigma_3 & \lambda_{2A,1} & \lambda_{2A,0} \\
@@ -150,7 +150,7 @@ The \textit{upper bidiagonal} parameterization allows for transitions to both th
 where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{3},i,j}$ for $i = 1, \dots, m-1$.
 The total number of base rate parameters is $2m - 3$. With covariates, it becomes $2m - 3 + p$ parameters in total.
 
-\myparagraph{Upper-banded (max jump = 3)}
+\myparagraph{Up to 3 classes ahead}
 The fourth parameterization, \textit{upper tridiagonal}, allows jumps of up to three severity levels ahead. The generator matrix takes the form
 \begin{align}
 \bm{A}_{\RN{4}}= \begin{bmatrix}
@@ -183,18 +183,18 @@ Unlike the reparameterized upper, this formulation does not constrain long-range
 
 \FloatBarrier
 
+ 
 
-
-\subsubsection{State-dependent time scaling} \label{sec:warping}
-Previous work on Markov jump processes applied to crack growth typically parameterizes degradation in terms of calendar time, assuming that all elapsed time contributes equally to defect development \citep{bisgaard2024A}. 
+\subsubsection{Model with modified sojourn time estimates} \label{sec:warping}
+Previous work on Markov jump processes applied to crack growth typically parameterizes degradation in terms of exposure to calendar time or tonnage of traffic, assuming that all elapsed exposure contributes equally to defect development \citep{bisgaard2024A}. 
 In practice, however, the speed of propagation may depend on which severity class is currently occupied: some states correspond to slower degradation dynamics, while others accelerate propagation.
-To allow for such flexibility, we propose a time scaling through state-specific weights $\xi_i$.
-The idea is that the effective process time accumulates faster in states associated with higher $\xi_i$, and slower otherwise.
+To allow for such flexibility, we propose a somewhat heuristic model that preserves some of the virtues of the MJP modelling approach, by modifying sojourn times estimates with state-specific weights, $\xi_i$.
+The idea is that the effective process time accumulates faster in states associated with larger $\xi_i$, and slower otherwise.
 Given the collection of tuples $\{ ( y_1^{(s)}, \tau^{(s)} ) \}_{s \in \mathcal{S}}$, the expected sojourn times in state $i$ during the interval $\left[ 0,\tau^{(s)} \right]$ conditional on the initial state $y_1^{(s)}$ is defined as
 \begin{equation*}
     \begin{aligned}
-    \mu_i^{(s)} &=\mathbb{E} \left[ \int_0^{\tau^{(s)}} \mathds{1}_{\{X^{(s)}(t) = i\}} \; dt \mid X^{(s)}(0) = y_1^{(s)}  \right] \\ 
-				&= \int_0^{\tau^{(s)}}\mathds{P}\left(X^{(s)}(t)=i \mid X^{(s)}(0)=y_1^{(s)}\right)dt \\ 
+    \mu_i^{(s)} &=\mathbb{E} \left[ \left. \int_0^{\tau^{(s)}} \mathds{1}_{\{X^{(s)}(t) = i\}} \; dt \; \Big| \; X^{(s)}(0) = y_1^{(s)} \right. \right] \\ 
+				&= \int_0^{\tau^{(s)}}\mathds{P}\left(X^{(s)}(t)=i \; \Big| \; X^{(s)}(0)=y_1^{(s)}\right)dt \\ 
 				&= \int_0^\tau \pi^{(s)}_i(t) \; dt.
 \end{aligned}  \label{eq:cumulative_sojourn_time}
 \end{equation*} 
@@ -209,13 +209,14 @@ This can be calculated exact. Defining $\bm{\mu}^{(s)}  =  \left(\mu_1^{(s)},\do
 \end{equation*}
 and $\bm{e}_{y_{1}^{(s)}} \in \mathbb{N}^{1 \times (m-1)}$ is $1$ at the state $y_{1}^{(s)}$-index and zero elsewhere, while $\bm{1} \in \mathbb{N}^{1 \times (m-1)}$ is $1$ everywhere. 
 %%
-The scaled time $\widetilde{\tau}^{(s)}$ for crack $s \in \mathcal S$ is then obtained as a weighted sum of the expected sojourn times
+The modified time $\widetilde{\tau}^{(s)}$ for crack $s \in \mathcal S$ is then obtained as a weighted sum of the expected sojourn time estimates
 \begin{align}
 \widetilde\tau^{(s)}= \sum_{i = 1}^m \xi_i  \cdot \mu_i^{(s)}, \label{eq:warped_time}
 \end{align}
 where $\bm{\xi} \in \mathbb{R}_+^m$ is a vector of nonnegative weights. 
-If all $\xi_i = 1$, the model reduces to one without rescaling of time, i.e., $\widetilde\tau^{(s)} = \tau^{(s)}$. The weight for the absorbing state is set to $1$ to ensure that arrival at the absorbing state concludes the degradation process in the scaled time domain as well.
-We compare models with and without time scaling in terms of predictive accuracy. For notational simplicity, $\tau'$ denotes elapsed time in both the standard covariate-dependent MJP and its temporally scaled version.
+%If all $\xi_i = 1$, the model reduces to one without rescaling of time, i.e., $\widetilde\tau^{(s)} = \tau^{(s)}$. 
+The weight for the absorbing state is set to $1$ to ensure that arrival at the absorbing state concludes the degradation process in the modified time domain as well.
+We compare models with and without modified sojourn time estimates in terms of predictive accuracy. For notational simplicity, $\tau'$ denotes elapsed time in both the standard covariate-dependent MJP and its temporally modified version.
 
 
 %In practice, this is calculated by 
@@ -253,7 +254,7 @@ Model parameters are then determined by maximizing the score function, i.e.
 $\widehat{\bm{\theta}}_{|\mathcal{S}|} = \argmax_{\bm{\theta}}\mathcal{D}_{|\mathcal{S}|}(\bm{\theta}), $
 where $\widehat{\bm{\theta}}_{|\mathcal{S}|}  \rightarrow \bm{\theta}_{\infty}$ as $|\mathcal{S}| \rightarrow \infty$ with $\bm{\theta}_{\infty}$ denoting the true set of model parameters, assuming regularity conditions and a strictly proper scoring rule.
 
-\citet{bisgaard2024A} applies maximum likelihood estimation to determine parameters of the Markov jump process.
+\citet{bisgaard2024A} applies maximum likelihood estimation to determine parameters of the MJP.
 The data log-likelihood given the recorded defect transitions is 
 \begin{equation}
 \begin{aligned}
@@ -270,7 +271,7 @@ The data log-likelihood given the recorded defect transitions is
 \end{equation}
 where $\bm{e}_{y_{1}^{(s)}} \in \mathbb{N}^{1 \times m}$ is $1$ at the state $y_{1}^{(s)}$-index and zero elsewhere, that is, it corresponds to the initial distribution $\bm{\pi}^{(s)}(t_1^{(s)})$. The $y_2^{(s)}$-index on the square brackets indicates that we choose the corresponding element of the transient distribution, $\bm{e}_{y_{1}^{(s)}}  \exp \left( \bm{A}^{(s)} \tau'^{(s)} \right)$. 
 % state probability of a transition from state $y_1^{(s)}$'th to state $y_{2}^{(s)}$ in the time passed between the two observations, that is $\tau_s = t_2^{(s)} - t_1^{(s)}$. 
-The discrete likelihood is then the product of the probabilities of observing the state, $y_2^{(s)}$, after $\tau'^{(s)}$ time (scaled or not) has passed upon observing $y_1^{(s)}$ for all $s \in \mathcal{S}$.
+The discrete likelihood is then the product of the probabilities of observing the state, $y_2^{(s)}$, after $\tau'^{(s)}$ time (modified or not) has passed upon observing $y_1^{(s)}$ for all $s \in \mathcal{S}$.
 \Cref{eq:likelihood_mjp} is an example on a choice of the score function in \cref{eq:mean_score}.
 Maximum likelihood estimation corresponds to optimum score estimation based on the log-score. It is therefore optimal with respect to forecast evaluation under this rule. Provided another scoring rule, MLE might not be suitable for optimal forecast performance, which is empirically demonstrated by \citet{Gneiting2005} and \citet{gebetsberger2018a}.
 This study applies two probabilistic scoring rules, described in \Cref{sec:error_metrics}. To improve prediction performance wrt. to both metrics, the optimum score estimation is based on maximizing the sum of the score functions wrt. their respective scoring rules, i.e.
@@ -333,7 +334,7 @@ The average ranked probability score (RPS) is given by
 \end{align}
 as the average of squared distances between the cumulative transient distribution and the cumulative observed outcomes \citep{Epstein1969}.
 Compared to the log-score, RPS punishes probability masses in false outcomes milder if the wrong predictions are located \textit{closer} to the observed outcome. Thus, RPS introduces an ordering to inaccurate predictions in the sense that some \textit{wrong} predictions can be less wrong.
-For the purpose of degradation dynamics where there is a structural ordering wrt. defect severity, it can be argued that RPS is more suitable than the log-score or the Brier Score, if forecasts are interpreted as beliefs about track 
+For the purpose of degradation dynamics where there is a structural ordering wrt. defect severity, it can be argued that RPS is more suitable than the log-score, if forecasts are interpreted as beliefs about track 
 safety levels, which correlate with crack size \citep{UIC_2002_defecthandbook}. 
 According to \citet{Czado2009}, an advantage with RPS is that it enables direct comparison between predictive distributions and point predictions, as it has shown to generalize the mean absolute error \citep{Hersbach2000}.
 
@@ -349,27 +350,27 @@ For estimation, loss functions such as RPS are minimized (entering with a negati
 
 
 \subsection{Remarks on implementation and computation} \label{sec:computation_remarks}
-We implemented the Markov jump process in \texttt{C++}, interfaced with \texttt{R} via \texttt{Rcpp} \citep{Rcpp} and the \texttt{C++} Template Model Builder (TMB) framework \citep{TMB}.
+We implemented the models in \texttt{C++}, interfaced with \texttt{R} via \texttt{Rcpp} \citep{Rcpp} and the \texttt{C++} Template Model Builder (TMB) framework \citep{TMB}.
 The repository can be accessed on \url{https://github.com/dobbeltgaard/MarkovJump.git}.
  
 Previous work by \citet{bisgaard2024A} leveraged \texttt{C++} speed in \texttt{R} using \texttt{Rcpp}, and derived algebraic expressions for the gradients used for model estimation, as it was shown to improve its robustness. 
 As that study only considered a single generator parameterization with maximum likelihood estimation, closed-form gradients were cumbersome but tractable.
 In contrast, when now considering a broad variety of model settings, deriving gradients by hand becomes infeasible, and finite-difference approximations are both slow and potentially inaccurate. TMB circumvents this issue by providing exact gradients via automatic differentiation (AD), based on the computation graph of elementary calculus operations, using the \texttt{CppAD} package \citep{CppAD}.
 
-Our implementation is flexible: users may choose the scoring rule (log-score and/or ranked probability score), select among the five generator parameterizations in \cref{sec:generator_params}, and optionally incorporate covariates and the state-dependent time scaling (\cref{sec:warping}).
+Our implementation is flexible: users may choose the scoring rule (log-score and/or ranked probability score), select among the five generator parameterizations in \cref{sec:generator_params}, and optionally incorporate covariates and the modified sojourn time estimates (\cref{sec:warping}).
  
 Prediction is performed by applying the solution to the Kolmogorov differential equation in \cref{eq:markov_eq_solution} using the aforementioned scoring rules for assessment of accuracy.
-The \texttt{Rcpp} model implementation accommodates three calculation methods for the transient distribution of the Markov chain. The first is a Padé approximation of the matrix exponential. The second method is to calculate the transient distribution via \textit{uniformization} (or \textit{randomization}). Uniformization provides an alternative representation of a Markov jump process such that all holding times distributions have the same intensity parameter \citep[Section 1.3.4]{bladt_nielsen}. We refer to \citet{sherlock2021a} for a detailed algorithmic description. The third method is by applying the eigendecomposition
+The \texttt{Rcpp} model implementation accommodates three calculation methods for the transient distribution of the Markov chain. The first is a Padé approximation of the matrix exponential. The second method is to calculate the transient distribution via \textit{uniformization} (or \textit{randomization}). Uniformization provides an alternative representation of a MJP such that all holding times distributions have the same intensity parameter \citep[Section 1.3.4]{bladt_nielsen}. We refer to \citet{sherlock2021a} for a detailed algorithmic description. The third method is by applying the eigendecomposition
 \begin{align*}
     \exp{\left( \bm{A}u \right) } = \bm{U}  \exp{\left( \bm{\Lambda}u \right) } \bm{U}^{-1}, 
 \end{align*}
 which substantially reduces numerical effort since exponentiating a diagonal matrix amounts to exponentiating each diagonal element.
-We refer to \citet{bisgaard2024A} for algebraic expressions for the eigenspaces $\bm{U}$ and $\bm{U}^{-1}$, in case of the generalized Erlang parameterization. In case of the other four generator parameterizations, we apply numerical schemes for the eigendecompositions using the \texttt{Eigen} library in \texttt{C++} \citep{eigenweb}.
+We refer to \citet{bisgaard2024A} for algebraic expressions for the eigenspaces $\bm{U}$ and $\bm{U}^{-1}$, in case of the nearest class parameterization. In case of the other four generator parameterizations, we apply numerical schemes for the eigendecompositions using the \texttt{Eigen} library in \texttt{C++} \citep{eigenweb}.
 
 We have tested the speed of the likelihood computation with respect to the different score options and the different methods for calculating the transient distribution of the Markov chain, using the \texttt{bench} library \citep{R_bench}. We compare our \texttt{C++} implementation with a standard (``slow'') \texttt{R} implementation based on a Padé approximation of the transient distribution. \Cref{tab:mjp_score_computation_speed} displays the results of the speed investigation.
 \begin{table}[htb!]
     \centering
-    \caption{Relative speed of Markov jump score computation wrt. calculation method of transient distribution and score metric. Uniformization is performed with maximum truncation error on $2^{-52}$ (see \citet{sherlock2021a} for details). The base reference for the speed investigation is the ``\texttt{C++} w. eigendecomposition'' which has a median run time on $1.85$ ms.}
+    \caption{Relative speed of MJP score computation wrt. calculation method of transient distribution and score metric. Uniformization is performed with maximum truncation error on $2^{-52}$ (see \citet{sherlock2021a} for details). The base reference for the speed investigation is the ``\texttt{C++} w. eigendecomposition'' which has a median run time on $1.85$ ms.}
     \label{tab:mjp_score_computation_speed}
 \begin{tabular}{lcc}
 \toprule
@@ -391,7 +392,7 @@ For the \texttt{C++} implementations, computation speed differs little between t
 
 
 \subsection{Reference predictors} \label{sec:reference_forecasts}
-Reference predictors provide a benchmark against which the Markov jump process from \Cref{sec:mjp} can be evaluated. They allow us to quantify the benefits of introducing temporal dynamics, state dependence, and covariates relative to simpler predictive models.
+Reference predictors provide a benchmark against which the MJP from \Cref{sec:mjp} can be evaluated. They allow us to quantify the benefits of introducing temporal dynamics, state dependence, and covariates relative to simpler predictive models.
 In this study, we consider two such benchmarks. The cumulative link model (CLM) serves as the primary, competitive reference predictor, while the uniform distribution predictor provides a minimal baseline that distributes probability evenly across feasible states.
 
 \subsubsection{Cumulative link model} \label{sec:cumulative_link_model}
