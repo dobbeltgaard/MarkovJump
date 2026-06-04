@@ -1,0 +1,65 @@
+% !TEX root = main.tex
+
+
+\newcommand\distvert{0.75cm}
+\newcommand\distlong{0.5cm}
+\newcommand\boxwidth{4cm}
+\newcommand\redboxheight{2.25cm}
+\newcommand\otherboxheight{1.5cm}
+\newcommand\cornersround{1mm}
+\usetikzlibrary{fit}
+
+
+\begin{tikzpicture}[
+roundnode/.style={rectangle, draw=black, minimum size=5mm,text width=\boxwidth, minimum height=\otherboxheight, align = center,draw=black!100, fill=black!0},
+roundnode4/.style={rectangle, draw=black, minimum size=5mm,text width=1.25*\boxwidth, minimum height=0.5*\otherboxheight, align = center,draw=black!100, fill=black!0},
+%rounded corners=\cornersround
+roundnode2/.style={rectangle, draw=black, minimum size=5mm,text width=8.5cm, minimum height=\otherboxheight, align = center,draw=black!100, fill=black!0},
+%
+roundnode3/.style={rectangle, draw=black, minimum size=5mm,text width=.1cm, minimum height=\otherboxheight, align = center,draw=white!100, fill=black!0},
+%
+squarednode1/.style={rectangle, draw=red!20, fill=red!3, very thick,minimum size=5mm,text width=\boxwidth, minimum height=\redboxheight, align=center, anchor=north,rounded corners=\cornersround},
+squarednode2/.style={rectangle, draw=cyan!20, fill=cyan!3, very thick,minimum size=5mm,text width=\boxwidth, minimum height=\otherboxheight, align = center,rounded corners=\cornersround},
+invisible/.style={rectangle, draw=white, fill=white, minimum size=0mm}
+]
+
+ 
+
+
+\node[roundnode] (data) at (0,0) {Defect data with covariates and censoring (\cref{sec:defect_trajectories}). };
+\node[roundnode] (MJP) [right=\distvert of data] {Markov jump process (\cref{sec:mjp}).};
+
+\node[roundnode4, anchor=north west] (generators) at ([xshift=1.5*\distvert]MJP.north east) {Generator parameterizations (\cref{sec:generator_params}).};
+\node[roundnode4] (sojourn) [below=0.5*\distvert of generators] {Modified sojourn time estimates (\cref{sec:warping}).};
+\node[roundnode4] (regressions) [below=0.5*\distvert of sojourn] {Exogenous dependencies (\cref{sec:regression,sec:regression_state_dependent}).};
+\node[roundnode4] (mixture) [below=0.5*\distvert of regressions] {Mixture distributions (\cref{sec:mixture}).};
+
+\node[draw, dotted, thick, rounded corners=\cornersround, fit=(regressions)(generators)(sojourn)(mixture), inner sep=2mm]  (MJP_settings_box) {};
+\node[rotate=-90, anchor=south, xshift=2mm] at (MJP_settings_box.east) {\small MJP settings};
+
+
+\node[roundnode] (estimation) [below=\distvert of MJP] {Optimum score estimation (\cref{sec:optimum_score_estimation}).};
+\node[roundnode] (prediction) [below=0.5*\distvert of estimation] {Probabilistic prediction using transient distribution (\cref{sec:transient_dist}).};
+\node[draw, dotted, thick, rounded corners=\cornersround, fit=(estimation)(prediction), inner sep=2mm]  (estim_pred_box) {};
+\node[rotate=-90, anchor=south, xshift=2mm] at (estim_pred_box.east) {\small Cross validation};
+
+\node[roundnode] (reference) [left=\distvert of estim_pred_box, xshift=2mm] {Reference predictors (\cref{sec:reference_forecasts}).};
+    
+\node[roundnode3] (hidden) [below=\distvert of estim_pred_box] {};
+
+\node[roundnode] (evaulation) [left=\distvert/2-0.05cm of hidden] {Assessment of predictive performance (\cref{sec:error_metrics,sec:prediction_error,sec:results_transient_dist_markov,sec:reliability_analysis}).};
+\node[roundnode] (decisions) [right=\distvert/2-0.05cm of hidden] {Decision making framework (\cref{sec:proposition_for_use}).};
+
+
+\draw[->] (data) to (MJP);
+\draw[->] (MJP) to (estim_pred_box);
+\draw[<->] (MJP.east) to (MJP_settings_box);
+\draw[<->] (reference) to (estim_pred_box);
+\draw[<->] (estimation) to (prediction);
+\draw[->] (prediction) to (evaulation);
+\draw[->] (prediction) to (decisions);
+\draw[->] (reference) to (evaulation);
+
+
+
+\end{tikzpicture}

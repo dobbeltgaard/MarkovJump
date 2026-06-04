@@ -1,0 +1,138 @@
+rm -rf probabilistic_forecasting_v3/submission_flat && \
+mkdir -p probabilistic_forecasting_v3/submission_flat/{figures,tables} && \
+(cd probabilistic_forecasting_v3/latex && latexpand main.tex > ../submission_flat/main.tex) && \
+cp probabilistic_forecasting_v3/latex/references.bib probabilistic_forecasting_v2/submission_flat/ && \
+find probabilistic_forecasting_v3/latex -maxdepth 1 -type f \( -name "*.sty" -o -name "*.cls" -o -name "*.bst" \) -exec cp {} probabilistic_forecasting_v3/submission_flat/ \; && \
+python3 - <<'PY'
+from pathlib import Path
+import re
+import shutil
+
+root = Path.cwd()
+flat_dir = root / "probabilistic_forecasting_v3" / "submission_flat"
+flat_tex = flat_dir / "main.tex"
+
+search_dirs = [
+    root / "figures",
+    root / "tables",
+    root / "probabilistic_forecasting_v3" / "latex" / "figures_testname",
+    root / "probabilistic_forecasting_v3" / "latex",
+    root / "probabilistic_forecasting_v1" / "latex" / "figures_testname",
+]
+
+fig_target = flat_dir / "figures"
+tab_target = flat_dir / "tables"
+
+fig_exts = [".pdf", ".png", ".jpg", ".jpeg", ".eps", ".svg", ".tex"]
+tab_exts = [".tex", ".csv", ".tsv"]
+
+def strip_comments(text: str) -> str:
+    return re.sub(r'(?<!\\)%.*', '', text)
+
+def extract_refs(text: str):
+    text = strip_comments(text)
+    figs, tabs = set(), set()
+
+    for m in re.finditer(r'\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}', text):
+        figs.add(Path(m.group(1).strip()).name)
+
+    for m in re.finditer(r'\\includesvg(?:\[[^\]]*\])?\{([^}]+)\}', text):
+        figs.add(Path(m.group(1).strip()).name)
+
+    for m in re.finditer(r'\\input\{([^}]+)\}', text):
+        name = Path(m.group(1).strip()).name
+        if name:
+            if any(k in name.lower() for k in ["tab", "table", "aic"]):
+                tabs.add(name)
+            else:
+                figs.add(name)
+
+    for m in re.finditer(r'\\input\s+([^\s{}]+)', text):
+        name = Path(m.group(1).strip()).name
+        if name:
+            if any(k in name.lower() for k in ["tab", "table", "aic"]):
+                tabs.add(name)
+            else:
+                figs.add(name)
+
+    return figs, tabs
+
+def find_file(name: str, exts):
+    p = Path(name)
+    exact = p.name
+    stem = p.stem if p.suffix else p.name
+
+    for d in search_dirs:
+        if not d.exists():
+            continue
+        candidates = list(d.rglob(exact))
+        if candidates:
+            return candidates[0]
+        for ext in exts:
+            candidates = list(d.rglob(stem + ext))
+            if candidates:
+                return candidates[0]
+    return None
+
+copied = set()
+queue = [("main", flat_tex)]
+missing = set()
+manifest = []
+
+# rewrite main.tex local paths first
+main_text = flat_tex.read_text(encoding="utf-8")
+main_text = main_text.replace(r"\graphicspath{{../../figures/}}", r"\graphicspath{{figures/}}")
+main_text = main_text.replace(r"\def\input@path{{../../tables/}{../../figures/}}",
+                              r"\def\input@path{{tables/}{figures/}}")
+flat_tex.write_text(main_text, encoding="utf-8")
+
+while queue:
+    kind, texfile = queue.pop(0)
+    try:
+        text = texfile.read_text(encoding="utf-8")
+    except Exception:
+        continue
+
+    figs, tabs = extract_refs(text)
+
+    for ref in sorted(figs):
+        if ref in copied:
+            continue
+        src = find_file(ref, fig_exts)
+        if src is None:
+            missing.add(ref)
+            continue
+        dst = fig_target / src.name
+        shutil.copy2(src, dst)
+        copied.add(ref)
+        manifest.append(f"FIG  {ref} <- {src}")
+        if dst.suffix == ".tex":
+            queue.append(("figtex", dst))
+
+    for ref in sorted(tabs):
+        if ref in copied:
+            continue
+        src = find_file(ref, tab_exts)
+        if src is None:
+            missing.add(ref)
+            continue
+        dst = tab_target / src.name
+        shutil.copy2(src, dst)
+        copied.add(ref)
+        manifest.append(f"TAB  {ref} <- {src}")
+        if dst.suffix == ".tex":
+            queue.append(("tabtex", dst))
+
+(flat_dir / "files_included.txt").write_text(
+    "\n".join(manifest) + "\n\nMissing:\n" + "\n".join(sorted(missing)) + "\n",
+    encoding="utf-8"
+)
+
+print("Copied files:")
+for line in manifest:
+    print(" ", line)
+
+print("\nMissing:")
+for m in sorted(missing):
+    print(" ", m)
+PY

@@ -1,0 +1,28 @@
+FIG  crit_curves_1 <- /Users/dobbeltgaard/Projects/MarkovJump/figures/crit_curves_1.pdf
+FIG  crit_curves_3 <- /Users/dobbeltgaard/Projects/MarkovJump/figures/crit_curves_3.pdf
+FIG  crit_curves_5 <- /Users/dobbeltgaard/Projects/MarkovJump/figures/crit_curves_5.pdf
+FIG  defect_development.png <- /Users/dobbeltgaard/Projects/MarkovJump/figures/defect_development.png
+FIG  expected_transition_bidiagonal_cov1_exp_exp_all_no_warp <- /Users/dobbeltgaard/Projects/MarkovJump/figures/expected_transition_bidiagonal_cov1_exp_exp_all_no_warp.tex
+FIG  expected_transition_bidiagonal_cov1_exp_exp_all_no_warp_mixture4 <- /Users/dobbeltgaard/Projects/MarkovJump/figures/expected_transition_bidiagonal_cov1_exp_exp_all_no_warp_mixture4.tex
+FIG  expected_transition_bidiagonal_cov2_exp_exp_all_no_warp <- /Users/dobbeltgaard/Projects/MarkovJump/figures/expected_transition_bidiagonal_cov2_exp_exp_all_no_warp.tex
+FIG  hists_u_v2.pdf <- /Users/dobbeltgaard/Projects/MarkovJump/figures/hists_u_v2.pdf
+FIG  jump_scenarios_v2.pdf <- /Users/dobbeltgaard/Projects/MarkovJump/figures/jump_scenarios_v2.pdf
+FIG  reliability_figs <- /Users/dobbeltgaard/Projects/MarkovJump/figures/reliability_figs.tex
+FIG  transient_dists <- /Users/dobbeltgaard/Projects/MarkovJump/figures/transient_dists.tex
+FIG  transition_matrix <- /Users/dobbeltgaard/Projects/MarkovJump/figures/transition_matrix.tex
+FIG  transition_structure_L1 <- /Users/dobbeltgaard/Projects/MarkovJump/figures/transition_structure_L1.tex
+TAB  AIC_tab <- /Users/dobbeltgaard/Projects/MarkovJump/figures/AIC_tab.tex
+TAB  forecast_error_tab_tot <- /Users/dobbeltgaard/Projects/MarkovJump/figures/forecast_error_tab_tot.tex
+FIG  reliability_diag_bidiagonal_cov1_exp_exp_all_no_warp_mixture4_pooledCV.pdf <- /Users/dobbeltgaard/Projects/MarkovJump/figures/reliability_diag_bidiagonal_cov1_exp_exp_all_no_warp_mixture4_pooledCV.pdf
+FIG  reliability_diag_bidiagonal_cov1_exp_exp_all_no_warp_pooledCV.pdf <- /Users/dobbeltgaard/Projects/MarkovJump/figures/reliability_diag_bidiagonal_cov1_exp_exp_all_no_warp_pooledCV.pdf
+FIG  reliability_diag_olr_cov_pooledCV.pdf <- /Users/dobbeltgaard/Projects/MarkovJump/figures/reliability_diag_olr_cov_pooledCV.pdf
+FIG  reliability_diag_uniform_pooledCV.pdf <- /Users/dobbeltgaard/Projects/MarkovJump/figures/reliability_diag_uniform_pooledCV.pdf
+FIG  tpm_dist_bidiagonal_cov1_exp_exp_all_no_warp.pdf <- /Users/dobbeltgaard/Projects/MarkovJump/figures/tpm_dist_bidiagonal_cov1_exp_exp_all_no_warp.pdf
+FIG  tpm_dist_bidiagonal_cov1_exp_exp_all_no_warp_mixture4.pdf <- /Users/dobbeltgaard/Projects/MarkovJump/figures/tpm_dist_bidiagonal_cov1_exp_exp_all_no_warp_mixture4.pdf
+FIG  tpm_dist_bidiagonal_cov2_exp_exp_all_no_warp.pdf <- /Users/dobbeltgaard/Projects/MarkovJump/figures/tpm_dist_bidiagonal_cov2_exp_exp_all_no_warp.pdf
+FIG  trans_dist_bidiagonal_cov1_exp_exp_all_no_warp.pdf <- /Users/dobbeltgaard/Projects/MarkovJump/figures/trans_dist_bidiagonal_cov1_exp_exp_all_no_warp.pdf
+FIG  trans_dist_bidiagonal_cov1_exp_exp_all_no_warp_mixture4.pdf <- /Users/dobbeltgaard/Projects/MarkovJump/figures/trans_dist_bidiagonal_cov1_exp_exp_all_no_warp_mixture4.pdf
+FIG  trans_dist_bidiagonal_cov2_exp_exp_all_no_warp.pdf <- /Users/dobbeltgaard/Projects/MarkovJump/figures/trans_dist_bidiagonal_cov2_exp_exp_all_no_warp.pdf
+
+Missing:
+

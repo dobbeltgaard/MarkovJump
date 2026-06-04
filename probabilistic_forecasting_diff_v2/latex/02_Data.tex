@@ -1,0 +1,125 @@
+% !TEX root = main.tex
+
+
+\section{Empirical setting} \label{sec:data}
+As trains pass over a defect location, stresses accumulate in the rail, causing initiated cracks to grow in size \citep{cannon2003a}. Physically, this crack growth occurs in a continuous domain. However, in practice, defect propagation is classified into discrete severity categories based on inspection. Following procedures prescribed by the \citet{UIC_2002_defecthandbook}, the classification depends on the type and size of the defect. For example, transverse cracks with ultrasonic signal amplitudes exceeding artificial reference defects (typically flat-bottom holes (FBH) of 10 mm) are generally considered urgent repairs. 
+
+This classification procedure lumps the continuous property of degradation into a finite, ordered state space. In this study, we consider five severity classes: $3 \rightarrow 2B \rightarrow 2A \rightarrow 1 \rightarrow 0$, ranging from small cracks to severe rail damage such as rail breaks. \cref{fig:defect_development} provides a visualization of various levels of defect severity.
+\begin{figure}[htb!]
+    \centering
+    \includegraphics[width=\linewidth]{defect_development.png}
+    \caption{Rail defects of different severity. The first two pictures from the left are zoomed in. Note that the depicted defects do not necessarily refer to the same defect. Therefore, the included arrows only indicate transitions from one class to another in a general sense.}
+    \label{fig:defect_development}
+\end{figure}
+
+
+ \subsection{Data background} \label{sec:data_background}
+Defect data used in this study are provided by Bane NOR, the infrastructure manager of the Norwegian railway network. Defect classifications follow their technical regulations, cf. \citet{banenor_technical_regulations}.
+Initial defect detection is typically performed by ultrasonic measuring trains, with subsequent verification based on visual inspection and, when available, manual ultrasonic testing (UT). This assessment is carried out by a railway professional.
+When UT is performed, it is used as a supporting diagnostic to determine the severity classification, with raw UT measurements not available to this study. The dataset therefore contains a single reported severity class per inspection. Consequently, differences in inspection practice do not result in separate measurement modalities in the available data. The types of defects included are squats and head-checks.
+
+Data extraction and primary preprocessing were conducted as part of Bane NOR's Opti-UL project prior to the present study. Data were extracted from the data systems \texttt{Banedata Innsyn} (connected with \texttt{Maximo}) and \texttt{Irissys}. For each confirmed defect, this includes kilometric position, observation date, rail line, track number, rail side, defect type and severity class. Records with missing entries were excluded. Suspected defects that were not verified by inspection were excluded.
+
+Defect records were matched if they were believed to be measurements of the same physical crack, that is if they occurred on the same rail line, track, rail side, within 10 metres of each other, and if the second observation occurred between one month and four years after the first. Matches were ordered in pairs, resulting in tuples of the first classification, the second, and the time passed between them. Master data on tonnage, rail type, curvature, and line speed were extracted for each of these tuples. Pairs with unexplained class reversals were excluded as these are likely to reflect recording or classification inconsistencies. The matched observations represent the evolution of individual defects and are referred to as \textit{defect trajectories}.
+
+
+By and large, the authors have assumed the data from the industrial partner an input to the present study, focusing on developing a model and benchmarking framework for multicategory forecasting of defect progression. The only additional data processing carried out, is removing defect trajectories of more than 300 days that initially were severe (class $1$ or $0$) as these observations are not believed to be true. This choice was based on discussions with the Opti-UL project team. Further, defects assigned ``under limit'' status are attributed class $3$, to reflect the presence of minor cracks.
+The authors are hopeful that the developed framework can be applied to other sources of industrial data.
+
+\subsection{Defect trajectories and exogenous information}\label{sec:defect_trajectories}
+The available data consist of $3,658$ defect trajectories recorded over the past two decades, covering $22$ different rail lines in Norway. According to \cref{sec:data_background}, each trajectory is constructed from a matched pair of inspections of the same defect, yielding one interval-censored transition tuple. At each inspection, the defect is assigned a severity class.
+
+
+These trajectories are \textit{partially observable} and subject to multiple forms of censoring. Most notably, they are \textit{interval-censored}, since the exact time at which a defect transitions to a more severe class is unknown (we only observe its state at discrete inspection times). If a crack grew between inspections, the time of change and any intermediate classes visited remain unobserved. In addition, the data may be \textit{left-censored}, as the true initiation time of the defect is unknown, and \textit{right-censored} if the trajectory ends before the defect reaches the most severe class. Consequently, the sojourn times in each class are censored.
+
+\cref{fig:hists_u} shows the empirical distribution of observation intervals, conditioned on observed transitions. As seen, the observation intervals are irregular, and all defects either remain in the current class or progress to a more severe one.
+
+\begin{figure}[htb!]
+    \centering
+    \includegraphics[width = \textwidth]{hists_u_v2.pdf}
+    \caption{Histograms of observation intervals in days for all observed defect transitions, given the trajectory $3 \rightarrow 2B \rightarrow 2A \rightarrow 1 \rightarrow 0$. \nth{1} axes are observation intervals in number of days and \nth{2} axes represent relative frequencies wrt. the number of transitions from one category to another. In total 3658 transitions are displayed. The figure is reproduced from \citet{bisgaard2024A}.}
+    \label{fig:hists_u}
+\end{figure}
+
+In addition to severity class transitions, the dataset includes covariate information for each defect at its specific location in the rail network. These covariates describe the local operational and geometric conditions, including:
+
+\begin{itemize}
+    \item Tonnage: Approximate annual traffic load (gross tons/year)
+    \item Line speed: Maximum authorized train speed at the location
+    \item Curvature: Track curvature in degrees per 100 meters
+    \item Rail profile: Weight of 1m rail cross-section segment
+    \item Grade: Hardness of the rail steel
+\end{itemize}
+
+These variables are selected based on their known relevance to rail degradation \citep{ghofrani2019a,dick2003a,UIC_2002_defecthandbook,RASMUSSEN20178}, and are transformed according to the procedures outlined in \citet{bisgaard2024A}. This includes min-max scaling without centering, that is,
+\begin{align*}
+    \widehat{z} = \frac{z - z_{\text{min}}}{z_{\text{max}} - z_{\text{min}}},
+\end{align*}
+where $z$ is the original variable, $\widehat{z}$ is the min-max transformed variable, $z_{\text{min}}$ is the minimum value of $z$, and $z_{\text{max}}$ is the maximum value of $z$. 
+%Covariate multicollinearity diagnostics were assessed using pairwise Pearson correlations and variance inflation factors. All absolute correlations were below $0.6$ and all variance inflation factors were below $1.5$, indicating no evidence of high multicollinearity. If that had been the case, dimensionality reduction techniques could have been used to orthogonalize the covariates (e.g. principal component analysis).
+
+Covariate multicollinearity was assessed using pairwise Pearson correlations and variance inflation factors (VIF). All absolute correlations were below $0.6$ and all VIF values were below $1.5$, well below commonly used cut-offs for problematic multicollinearity (e.g. $\text{VIF} > 5$ \citep[Sec. 6.4.1]{sheather2009a}).
+Had high multicollinearity been present, dimensionality-reduction techniques could have been used to orthogonalize the regressors (e.g. principal component analysis).
+
+
+
+
+
+
+
+%% On our way, but still not fully covered. Look at the small comments from the gpt. Consider how to understand these class reversals, keeping a sound scientific practice. Is ignoring good enough? Also, formulate a response to the reviewer, not that it is warm in memory. Consider a small subsection or something for this. Consider if the flow is correct before Defect trajectories. Mention that trajectory is a pair matched.
+
+%%SOURCES
+%Data extraction and primary preprocessing were conducted by Bane NOR as part of the Opti-UL project prior to the present study. Defect records were compiled from Banedata Innsyn and Irissys (with supplementary references to Maximo where available). 
+
+%Data preprocessing with Bane NOR resulted in various scenarios for the partially observed defect trajectories based on filtering assumptions, i.e., how likely is it that a reported defect has already been measured (provided geographical and rail geometrical specificities), and hence is a part of a  partially observed trajectory. 
+%This present work utilizes the most comprehensive scenario (the largest dataset). The choice relies on preliminary results from numerical experiments and the importance of a large enough sample size in ensuring statistical representativeness. Additional data processing has been carried out, mainly removing defect trajectories of more than 300 days that initially were severe (class $1$ or $0$) as these observations are not believed to be true. However, this does not have any substantial impact on the reported results in \cref{sec:model_estimates}.
+%Preliminary data preprocessing resulted in various scenarios for the partially observed defect trajectories based on filtering assumptions from the data sources in Maximo, Innsyn and Irissys. These scenarios are described by Marion Defér in previous presentations for Bane NOR. This present work utilizes the ``base'' scenario which is the largest dataset. The choice relies on preliminary results from numerical experiments and the importance of a large enough sample size in ensuring statistical representativeness. Additional data processing has been carried out, mainly: 1) retrieving asset data describing rail characteristics at defect locations (tonnage, curvature, grade, profile, line speeds) and 2) removing defect trajectories from the ``base'' scenario of more than 300 days that initially were severe (class $1$ or $0$) as these observations are not believed to be true by track specialists in Bane NOR.
+%Similarly to the case of \citet{podofillini2006a} and \citet{bisgaard2024A}, we rely on the classification performed by Bane Nor, managing most of the Norwegian rail network. 
+%The classification procedure is performed by a railway professional using ultrasonic testing and visual inspection. A minor defect is assigned class $3$, a class $2B$ defect should be kept under observation, a class $2A$ should be repaired, a defect assigned class $1$ should be repaired as soon as possible, while a class $0$ defect represents the most severe case (e.g. rail break) and should be removed immediately \citep{banenor_technical_regulations,podofillini2006a,bisgaard2024A}. Thus, we consider the trajectory, $3 \rightarrow 2B \rightarrow 2A \rightarrow 1 \rightarrow 0$, ranging from the least to most severe defect class. The type of defect is squats and headchecks.
+
+
+
+% The recorded defect data originate from the Norwegian infrastructure manager Bane Nor. 
+% A defect is identified and classified by a railway professional. 
+% After some time, the defect is reinspected and an updated classification is assigned according to the classification guides mentioned above. Such two recordings constitute a defect trajectory over a known inspection interval. The data is said to be \textit{partially observable} (or \textit{interval-censored}), because the state of the defect is unobserved in the intermediate period of the recordings. Therefore, if a defect has jumped to a more severe class, we do not observe when this transition has occurred. The sojourn time in each class is thus censored.
+% Distributed over 22 different rail lines, we have 3658 defect trajectories recorded during the last two decades. We show the empirical distribution of the jumps in \Cref{fig:hists_u}.
+
+% As seen, defects remain in the current class or increase in severity over time.
+% For each of these defect trajectories, we have associated covariate information of the intrinsic track characteristics at the specific individual defect locations. More specifically, the covariates are constituted by tonnage (approximate annual traffic load), line speed as well as rail curvature, profile (weight of rail), and grade (hardness of steel).
+% The considered covariates are all believed to impact the propagation of initiated cracks in the rail component \citep{UIC_2002_defecthandbook,dick2003a,ghofrani2019a,RASMUSSEN20178}. All covariates are min-max transformed as described by \citet{bisgaard2024A}.
+
+\subsection{Prediction task} \label{sec:prediction_task}
+This study concerns the prediction of rail defect severity progression. Given a known defect class (e.g., a defect classified as $2B$) we aim to forecast its severity distribution over a future time horizon. For instance, what is the probability that the defect will remain in $2B$, or progress to $2A$, $1$, or $0$, after two years?
+
+\cref{fig:jump_scenarios} illustrates five simulated trajectories of a $2B$ defect over a two-year period. These simulations are generated from a Markov jump process using a generalized Erlang parameterization. Transition probabilities are calculated from the Kolmogorov forward equation, and the trajectories are sampled step-by-step from the resulting conditional probabilities.
+
+\begin{figure}[htb!]
+    \centering
+    \includegraphics[width=0.8\linewidth]{jump_scenarios_v2.pdf}
+    \caption{The propagation of a class $2B$ defect over two years with constant explanatory variables, showing five simulated scenarios.}
+    \label{fig:jump_scenarios}
+\end{figure}
+
+As seen, the simulations terminate in different severity classes, reflecting the inherent uncertainty in degradation processes. When generating, we aim to represent this uncertainty through a predictive distribution. A perfect forecast assigns all probability to the correct future state, but in practice, the model must distribute probability mass across possible outcomes.
+
+To assess predictive accuracy, we compare the forecast distribution to the actual observed class at a future time point using proper scoring rules (\cref{sec:error_metrics}). Well-calibrated forecasts produce probabilities that match observed frequencies across many instances. Additionally, we assess the model’s discrimination ability: its capacity to distinguish between high- and low-risk outcomes (\cref{sec:reliability_analysis}).
+
+As is standard in predictive modeling, we estimate model parameters using one part of the data and evaluate performance on a separate test set. This procedure is described in more detail in \cref{sec:prediction_error}.
+
+
+
+
+% \subsection{Prediction task} \label{sec:prediction_task}
+% This study concerns the prediction of the propagation of rail defect severity. For a given rail defect and its severity classification, we want to predict how it will evolve over time. For instance, given a $2B$ defect, what is its predictive distribution over the next two years? We seek to quantify the probabilities associated to each of the categories in the state space, for each time instance over a certain period of interest. In \Cref{fig:jump_scenarios}, we show five simulations of possible trajectories for this certain $2B$ defect.
+% \begin{figure}[htb!]
+%     \centering
+%     \includegraphics[width=0.8\linewidth]{figures/jump_scenarios.pdf}
+%     \caption{The propagation of a class $2B$ defect over two years, showing five simulated scenarios.}
+%     \label{fig:jump_scenarios}
+% \end{figure}
+% As seen, three of the simulations end up in class $2A$, while the remaining two simulations end up in class $1$ and class $0$, after two years. When we generate predictions with a model, we seek to represent the uncertainty appropriately in the forecast distribution.
+% When the defect is reclassified after two years, we can then evaluate how accurate our prediction is. A perfect forecast is the one that assigns 100\% probability to state corresponding to the defect observation from the reclassification. 
+% However, as the future is uncertain, a prediction model is likely to divide its probability mass over the different categories. We can then calculate the average error that the prediction model generates given a dataset. This requires probabilistic error metrics, and we will dive into this topic in \Cref{sec:error_metrics}.
+% A forecast is well-calibrated when the probabilities predicted for each state align with the observed frequencies over repeated trials. This means that if a model predicts a 30\% chance for a category, that category should indeed occur approximately 30\% of the time in reality. High discrimination ability refers to the model's capacity to correctly distinguish between different states. In the context of rail defect severity prediction, discrimination ability allows the model to reliably differentiate between the probability of varying defect severity outcomes. We will evaluate these complementary aspects of forecast quality in \Cref{sec:reliability_analysis}.
+% In summary, the prediction task of this study consists of developing models to predict the distribution of defects over time, and then evaluate their accuracy. As usual in prediction studies, we determine the parameters of our models on a subset of the data, and then evaluate the predictive accuracy of the models on a subset of the data that they have not ''seen`` before. We will describe this in detail in \Cref{sec:prediction_error}.

@@ -12,3 +12,21 @@ latexdiff \
   probabilistic_forecasting_v1/latex/main.tex \
   probabilistic_forecasting_v2/latex/main.tex \
   > probabilistic_forecasting_diff/latex/diff.tex
+
+
+
+
+rm -rf probabilistic_forecasting_diff_v2 && \
+mkdir -p probabilistic_forecasting_diff_v2 && \
+cp -R probabilistic_forecasting_v3/latex probabilistic_forecasting_diff_v2/latex && \
+latexdiff \
+  --flatten \
+  -t CTRADITIONAL \
+  --subtype=SAFE \
+  --graphics-markup=none \
+  --math-markup=0 \
+  --replace-context2cmd='title,date,institute,corrauthor' \
+  --config 'PICTUREENV=(?:picture|DIFnomarkup|tikzpicture)' \
+  probabilistic_forecasting_v2/latex/main.tex \
+  probabilistic_forecasting_v3/latex/main.tex \
+  > probabilistic_forecasting_diff_v2/latex/diff.tex

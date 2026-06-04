@@ -1,0 +1,149 @@
+% !TEX root = main.tex
+\appendix
+
+
+\clearpage
+\begin{landscape}
+
+\section{Estimation diagnostics of the Markov jump processes}
+\label{sec:diagnostics_estimation}
+
+\begin{table}[h!]
+\centering
+\caption{Akaike information criterion (AIC; computed from the log-likelihood at the score-optimal parameters) and per-observation gradient norm of the score objective.}
+\label{tab:AIC_tab}
+\scriptsize
+\input{AIC_tab}
+\end{table}
+
+\end{landscape}
+\clearpage
+
+%\section{Estimation diagnostics of the Markov jump processes} \label{sec:diagnostics_estimation}
+%
+%\begin{table}[h!]  
+%\centering
+%\caption{Akaike information criterion (AIC; computed from the log-likelihood at the score-optimal parameters) and per-observation gradient norm of the score objective, reported by fold in the cross-validation.} \label{tab:AIC_tab}
+%\centering
+%\scriptsize
+%\input{AIC_tab}
+%%    \resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{\input{AIC_tab}}
+%\end{table} 
+
+\newpage
+
+\section{Transition residuals and sharpness through entropy} \label{sec:transition_L1}  \label{sec:sharpness}
+Transition residual matrices  $\bm R$ are computed using held-out predictions from the cross-validation procedure in \cref{sec:prediction_error}.
+We report the L1-norm of the residual matrix obtained by pooling observed transition counts and pooled model-implied expected counts across folds, i.e. $|| \bm R || = \sum_{i,j} |  R_{i,j}|$ for $i,j \in \mathcal J$. %Lower values indicate closer agreement between observed and model-implied transition frequencies.
+Further, we report mean predictive entropy as a measure of sharpness,
+$H(\widehat{\boldsymbol\pi}^{(s)}) = - \frac{1}{\log m}\sum_{j=1}^{m}\widehat{\pi}^{(s)}_j \log\!\big(\widehat{\pi}^{(s)}_j\big)$,
+computed for each held-out forecast and averaged. Lower entropy indicates sharper predictive distributions.
+
+\begin{table}[h!]  
+\centering
+\caption{L1-norm of transition residuals $
+|| \bm R || $ and normalized predictive entropy $H$ for different model settings.} \label{tab:transition_structure_L1}
+\centering
+\scriptsize
+   \input{transition_structure_L1}
+\end{table} 
+
+
+
+\newpage
+
+\section{Synthetic data} \label{sec:synthetic_data}
+As the raw defect data provided by the infrastructure manager are confidential, they cannot be shared. To support reproducibility of the proposed methods of this study, we provide a synthetic dataset in the same format (with censoring) as the original transition data, i.e., tuples $\{(y_1^{(s)},y_2^{(s)},\tau^{(s)},\bm z^{(s)})\}_{s \in \mathcal S}$, which can be used to run all proposed estimation and prediction procedures.
+
+The synthetic data is generated as follows.
+\begin{itemize}
+\item An MJP with a chosen model specification is estimated on the confidential defect data using the methods, so that model parameters $\widehat{\bm \theta}$ are obtained.
+\item $n$ initial states $y_1'$ are sampled independently from the empirical distribution of the observed initial states in the confidential dataset, i.e.
+$
+y_1' \sim \text{Categorical}(\widehat{\bm p})$ where $\widehat p_i = \frac{1}{| \mathcal S|} \sum_{s\in\mathcal S} \mathds{1}_{y_1^{(s)}=\;i}
+$ for $i \in \mathcal J$. 
+%$\left(\widehat p_i = \frac{1}{|\mathcal S|}\sum_{s\in\mathcal S}\mathds{1}_{y_1^{(s)}=i}\right)$
+\item $n$ observation intervals $\tau'_1,\dots,\tau'_n$ are sampled independently by bootstrap resampling from the observed intervals, i.e.,
+$
+\tau'_r \overset{\text{i.i.d.}}{\sim} \{\tau^{(s)}: s\in\mathcal S\} $ with replacement for $ r=1,\dots,n$. The same is done for the $p$ covariates, so that also $n$ observations are sampled marginally for each variable, i.e., $(z'_{1,1},\dots,z'_{1,n} ), \dots, (z'_{p,1},\dots,z'_{p,n})$. 
+\item The transient distribution for each sampled defect under the model and the estimated parameters is then used as the categorical distribution for which an ending state is sampled, i.e., 
+$
+y_{2,r}' \sim \text{Categorical}(\widehat{\bm\pi}( \tau'_r \mid y'_{1,r}, \bm z'_r; \widehat{\bm\theta}) )
+$ for $r = 1, \dots, n$, with $\bm z'_r = (z'_{1,r},\dots,z'_{p,r})^\top$.
+\end{itemize}
+We generate a synthetic dataset using the $\bm{A}_{\RN{3}}$ parameterization (\cref{sec:generator_params}), warping (\cref{sec:warping}), and global regression (\cref{eq:trans_rates_covariates} in \cref{sec:regression}) with $n = 10000$.
+
+This synthetic dataset serves two purposes: 1) the proposed methods can be tested on data with the same structure as the confidential dataset; 2) it enables numerical verification that the estimation procedure can recover the data-generating parameters and that estimation error decreases as $n$ increases.
+
+
+
+
+\newpage
+
+\section{Details on the stochastic optimization program} \label{sec:stochastic_optimization_details}
+Here, we provide additional details on the stochastic optimization program described in \cref{sec:proposition_for_use}.
+\paragraph{Sampling and tree reduction.}
+We consider a three-stage horizon with decision times
+$T_1=\Delta t, T_2=2\Delta t$, and $T_3=3\Delta t$, where $\Delta t=0.5$ (years).
+For each defect, the fitted MJP gives a TPM over one decision interval, cf. \cref{sec:transient_dist}. In this example, $\bm A^{(s)}$ is obtained from an MJP fitted with the generator parameterization $\bm{A}_{\RN{3}}$ and the regression setting in \cref{eq:trans_rates_covariates}.
+Using the one-step TPMs, we generate Monte Carlo degradation paths on $(T_1,T_2,T_3)$ for a set of $10$ selected defects (sampling each defect independently conditional on initial distributions at $T_1$).
+The full joint scenario tree becomes too large to use directly, so we approximate it by a reduced scenario tree using stagewise clustering (weighted K-medoids, cf.\ \citet{park2009a}): first, sampled joint states at $T_2$ are clustered into $K_2$ representative nodes; then, within each stage-2 cluster, the descendant joint states at $T_3$ are clustered into $K_3$ representative children.
+Node probabilities are estimated by relative frequencies of the paths, and each node stores the per-defect marginal distributions. These are used to compute (nodewise) the quantities of $q^{(s)}(t)$ and $\bar c^{(s)}(t)$.
+
+\paragraph{Encoding of endogenous information.}
+The reduced tree represents future joint defect scenarios, while inspection changes what is known later.
+If defect $s$ is not inspected by stage $T_t$, then quantities such as $q^{(s)}(T_t)$ and $\bar c^{(s)}(T_t)$ are computed from the per-defect marginal state distribution stored at that node.
+If defect $s$ is inspected and class $j\in\mathcal J$ is observed, then later-stage $q^{(s)}(t)$ and $\bar c^{(s)}(t)$ are computed conditional on that observation.
+In this way, the reduced scenario tree stays fixed, but the quantities entering the optimization model switch to observation-conditional values when inspection occurs.
+
+
+\paragraph{Numerical details.}
+The reduced-tree architecture is specified by $(K_2,K_3)$, where $K_2$ is the number of stage-2 clusters and $K_3$ the number of stage-3 children per stage-2 cluster.
+Candidate architectures are evaluated by constructing the reduced tree from a training set of Monte Carlo paths, solving the resulting mixed-integer program, and estimating the induced policy’s mean total cost on an independent validation set. We select the architecture with the lowest validation mean total cost (with smaller-tree tie-breaks).
+
+\Cref{tab:setup} displays the parameters used to run the optimization program.
+\begin{table}[htb!]
+\centering
+\caption{Experimental setup.} \label{tab:setup}
+\begin{tabular}{p{0.43\linewidth}p{0.47\linewidth}}
+\toprule
+Item & Value \\
+\midrule
+Number of defects & \(10\) \\
+Decision times & \((0.5,\,1.0,\,1.5)\) \\
+Training / validation / test paths & \(10^6 / 10^5 / 10^5\) \\
+Training / validation / test seeds & \(42 / 43 / 44\) \\
+Inspection cost \(c_{\mathrm{ins}}\) & \(150\) \\
+Failure cost \(c_{\mathrm{fail}}\) & \(200{,}000\) \\
+Maintenance costs for classes in $\mathcal E$ & \(2000,\,3500,\,4500,\,8000,\,10000\) \\
+Stage budgets & \((20000,\,19500,\,18000)\) \\
+Critical classes $\mathcal E_{\text{critical}}$ & \(\{ \text{Class } $1$, \text{Class } $0$\}\) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\Cref{tab:reduced_tree} displays the parameters used to reduce the full tree and obtained results from solving the program.
+\begin{table}[htb!]
+\centering
+\caption{Summary for the selected reduced-tree architecture.} \label{tab:reduced_tree}
+\begin{tabular}{p{0.55\linewidth}p{0.30\linewidth}}
+\toprule
+Item & Value \\
+\midrule
+Selected architecture $(K_2 \times K_3)$ & $20\times 8$ \\
+Realized stage-2 / stage-3 nodes & $20 / 160$ \\
+Validation mean total cost (s.e.) & $105063.69\ (364.86)$ \\
+Test mean total cost & $104854.52$ \\
+Stage-3 critical-count total variation & $6.9\times 10^{-5}$ \\
+Stage-1 budget usage (\%) & $96.64\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+

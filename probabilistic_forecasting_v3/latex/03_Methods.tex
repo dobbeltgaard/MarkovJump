@@ -1,0 +1,610 @@
+% !TEX root = main.tex
+
+ 
+\section{Methods} \label{sec:methods}
+This section describes the methodological basis to address the prediction task outlined in \cref{sec:prediction_task} given the recorded defect severity trajectories in \cref{sec:data}. 
+We propose the Markov jump process (MJP) for the prediction and modeling task of defect progression, including different settings for its generator, modifications of sojourn time estimates, regression settings, and mixture distributions.
+We describe its mathematical properties with computational remarks, if any, and lay out how it is estimated and applied for prediction. In addition, the evaluation methodology is described with respect to error metrics and reference predictors. 
+The complete set of rail defects is denoted by $\mathcal{S}$. The set of possible defect classifications is defined as $\mathcal{E} = \{3, 2B, 2A, 1, 0\}$, where $\mathcal{E}$ is ordered with index set denoted $\mathcal{J}$.
+Further, we define a stochastic process by $\{ X^{(s)}(t) \; \vert \; t \in \mathbb R_+\}$ for each $s \in \mathcal{S}$, and let its range be given by the defect classifications such that $ X^{(s)}(t) \in \mathcal{J}, \; \forall t \in \mathbb R_+$. Hence, the state space of $X^{(s)}(t)$ is discretely valued and finite. 
+The recorded endpoint data of the defect trajectories described in \cref{sec:defect_trajectories} are denoted as $Y^{(s)} = \{ y_1^{(s)} = X^{(s)}(t_1^{(s)}), y_2^{(s)} = X^{(s)}(t_2^{(s)}) \}$ with $y_1^{(s)}$ and $y_2^{(s)}$ being the observed defect classes and $t_1^{(s)}$ respectively $t_2^{(s)}$ their time stamps, for defect $s \in \mathcal{S}$. The time passed between two observations is written as $\tau^{(s)} = t_2^{(s)} - t_1^{(s)}, \; s \in \mathcal{S}$. Accordingly, the observed transition data can be expressed as the collection of tuples $\{ ( y_1^{(s)}, y_2^{(s)}, \tau^{(s)} ) \}_{s \in \mathcal{S}}$. 
+
+
+
+
+\subsection{Markov jump process} \label{sec:mjp}
+The stochastic process $X^{(s)}(t) \in \mathcal{J}, \; \forall t \in \mathbb R_+$ is assumed to obey the Markov property for a defect $s \in \mathcal S$. Additionally, temporal homogeneity of the process is assumed, i.e.
+\begin{align}
+    \mathds{P} \left(X^{(s)}(u+t) = j \mid X^{(s)}(u) = i \right) =  \mathds{P} \left( X^{(s)}(t) = j \mid X^{(s)}(0) = i \right), \quad u,t\in \mathbb R_+, s \in \mathcal S, i,j \in \mathcal{J}. \label{eq:markov_property}
+\end{align}
+The assumption gives the process a memory-free property, meaning that the probability of transitioning from state $i$ to $j$ over a certain time span is the same regardless of the exact position in time and which prior states that $X^{(s)}$ has visited. \citet{bisgaard2024A} argue that this model assumption is reasonable as no structural or regimes in defect growth have been indicated by Bane NOR as well as from visual diagnostics of the recorded transition times.
+However, spatial homogeneity is not assumed, which means that the propagation of defect severity can vary depending on the exact location of the defect in the rail network. We will expand on the notion of spatial inhomogeneity in the following.
+
+The instantaneous rate of transition from state $i$ to state $j$ is defined as
+\begin{align*}
+    %\bm{A}_{i,j} = \lambda_{\mathcal{E}(i), \mathcal{E}(j)} =
+    \lambda_{i,j} = 
+    \lim_{\Delta t \rightarrow 0_+} \frac{ \mathds{P}\left( X^{(s)}(\Delta t) = j | X^{(s)}(0) = i\right)}{\Delta t}, \quad i \neq j, s \in \mathcal S,
+\end{align*}
+for $i,j \in \mathcal{J}$. The transition rates are collected in the \textit{infinitesimal generator}, $\bm{A} \in \mathbb R^{m \times m}$, (or the \textit{transition rate matrix}), such that the $(i,j)$'th element in $\bm{A}$ is given by $\lambda_{i,j}$ where $i \neq j$. Naturally, the rates of transition are nonnegative, i.e. $\lambda_{i,j} \geq 0$ for $i \neq j$. The diagonal elements are $\bm{A}_{i,i} = -\sum_{j \in \mathcal{J} | i \neq j } \lambda_{i,j}$ and reflect the total rate of leaving state $i$ \citep[Section 1.3]{bladt_nielsen}. 
+
+\subsubsection{Transient distribution} \label{sec:transient_dist}
+Let $\bm{\pi}^{(s)}(t) = \begin{bmatrix} \pi^{(s)}_1(t), \dots, \pi^{(s)}_m(t) \end{bmatrix}$ denote the time-dependent state distribution of defect $s$, a vector of dimension $1 \times m$ satisfying $\sum_{i = 1}^m \pi^{(s)}_i(t) = 1$. For any $t>t_1^{(s)}$, the $i$'th component is given by
+\begin{align}
+\pi_i^{(s)}(t) = \mathds{P} \left( X^{(s)}(t) = i \mid X^{(s)}(t_1^{(s)}) = y_1^{(s)}  \right), \quad \forall t\in \mathbb{R}, \forall s \in \mathcal{S}. \label{eq:transient_dist} 
+\end{align}
+Equivalently, $\bm{\pi}^{(s)}(t)$ is called the \textit{transient distribution} of the Markov chain, representing the probability distribution over severity classes at time $t$, conditional on the observed starting state $y_1^{(s)}$.
+Kolmogorov's forward equation, $\Dot{\bm{\pi}}^{(s)}(t) = \bm{\pi}^{(s)}(t) \bm{A}^{(s)}$, governs the change in state probabilities over time, given some initial probabilities \citep[Section 1.3]{bladt_nielsen}. Remark that the explicit $s$-dependence on $\bm{A}^{(s)}$ is to express that the transition matrix can vary across defects through regression settings.
+The transient distribution can be obtained by
+\begin{equation}
+\begin{aligned}
+                  \bm{\pi}^{(s)}(t_0 + \Delta t) = 
+                  \bm{\pi}^{(s)}(t_0) \exp{ ( \Delta t \bm{A}^{(s)} ) }. \label{eq:markov_eq_solution} %^{(s)}
+\end{aligned}     
+\end{equation}
+\cref{eq:markov_eq_solution} demonstrates that the transient distribution of a continuous time Markov chain is calculated as a vector-matrix product between some initial distribution of the chain, $\bm{\pi}^{(s)}(t_0)$, and the matrix exponential of the generator scaled by passed time, $\exp{ ( \Delta t \bm{A}^{(s)} ) }$. Thus, $\exp{ ( \Delta t \bm{A}^{(s)} ) }$ is a transition probability matrix, that is an $m \times m$ matrix whose $(i,j)$-indices represent the probabilities of transitioning from state $i$ to state $j$ over the time span of $\Delta t$.
+
+\subsubsection{Parameterization of the infinitesimal generator} \label{sec:generator_params}
+The parameterization of the infinitesimal generator (or just the \textit{generator}) determines how $X^{(s)}$ transitions between states in the Markov chain. 
+%As described in \cref{sec:data}, we model the progression of rail defects. 
+Given an observation $y_1^{(s)} = X^{(s)}\left(t_1^{(s)}\right)$ for defect $s \in \mathcal{S}$, a later observation $y_2^{(s)} = X^{(s)}\left(t_2^{(s)}\right)$ satisfies $y_2^{(s)} \geq y_1^{(s)}$ for $t_2^{(s)} > t_1^{(s)}$, reflecting non-reversible degradation. However, between observations, the defect’s state is unobserved: $X^{(s)}(t)$ is unknown for $t \in \left(t_1^{(s)}, t_2^{(s)}\right)$.
+
+For example, if $y_1^{(s)}$ is class $2B$ and $y_2^{(s)}$ is class 1, it is not observed whether, or when, the defect entered class $2A$. By parameterizing the generator, we can either force the process to pass through $2A$ before reaching $1$, or allow direct transitions between non-neighboring states. 
+
+Since rails can degrade both gradually and through sudden shocks, the generator’s structure influences which physical degradation mechanisms the model can capture. In the following, we introduce five different parameterizations of $\bm{A}$ from \cref{eq:trans_rates_covariates}, each applied later in the prediction study to assess their impact on forecast accuracy. \cref{tab:generators_overview} provides an overview of the generators considered in the following. Common to all is that the lower triangle of $\bm{A}$ is zero, reflecting that degradation is irreversible without maintenance.
+
+\begin{table}[htb!]
+\centering
+\caption{Overview of generator parameterizations for crack $s \in \mathcal{S}$ where $m$ is the size of the state space.}
+\label{tab:generators_overview}
+\begin{tabular}{@{}llc@{}}
+\toprule
+Notation & Generator & \#Parameters \\% base rates & \makecell{Total parameters} \\
+\midrule
+$\bm{A}_{\RN{1}}$ & Nearest class & $m - 1$ \\%& $2m - 2 + p$ \\
+$\bm{A}_{\RN{2}}$ & Relaxed Erlang & $m - 1$ \\%& $2m - 2 + p$ \\
+$\bm{A}_{\RN{3}}$ & Up to 2 classes ahead & $2m - 3$ \\%& $3m - 4 + p$ \\
+$\bm{A}_{\RN{4}}$ & Up to 3 classes ahead & $3m - 6$ \\%& $4m - 7 + p$ \\
+$\bm{A}_{\RN{5}}$ & Any forward jump (free) & $m(m-1)/2$ \\%& $\frac{m(m+1)}{2} - 1 + p$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Nearest class.} 
+The first proposed parameterization assumes that a defect transition can only happen to a neighboring defect class. The generator can then be expressed as
+\begin{align}
+    \bm{A}_{\RN{1}} = \begin{bmatrix} 
+    \Sigma_1 & \lambda_{3,2B} & 0 & 0 & 0 \\
+    0 & \Sigma_2 & \lambda_{2B, 2A} & 0 & 0 \\
+    0 & 0 & \Sigma_3 & \lambda_{2A, 1} & 0 \\
+    0 & 0 & 0 & \Sigma_4 & \lambda_{1, 0} \\
+    0 & 0 & 0 & 0 & 0 \\
+    \end{bmatrix}, \label{eq:generator_erlang}
+\end{align}
+where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{1},i,j}$ for $i = 1, \dots, m-1$. 
+\cref{eq:generator_erlang} results in the \textit{generalized Erlang distribution} or a \textit{hypoexponential distribution} for transition times between states. This is a distribution of the sum of independent exponential random variables \citep[Section 3.1]{bladt_nielsen}. For the previously outlined observation of a defect jump from class $2B$ to class $1$ between time $t_1^{(s)}$ and $t^{(s)}_2$, \cref{eq:generator_erlang} assumes that $X^{(s)}\left(t^{(s)}\right)$ has visited class $2A$ where $t^{(s)}_1 < t^{(s)} < t^{(s)}_2$.
+%For brevity of notation, we have dropped the explicit $\bm{z}^{(s)}$-dependence on the $\lambda_{i,j}$'s but we note that we refer to the variables expressed in \cref{eq:trans_rates_covariates}. 
+Given the parameterization in \cref{eq:generator_erlang}, the model setting has $m-1$ parameters, while it with the regression setting in \cref{eq:trans_rates_covariates} has $m-1 + p$ parameters, where $m$ denotes the size of the state space and $p$ denotes the number of covariates.
+
+
+\paragraph{Relaxed Erlang.} 
+We introduce an alternative parameterization that retains the same number of free parameters as the nearest class generator, but permits longer jumps. %In this setting, longer jumps occur with lower transition rates, reflecting accumulated degradation over multiple intermediate classes. 
+Specifically, we parameterize the effective rate between two non-adjacent states as if the mean transition time were accumulated over the intermediate classes, yielding lower effective rates for longer jumps.
+%Specifically, we assume that the mean degradation time between two states is the sum of the mean degradation times through each intermediate class. 
+For instance, we have that
+\begin{align*}
+    \frac{1}{\lambda_{2B, 1}} = \frac{1}{\lambda_{2B, 2A}} + \frac{1}{\lambda_{2A, 1}}
+    %= \frac{\lambda_{2A, 1} + \lambda_{1, 0}}{\lambda_{2A, 1} \lambda_{1, 0}} 
+    \iff \lambda_{2B,1} = \frac{\lambda_{2B, 2A} \lambda_{2A, 1}}{\lambda_{2B, 2A} + \lambda_{2A, 1}}. 
+\end{align*}
+Formally, this is expressed as
+\begin{align}
+    \frac{1}{\lambda_{i,j}} = \sum_{k = i}^{j-1} \frac{1}{\lambda_{k,k+1}}, \quad i < j. \label{eq:trans_rate_param}
+\end{align}
+\cref{eq:trans_rate_param} should not be interpreted as the mean transition time between non-adjacent states, which would depend on the conditional path probabilities. Rather, it is a structural assumption that ensures longer jumps receive proportionally lower mean rates, reflecting accumulated degradation through intermediate levels.
+We let $\bm{A}_{\RN{2}}$ denote the generator subject to the reparameterized upper triangle of the nearest class generator in \cref{eq:generator_erlang}.
+Upon determination of the upper triangle using \cref{eq:trans_rate_param}, the diagonal elements are updated accordingly so that they still satisfy $A_{\RN{2},i,i}= -\sum_{j=1, i \neq j}^m A_{\RN{2},i,j}$ for $i = 1, \dots, m$. For completeness, we provide its somewhat cumbersome algebraic expression, i.e.
+\begin{align*}
+  \bm{A}_{\RN{2}}=\begin{bmatrix}
+\Sigma_1 %-\lambda_{3,2B}-\frac{\lambda_{3,2B} \lambda_{2B,2A}}{\lambda_{3,2B}+\lambda_{2B,2A}}-\frac{\lambda_{3,2B} \lambda_{2B,2A} \lambda_{2A,1}}{\left(\lambda_{2B,2A}+\lambda_{2A,1}\right) \lambda_{3,2B}+\lambda_{2B,2A} \lambda_{2A,1}}-\\\frac{\lambda_{3,2B} \lambda_{2B,2A} \lambda_{2A,1} \lambda_{1,0}}{\left(\left(\lambda_{2A,1}+\lambda_{1,0}\right) \lambda_{2B,2A}+\lambda_{2A,1} \lambda_{1,0}\right) \lambda_{3,2B}+\lambda_{2B,2A} \lambda_{2A,1} \lambda_{1,0}} 
+ & \lambda_{3,2B} & \frac{\lambda_{3,2B} \lambda_{2B,2A}}{\lambda_{3,2B}+\lambda_{2B,2A}} & \frac{\lambda_{3,2B} \lambda_{2B,2A} \lambda_{2A,1}}{\left(\lambda_{2B,2A}+\lambda_{2A,1}\right) \lambda_{3,2B}+\lambda_{2B,2A} \lambda_{2A,1}} & \frac{\lambda_{3,2B} \lambda_{2B,2A} \lambda_{2A,1} \lambda_{1,0}}{\left(\left(\lambda_{2A,1}+\lambda_{1,0}\right) \lambda_{2B,2A}+\lambda_{2A,1} \lambda_{1,0}\right) \lambda_{3,2B}+\lambda_{2B,2A} \lambda_{2A,1} \lambda_{1,0}} 
+\\
+ 0 & 
+ \Sigma_2 %-\lambda_{2B,2A}-\frac{\lambda_{2B,2A} \lambda_{2A,1}}{\lambda_{2B,2A}+\lambda_{2A,1}}-\frac{\lambda_{2B,2A} \lambda_{2A,1} \lambda_{1,0}}{\left(\lambda_{2A,1}+\lambda_{1,0}\right) \lambda_{2B,2A}+\lambda_{2A,1} \lambda_{1,0}}
+ & \lambda_{2B,2A} & \frac{\lambda_{2B,2A} \lambda_{2A,1}}{\lambda_{2B,2A}+\lambda_{2A,1}} & \frac{\lambda_{2B,2A} \lambda_{2A,1} \lambda_{1,0}}{\left(\lambda_{2A,1}+\lambda_{1,0}\right) \lambda_{2B,2A}+\lambda_{2A,1} \lambda_{1,0}} 
+\\
+ 0 & 0 & %-\frac{\lambda_{2A,1} \left(\lambda_{2A,1}+2 \lambda_{1,0}\right)}{\lambda_{2A,1}+\lambda_{1,0}} 
+ \Sigma_3 & \lambda_{2A,1} & \frac{\lambda_{2A,1} \lambda_{1,0}}{\lambda_{2A,1}+\lambda_{1,0}} 
+\\
+ 0 & 0 & 0 & %-\lambda_{1,0}
+ \Sigma_4 & \lambda_{1,0} 
+\\
+ 0 & 0 & 0 & 0 & 0 
+    \end{bmatrix},
+\end{align*}
+where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{2},i,j}$ for $i = 1, \dots, m-1$. 
+
+\paragraph{Up to 2 classes ahead.}
+The \textit{upper bidiagonal} parameterization allows for transitions to both the immediate next class and the class two steps ahead in severity. Compared to the nearest class generator, this formulation introduces additional flexibility, while still restricting long jumps. The generator is given by
+\begin{align}
+\bm{A}_{\RN{3}} = \begin{bmatrix}
+\Sigma_1 & \lambda_{3,2B} & \lambda_{3,2A} & 0 & 0 \\
+0 & \Sigma_2 & \lambda_{2B,2A} & \lambda_{2B,1} & 0 \\
+0 & 0 & \Sigma_3 & \lambda_{2A,1} & \lambda_{2A,0} \\
+0 & 0 & 0 & \Sigma_4 & \lambda_{1,0} \\
+0 & 0 & 0 & 0 & 0 \\
+\end{bmatrix}, \label{eq:generator_bidiagonal}
+\end{align}
+where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{3},i,j}$ for $i = 1, \dots, m-1$.
+The total number of base rate parameters is $2m - 3$. With covariates, it becomes $2m - 3 + p$ parameters in total.
+
+\paragraph{Up to 3 classes ahead.}
+The fourth parameterization, \textit{upper tridiagonal}, allows jumps of up to three severity levels ahead. The generator matrix takes the form
+\begin{align}
+\bm{A}_{\RN{4}}= \begin{bmatrix}
+\Sigma_1 & \lambda_{3,2B} & \lambda_{3,2A} & \lambda_{3,1} & 0 \\
+0 & \Sigma_2 & \lambda_{2B,2A} & \lambda_{2B,1} & \lambda_{2B,0} \\
+0 & 0 & \Sigma_3 & \lambda_{2A,1} & \lambda_{2A,0} \\
+0 & 0 & 0 & \Sigma_4 & \lambda_{1,0} \\
+0 & 0 & 0 & 0 & 0 \\
+\end{bmatrix}, \label{eq:generator_tridiagonal}
+\end{align}
+where again $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{4},i,j}$ for $i = 1, \dots, m-1$.
+This specification enables modeling large defect escalations, where a defect may deteriorate across multiple classes in a single transition. It introduces more flexibility than the previous structures at the cost of increased cardinality of the parameter space. Specifically, this parameterization includes $3m - 6$ base transition rates, yielding a total of $3m - 6 + p$ parameters with covariates.
+
+
+\paragraph{Free upper-triangular.}
+The last parameterization assumes that a defect can transition to any class of equal or higher severity, without any functional relationship between transition rates. In this setting, the upper triangle of the generator is \textit{free} of structural restrictions. The generator is expressed as
+\begin{align}
+    \bm{A}_{\RN{5}} =
+    \begin{bmatrix} 
+    \Sigma_1 & \lambda_{3,2B} & \lambda_{3, 2A} & \lambda_{3, 1} & \lambda_{3, 0} \\
+    0 & \Sigma_2 & \lambda_{2B, 2A} & \lambda_{2B, 1} & \lambda_{2B, 0} \\
+    0 & 0 & \Sigma_3 & \lambda_{2A, 1} & \lambda_{2A, 0} \\
+    0 & 0 & 0 & \Sigma_4 & \lambda_{1, 0} \\
+    0 & 0 & 0 & 0 & 0 \\
+    \end{bmatrix}, \label{eq:generator_free_upper}
+\end{align}
+where $\Sigma_i = -\sum_{j=1, i \neq j}^m A_{\RN{5},i,j}$ for $i = 1, \dots, m-1$.
+Unlike the reparameterized upper, this formulation does not constrain long-range jumps to have lower rates than neighboring jumps. It introduces more model flexibility at the cost of higher complexity: the number of free parameters increases quadratically with the number of states and linearly with the number of covariates, that is, $m(m-1)/2+p$ parameters in total with regression.
+
+
+\subsubsection{Model with modified sojourn time estimates} \label{sec:warping}
+Previous work on Markov jump processes applied to crack growth typically parameterizes degradation in terms of exposure to calendar time or tonnage of traffic, assuming that all elapsed exposure contributes equally to defect development \citep{bisgaard2024A}. 
+In practice, however, the speed of propagation may depend on which severity class is currently occupied: some states correspond to slower degradation dynamics, while others accelerate propagation.
+To allow for such flexibility, we propose a somewhat heuristic model that preserves some of the virtues of the MJP modelling approach, by modifying the sojourn time estimates with state-specific weights, $\xi_i$.
+The idea is that the effective process time accumulates faster in states associated with larger $\xi_i$, and slower otherwise.
+Given the collection of tuples $\{ ( y_1^{(s)}, \tau^{(s)} ) \}_{s \in \mathcal{S}}$, the expected sojourn time in state $i$ during the interval $\left[ 0,\tau^{(s)} \right]$ conditional on the initial state $y_1^{(s)}$ is defined as
+\begin{equation*}
+    \begin{aligned}
+    \mu_i^{(s)} &=\mathbb{E} \left[ \left. \int_0^{\tau^{(s)}} \mathds{1}_{\{X^{(s)}(t) = i\}} \; dt \; \Big| \; X^{(s)}(0) = y_1^{(s)} \right. \right] \\ 
+				&= \int_0^{\tau^{(s)}}\mathds{P}\left(X^{(s)}(t)=i \; \Big| \; X^{(s)}(0)=y_1^{(s)}\right)dt \\ 
+				&= \int_0^{\tau^{(s)}} \pi^{(s)}_i(t) \; dt.
+\end{aligned}  \label{eq:cumulative_sojourn_time}
+\end{equation*} 
+This can be calculated exactly. Defining $\bm{\mu}^{(s)}  =  \left(\mu_1^{(s)},\dots,\mu_{m-1}^{(s)}\right)$, we have that
+\begin{equation}
+    \begin{aligned}
+\bm{\mu}^{(s)} &= \bm{e}_{y_{1}^{(s)}} \int_0^{\tau^{(s)}}\exp\left(\bm{S}^{(s)}t\right) dt = \bm{e}_{y_{1}^{(s)}} (-\bm{S}^{(s)})^{-1}\left[\bm{I} - \exp \left( \bm{S}^{(s)}\tau^{(s)} \right) \right] \quad \text{and} \\ 
+\mu_m^{(s)}  &= \tau^{(s)} - \bm{\mu}^{(s)}\bm{1}^\top, \quad \text{with} \\
+\bm{A}^{(s)} &= \left[\begin{array}{cc} \bm{S}^{(s)} & \bm{s}^{(s)}\\
+\bm{0} & 0\end{array}\right], 
+    \end{aligned} \label{eq:sojourn_time_estimate}
+\end{equation}
+and $\bm{e}_{y_{1}^{(s)}}$ is a $1 \times (m-1)$ basis vector being $1$ at the $y_{1}^{(s)}$-index and zero elsewhere, while $\bm{1}$ is a $1 \times (m-1)$ vector being $1$ everywhere.
+
+% \in \mathbb{N}^{1 \times (m-1)}$ is $1$ everywhere. 
+%\in \mathbb{N}^{1 \times (m-1)}$ is 
+
+The modified time $\widetilde{\tau}^{(s)}$ for defect $s \in \mathcal S$ is then obtained as a weighted sum of the expected sojourn time estimates
+\begin{align}
+\widetilde\tau^{(s)}= \sum_{i = 1}^m \xi_i  \cdot \mu_i^{(s)}, \label{eq:warped_time}
+\end{align}
+where $\bm{\xi} \in \mathbb{R}_+^m$ is a vector of nonnegative weights. 
+To avoid scale redundancy between the transition rates in $\bm A$ and the state weights $\bm\xi$, unconstrained working weights $\widetilde{\bm\xi}\in\mathbb{R}_+^{m-1}$ are used, defining the weights $\bm\xi$ via centering on the log-scale, i.e.,
+$$
+ \log \xi_i = \log\widetilde{\xi}_i - \frac{1}{m-1}\sum_{j=1}^{m-1}\log\widetilde{\xi}_j, \quad \text{for } i = 1, \dots, m-1.
+$$
+This mapping encodes relative acceleration across the states, which implies that $\prod_{i = 1}^{m-1} \xi_i = 1$; thus keeping the transition rates and state weights identifiable during estimation.
+The weight for the absorbing state, $\xi_m$, is fixed to $1$ to ensure that arrival at the absorbing state concludes the degradation process in the modified time domain as well.
+
+%If all $\xi_i = 1$, the model reduces to one without rescaling of time, i.e., $\widetilde\tau^{(s)} = \tau^{(s)}$. 
+We compare models with and without modified sojourn time estimates in terms of predictive accuracy. %For notational simplicity, $\tau'$ denotes elapsed time in both the standard covariate-dependent MJP and its temporally modified version.
+
+
+%Identifiability and constraints. The warped-time specification introduces a scale redundancy between the baseline transition rates in \bm A and the state weights \bm\xi: multiplying \bm\xi by a constant factor yields a proportional rescaling of \widetilde\tau^{(s)}, which is confounded with rescaling \bm A (equivalently, the \lambda-parameters). To enforce identifiability we therefore (i) constrain \xi_i>0 via the reparameterization \xi_i=\exp(\kappa_i) for i=1,\dots,m-1, and (ii) impose a normalization on the transient-state weights by centering the log-weights,
+%> \bar\kappa=\frac{1}{m-1}\sum_{i=1}^{m-1}\kappa_i,\qquad
+%> \xi_i=\exp(\kappa_i-\bar\kappa)\ \ (i=1,\dots,m-1),
+%>
+%which is equivalent to \prod_{i=1}^{m-1}\xi_i=1 (geometric mean one). The absorbing-state weight is fixed at \xi_m=1.
+%This removes the global scale non-identifiability and ensures that \bm\xi only redistributes effective time across transient states rather than changing the overall time scale.
+
+%In practice, this is calculated by 
+%$
+%\bm{\mu}^{(s)}(\tau) \approx \sum_{k = 1}^{K} \Delta t \cdot \bm{\pi}^{(s)}(t_k)
+%$
+%for some large enough $K$ with $\Delta t = \tau /K$.
+%The scaled time $\widetilde{\tau}^{(s)}$ for crack $s \in \mathcal S$, is then obtained as a weighted sum of the expected sojourn times
+%\begin{equation}
+%    \begin{aligned}
+%     \widetilde\tau^{(s)}(\tau) &= \sum_{i = 1}^m \xi_i  \cdot \mu_i^{(s)}(\tau ) \\
+%    &= \int_0^\tau \sum_{i = 1}^m \xi_i \cdot \pi^{(s)}_i \, dt \\
+%    &\approx \sum_{k = 1}^K \bm{\xi} \cdot \bm{\pi}^{(s)}(t_k) \cdot \Delta t,   
+%    \end{aligned} %\label{eq:warped_time}
+%\end{equation}
+%where $\bm{\xi} \in \mathbb{R}_+^m$ is a vector of nonnegative weights. We approximate the transient distribution via an Euler scheme, i.e. $\bm{\pi}^{(s)}(t_k) \approx \bm{\pi}^{(s)}(t_{k-1}) + \Delta t \cdot \bm{\pi}^{(s)}(t_{k-1}) \bm{A}^{(s)}$.
+%If all $\xi_i = 1$, the model reduces to one without rescaling of time, i.e., $\widetilde\tau^{(s)} = \tau^{(s)}$. The weight for the absorbing state is set to $1$ to ensure that arrival at the absorbing state concludes the degradation process in the scaled time domain as well.
+%We compare models with and without time scaling in terms of predictive accuracy. For notational simplicity, we use $\tau'$ to denote elapsed time in both the standard covariate-dependent MJP and its temporally scaled version.
+
+
+\subsubsection{Regression settings} \label{sec:regression} \label{sec:regression_state_dependent}
+As the progression of defects is dependent on local operational and geometric factors, we regress the transition rate matrix on the covariates, $\bm{z}^{(s)}$. This study proposes two ways of doing that; one where regression coefficients apply equally across the state space (here referred to as \textit{global} regression coefficients), and another where regression coefficients are assumed to be state-dependent.
+
+\paragraph{Global regression coefficients.}
+\Citet{bisgaard2024A} considered this, per defect, by calculating the combined impact from covariates and then multiplying the generator, such that
+\begin{equation}
+\begin{aligned}
+   \eta^{(s)} &= \bm{\beta}^\top \bm{z}^{(s)}, \\
+    \bm{A}^{(s)} &= \bm{A} \cdot g\left( \eta^{(s)} \right),
+\end{aligned} \label{eq:trans_rates_covariates}
+\end{equation}
+with $\bm{A}$ denoting some base transition rate matrix, and $g$ some smooth map (a link function), that is $g: \mathbb R \rightarrow \mathbb R_+$. $\bm{\beta}$ is a $p$-sized vector of coefficients, with $p$ denoting the number of covariates. $\bm{z}^{(s)}$ contains the exogenous information described in \cref{sec:data}. With this exogenous information, we deem the MJP spatially inhomogeneous as the rail characteristics vary throughout the network as described. This dependency setting is indicated by writing $\bm{A}^{(s)}$ with the explicit $s$-dependence.
+\cref{eq:trans_rates_covariates} models the impact of the covariates \textit{globally}, meaning that each covariate is assigned one coefficient that determines if that covariate is associated with an increase or decrease of the transition rate matrix, independent of which states are visited. Equivalently, this can be viewed as a scaling of elapsed time through \cref{eq:markov_eq_solution}. 
+
+\paragraph{State-dependent regression coefficients.}
+Another way to incorporate exogenous information in the Markov chain is by state-dependent regression coefficients, so that the covariates can impact transition probabilities dependent on how progressed a defect is. This requires taking into account the time spent in each state during transitions. Due to censoring, the sojourn times are unknown, but we can use estimates of \cref{eq:sojourn_time_estimate} for the expected sojourn times conditional on the starting state. Thus, we form the weights
+$
+w_j^{(s)} = \mu_j^{(s)} / \sum_{i = 1}^{m-1} \mu_i^{(s)}
+$ for $j = 1, \dots, m-1$, so that $\sum_{i = 1}^{m-1} w_i^{(s)} = 1$. 
+These weights describe the expected proportion of time in each non-absorbing state over an observation interval of $\tau^{(s)}$ time after observing an initial state, $y_1^{(s)}$. Note that $w_j^{(s)}$ therefore is a function of $\tau^{(s)}$ through \cref{eq:sojourn_time_estimate}.
+\begin{equation}
+\begin{aligned}
+	\eta^{(s)} &=  \sum_{j =1}^{m-1} w_j^{(s)}  \bm \beta_j^\top \bm{z}^{(s)} , \\%, \quad \text{for } i = 1, \dots, m-1, \\
+    \bm{A}^{(s)} &= \bm{A} \cdot g\left( \eta^{(s)} \right),
+\end{aligned} \label{eq:trans_rates_covariates2}
+\end{equation}
+where $\bm \beta_j$ is an $p$-sized vector of coefficients for state $j$. Whereas \cref{eq:trans_rates_covariates} resulted in $p$ extra model coefficients, \cref{eq:trans_rates_covariates2} results in $p(m-1)$ extra model coefficients. Note that the reason for not including weights for state $m$ in \cref{eq:trans_rates_covariates2} is that there are no transition dynamics involved, once a defect has progressed into the absorbing state.
+
+
+%The function $g \, : \, \mathbb{R} \rightarrow \mathbb{R_+}$ takes any covariate dot product, $\bm{\beta}^\top \bm{z}^{(s)}$, as input and maps it to the positive real line, ensuring that the transition rates are nonnegative. Example choices could be
+%\begin{align*}
+%   g(x) = \exp(x), \quad g(x) = \log(1 + \exp(x) ), \quad \text{and} \quad g(x) = x^2.
+%\end{align*}
+
+
+
+\subsubsection{Mixture distributions} \label{sec:mixture}
+Mixture distributions can be effective in representing complex dependencies in the data \citep{frydman2024,Bisgaard2026}.
+Say there are $G$ latent components with corresponding generators $\bm A_g^{(s)}$, and assume each transition arises from an unobserved component $g$ with probability $\kappa_g$.
+The conditional probability of a state transition is then
+$
+\mathbb P\left( X^{(s)}(\tau^{(s)}) = j \mid X^{(s)}(0) = i \right) = \sum_{g = 1}^G \kappa_g \left[ \exp( \bm A_g^{(s)} \tau^{(s)}) \right]_{i,j}
+$, where $\kappa_g \in \mathbb R_+$ are non-negative scalars representing the proportion of the $g$'th mixture in relation to the entire mixture distribution, so that $ \sum_{g = 1}^G \kappa_g = 1$. This is ensured by constructing the $\kappa_g$'s from working parameters $\tilde\kappa_1,\dots,\tilde\kappa_{G-1}\in\mathbb R_+$ and $\tilde\kappa_G = 1$, such that $\kappa_g = \widetilde{\kappa}_g / \sum_{i=1}^G \widetilde{\kappa}_i$ for $g = 1, \dots, G$.
+
+Equivalently, the transient distribution at time $t$ is the mixture
+\begin{align}
+\bm\pi_{\text{mix.}}^{(s)}(t) = \sum_{g = 1}^G \kappa_g \bm\pi_g^{(s)}(t), \label{eq:mixture}
+\end{align}
+where each $\bm\pi_g^{(s)}$ is evolving according to Kolmogorov's forward equation for $s \in \mathcal S$, $\Dot{\bm{\pi}}_g^{(s)}(t) = \bm{\pi}_g^{(s)}(t) \bm{A}^{(s)}_g$ with initial condition $\bm \pi_g^{(s)}(0) = \bm e_{y_1^{(s)}}$ being a $1\times m$ basis vector.
+Such a mixture distribution increases the number of model parameters substantially. Say the number of parameters in the original MJP was $\widetilde{m}$. Extending this model to a mixture MJP, it becomes $G \widetilde{m} + G-1$ parameters in total plus any additional parameters in case of regression. 
+
+
+%This study will compare the predictive performance of mixtures of Markov jump processes for the progression of rail defects.
+
+
+\subsubsection{Optimum score estimation}\label{sec:optimum_score_estimation}
+
+Let $\bm{\theta}$ be shorthand for the set of model parameters. This set comprises the transition rates, covariate coefficients, the coefficients associated with expected sojourn times, and the mixture weights; that is, $\{ \lambda_{i,j}^{(g)} : i,j \in \mathcal{J}, i \neq j, g=1,\dots,G ; \; \beta_k : k = 1,\dots, \widetilde{p} ; \; \xi_l : l = 1, \dots, m-1 ;  \; \kappa_g : g=1,\dots,G-1\} $, with $\widetilde{p}$ denoting the number of coefficients related to the covariates. Note that $\bm{\theta}$ changes under the described model settings, depending on the exact specification.
+%For the Markov jump process, $\bm{\theta}$ is the collection of parameters constituted by the base transition rates, $\lambda_{i,j}^{(0)}$, and the coefficients on the covariates, $\bm{\beta}$.
+
+\citet{Gneiting2007} argues that the choice of a score function, $\mathcal{D}$, should be consistent with the forecast scoring rule used for evaluation as this improves model performance compared to non-tailored estimation practices \citep{friedman1983a,Copas1983}. 
+The idea of optimum score estimation is that the measure of the goodness-of-fit is chosen in accordance with how the performance of the model is evaluated. 
+Given a parametric model, $P_{\bm{\theta}}$, and the recorded data, $Y^{(s)}$, we denote the \textit{metric} (or \textit{reward}) by $D(P_{\bm{\theta}}, Y^{(s)})$, and the score by
+\begin{align}
+    \mathcal{D}_{|\mathcal{S}|}(\bm{\theta}) = \sum_{s \in \mathcal{S}} D\left(P_{\bm{\theta}}, Y^{(s)}\right). %\frac{1}{|\mathcal{S}|} 
+    \label{eq:mean_score}
+\end{align}
+Model parameters are then determined jointly by maximizing the score function, i.e.
+$$\widehat{\bm{\theta}}_{|\mathcal{S}|} = \argmax_{\bm{\theta}}\mathcal{D}_{|\mathcal{S}|}(\bm{\theta}), $$
+where $\widehat{\bm{\theta}}_{|\mathcal{S}|}  \rightarrow \bm{\theta}_{\infty}$ as $|\mathcal{S}| \rightarrow \infty$ with $\bm{\theta}_{\infty}$ denoting the true set of model parameters, assuming regularity conditions and a strictly proper scoring rule.
+
+\citet{bisgaard2024A} applies maximum likelihood estimation to determine parameters of the MJP.
+The data log-likelihood given the recorded defect transitions is 
+\begin{equation}
+\begin{aligned}
+                  \ell\left( \bm{\theta}; Y \right) = 
+                  \sum_{s \in \mathcal{S}} \log \left( \mathds{P}\left(X^{(s)}(t_2^{(s)}) = y_2^{(s)} \mid X^{(s)}(t_1^{(s)}) = y_1^{(s)} \right) \right), \quad \text{with} \\ 
+                 \mathds{P}\left(X^{(s)}(t_2^{(s)}) = y_2^{(s)} \mid X^{(s)}(t_1^{(s)}) = y_1^{(s)} \right) = \left[ \bm{\pi}^{(s)}\left( t_2^{(s)} \right)  \right]_{ y_2^{(s)}} =  \left[ \bm{e}_{y_{1}^{(s)}}  \exp \left( \bm{A}^{(s)} \tau^{(s)} \right) \right]_{ y_2^{(s)}},
+                 % &= \sum_{s \in \mathcal{S}}
+                  %\log\left(   \left[ \bm{\pi}^{(s)}\left( t_2^{(s)} \right)  \right]_{ y_2^{(s)}} \right)
+                  %\\
+                  %&= \sum_{s \in \mathcal{S}}
+                  %\log\left(   \left[ \bm{e}_{y_{1}^{(s)}}  \exp \left( \bm{A}^{(s)} \tau^{(s)} \right) \right]_{ y_2^{(s)}} \right), 
+                  \label{eq:likelihood_mjp}
+\end{aligned}     
+\end{equation}
+where $\bm{e}_{y_{1}^{(s)}} \in \mathbb{N}^{1 \times m}$ is $1$ at the state $y_{1}^{(s)}$-index and zero elsewhere, that is, it corresponds to the initial distribution $\bm{\pi}^{(s)}(t_1^{(s)})$. The $y_2^{(s)}$-index on the square brackets indicates that we choose the corresponding element of the transient distribution, $\bm{e}_{y_{1}^{(s)}}  \exp \left( \bm{A}^{(s)} \tau^{(s)} \right)$. 
+% state probability of a transition from state $y_1^{(s)}$'th to state $y_{2}^{(s)}$ in the time passed between the two observations, that is $\tau_s = t_2^{(s)} - t_1^{(s)}$. 
+The discrete likelihood is then the product of the probabilities of observing the state, $y_2^{(s)}$, after $\tau^{(s)}$ time (modified or not) has passed upon observing $y_1^{(s)}$ for all $s \in \mathcal{S}$.
+\cref{eq:likelihood_mjp} is an example on a choice of the score function in \cref{eq:mean_score}.
+Maximum likelihood estimation corresponds to optimum score estimation based on the log score. It is therefore optimal with respect to forecast evaluation under this rule. Provided another scoring rule, MLE might not be suitable for optimal forecast performance, which is empirically demonstrated by \citet{Gneiting2005} and \citet{gebetsberger2018a}.
+This study applies two probabilistic scoring rules, described in \cref{sec:error_metrics}. To improve prediction performance wrt. to both metrics, the optimum score estimation is based on maximizing the sum of the score functions wrt. their respective scoring rules, i.e.
+\begin{align}
+     \mathcal{D}_{{|\mathcal{S}|}}(\bm{\theta}) = \sum_{s \in \mathcal{S}} \left( D_1\left(P_{\bm{\theta}}, Y^{(s)}\right) + D_2\left(P_{\bm{\theta}}, Y^{(s)}\right) \right). \label{eq:mean_score_combination}
+\end{align}
+where $D_i(P_{\bm{\theta}}, Y^{(s)})$ for $i = 1,2$ are the two different metrics considered in this study. They are described in the following \cref{sec:error_metrics}. If deemed relevant, weights and scaling can be assigned to each of the terms. 
+The numerical optimization algorithm and the calculation of gradients are detailed in \cref{sec:computation_remarks}.
+
+
+%Optimization was carried out using nlminb with iter.max = 2000 and eval.max = 2000. Convergence was assessed using the optimizer’s termination code and message, together with checks that (i) the projected gradient was small and (ii) the objective value stabilized across the final iterations. Fits that terminated due to reaching iteration/evaluation limits or returned non-finite objective/gradient values were classified as non-converged and excluded from performance summaries (and counted).
+
+
+
+
+
+%To solve the optimization problem in \cref{eq:mean_score_combination}, we apply a Newton–Raphson algorithm with line search using \texttt{nlminb} from \citet{R_stats}. Gradients are obtained as detailed in \cref{sec:computation_remarks}. 
+
+% Model parameters can be determined by maximum likelihood estimation, i.e. maximining the logarithm of the quantity in \cref{eq:likelihood_mjp}, i.e.
+% \begin{align*}
+%    \widehat{\pmb{\theta}}  \; = \argmax_{\left( \{ \lambda_{i,j}^{(0)} \}_{i,j\in \mathcal{J} | i \neq j}, \bm{\beta} \right)} \sum_{s \in \mathcal{S}} 
+%     \log\left(   \left[ \bm{e}_{y_{1}^{(s)}}  \exp \left( \bm{A}^{(s)} \tau^{(s)} \right) \right]_{ y_2^{(s)}} \right). 
+% \end{align*}
+
+%T A substantial difference between MLE and optimum RPS estimation is that that optimum RPS estimation evaluates the full distribution whereas MLE relies on evaluating the observed outcome by a logarithmic penalty. Subsequently, it seems straightforward that optimum RPS estimation performs better in terms of the RPS score, as shown by \citet{gebetsberger2018a}; however, it is less clear how the two estimation approaches performs in terms of the Brier score.
+
+
+
+
+
+\subsection{Metrics} \label{sec:error_metrics}
+As $\mathcal{E}$ is a discrete and finite state space of severity classes, suitable methods for evaluating categorical forecasts must be considered. By \cref{eq:markov_eq_solution}, we model the evolution of the distribution on $\mathcal{E}$, i.e. we produce probabilities associated to each element of the state space.
+Opposed to nominal category forecasts, the considered state space of defect severity has a natural ordering. It is therefore said to be \textit{ordinal} \citep{broecker2008a,hamill1997}.
+For probabilistic forecasts of an ordinal discrete state space, there are two possibly relevant aspects of verification \citep{Weijs2010}, i.e. 
+\begin{itemize}
+\item forecast ability in the category corresponding to the outcome of the event;
+\item forecast ability to predict category probabilities \textit{close to} the category corresponding to the outcome of the event.
+\end{itemize} 
+In the following, we present two different metrics that will be used for both estimation (as described in \cref{sec:optimum_score_estimation}) and for evaluating model predictions.
+
+%Let $\Tilde{P}^{(s)}_{i}(t)$ denote the predicted probability at time $t$ for outcome $i \in \mathcal{J}$ for defect $s \in \mathcal{S}$. We assume that the $m$ defect classes are mutually exclusive and exhaustive meaning that
+% \begin{align*}
+%     \sum_{i \in \mathcal{J}} \Tilde{P}^{(s)}_{i}(t) = 1, \quad \forall s \in \mathcal{S}, \forall t \in \mathbb{R}_+.
+%\end{align*}
+%We assume availability of discrete data, i.e. observations of trajectorial endpoints $Y^{(s)} = \{ y_1^{(s)} = X^{(s)}(t_1^{(s)}), \; y_2^{(s)} = X^{(s)}(t_2^{(s)}) \}_{\forall s \in \mathcal{S}}$ with $y_1^{(s)}$ and $y_2^{(s)}$ being the observed states and $t_1^{(s)}$ and $t_2^{(s)}$ their respective time stamps, and $X^{(s)}$ the Markov process. We thus consider the endpoints of the defect trajectories as ''outcomes`` or ''targets`` for prediction evaluation purposes, that is the finite set of discrete values, $\{y_2^{(s)} \}_{\forall s \in \mathcal{S}}$.
+
+
+\subsubsection{Logarithmic score}
+The average logarithmic score (log score) is a widely used scoring rule; optimum score estimation based on the log score corresponds to maximum likelihood estimation. The log score evaluates the logarithm of the probability assigned to the observed outcome. In the case of the current study, the mean log score can be expressed as
+\begin{align}
+    \overline{\text{LogS}} = \frac{1}{\vert \mathcal{S} \vert} \sum_{s \in \mathcal{S}} \log \left( \left[ \bm{\pi}^{(s)}\left( t_2^{(s)} \right)  \right]_{ y_2^{(s)}} \right).  \label{eq:log_Score}
+\end{align}
+\cref{eq:log_Score} is thus equivalent to \cref{eq:likelihood_mjp}.
+It rewards forecasts solely based on the probability assigned to the observed category, ignoring the probabilities assigned to incorrect ones. Therefore, it is \textit{insensitive to distance} in the state space.  
+
+%
+%\subsubsection{Brier score} 
+%\citet{Brier1950} proposed a scoring rule for multicategorical predictive distributions, which in our case is given as the mean of the sum of the squared distances of the computed transient distributions and the observed endpoints of the defect trajectories, i.e.
+%\begin{align}
+%    \overline{\text{BS}} = \frac{1}{\vert \mathcal{S} \vert} \sum_{s \in \mathcal{S}} \sum_{i \in \mathcal{J}} \left( \bm{\pi}^{(s)}_i\left( t_2^{(s)} \right) -\mathds{1}_{ \{i \; = \; y_2^{(s)} \} } \right)^2, \label{eq:Brier_Score}
+%\end{align}
+%where $\mathds{1}_{ q }$ is an indicator which is one if $q$ is true and zero otherwise.
+%Like the log score, the Brier score treats classes not corresponding to the observed outcome equally, that is by summing over the quadratic errors, making it also insensitive to distance. A perfect forecast is associated with a zero contribution to the Brier score for each defect, $s$. Therefore, it is a loss function.
+
+
+\subsubsection{Ranked Probability Score}
+The average ranked probability score (RPS) is given by
+\begin{align}
+    \overline{\text{RPS}} =\frac{1}{\vert \mathcal{S} \vert} \sum_{s \in \mathcal{S}} \sum_{k = 1}^m\left( \sum_{i = 1}^k \pi^{(s)}_i\left( t_2^{(s)} \right)  - \sum_{i = 1}^k\mathds{1}_{ \{ i \; = \; y_2^{(s)} \} } \right)^2 \label{eq:RPS}
+\end{align}
+as the average of squared distances between the cumulative transient distribution and the cumulative observed outcomes \citep{Epstein1969}.
+Compared to the log score, RPS punishes probability masses in false outcomes milder if the wrong predictions are located \textit{closer} to the observed outcome. Thus, RPS introduces an ordering to inaccurate predictions in the sense that some \textit{wrong} predictions can be less wrong.
+For the purpose of degradation dynamics where there is a structural ordering wrt. defect severity, it can be argued that RPS is more suitable than the log score, if forecasts are interpreted as beliefs about track 
+safety levels, which correlate with crack size \citep{UIC_2002_defecthandbook}. 
+According to \citet{Czado2009}, an advantage with RPS is that it enables direct comparison between predictive distributions and point predictions, as it has shown to generalize the mean absolute error \citep{Hersbach2000}.
+
+
+
+\subsubsection{Metrics recap} \label{sec:metrics_recap}
+The scoring rules above provide metrics that can be used both for model estimation (via optimum score estimation) and for evaluating predictions. The choice of metric depends on the problem at hand and which forecast properties are preferred by the end-user. 
+The proposed model framework is flexible and can be adapted to estimate and evaluate under any proper scoring rule.
+Unlike the log score, the RPS reflects that misclassifying a crack by one class is less serious than misclassifying it by several classes. We therefore suggest placing greater emphasis on RPS evaluation in studies of degradation. 
+However, there might be reasons to differ from that general suggestion, for instance if safety precautions differ substantially from one category to the other.
+For estimation, loss functions such as RPS are minimized (entering with a negative sign in \cref{eq:mean_score_combination}), whereas the log score, as a utility, is maximized.
+%When used for estimation, loss functions like RPS are minimized (hence enter with a negative sign in the score function $\mathcal{D}$), while the log score, being a utility function, is maximized.
+
+
+\subsection{Remarks on implementation and computation} \label{sec:computation_remarks}
+We implemented the models in \texttt{C++}, interfaced with \texttt{R} via \texttt{Rcpp} \citep{Rcpp} and the \texttt{C++} Template Model Builder (TMB) framework \citep{TMB}.
+The repository can be accessed on \url{https://github.com/dobbeltgaard/MarkovJump.git}.
+ 
+\subsubsection{Gradients} Previous work by \citet{bisgaard2024A} leveraged \texttt{C++} speed in \texttt{R} using \texttt{Rcpp}, and derived algebraic expressions for the gradients used for model estimation, as it was shown to improve its robustness. 
+As that study only considered a single generator parameterization with maximum likelihood estimation, closed-form gradients were cumbersome but tractable.
+In contrast, when now considering a broad variety of model settings, deriving gradients by hand becomes infeasible, and finite-difference approximations are both slow and potentially inaccurate. TMB circumvents this issue by providing exact gradients via automatic differentiation (AD), based on the computation graph of elementary calculus operations, using the \texttt{CppAD} package \citep{CppAD}.
+
+Our implementation is flexible: users may choose the scoring rule (log score and/or ranked probability score), select among the five generator parameterizations in \cref{sec:generator_params} and optionally incorporate modified sojourn time estimates (\cref{sec:warping}), regression settings (\cref{sec:regression}), as well as mixture distribution (\cref{sec:mixture}).
+
+\subsubsection{Numerical optimization} 
+Optimum score estimation (\cref{sec:optimum_score_estimation}) involves solving the optimization problem $\widehat{\bm{\theta}}_{|\mathcal{S}|} = \argmax_{\bm{\theta}}\mathcal{D}_{|\mathcal{S}|}(\bm{\theta})$ using \cref{eq:mean_score_combination} with $\bm{\theta}$ being shorthand for the set of model parameters, i.e. the transition rates, covariate coefficients, the coefficients associated with expected sojourn times, and/or the mixture weights.
+For this task, we use the function \texttt{nlminb} from \citet{R_stats}, which implements box-constrained nonlinear optimization based on the PORT routines of \citet{Gay1990}. The maximum number of evaluations of the objective function and number of iterations allowed are both set to 2000.
+Step acceptance and step length are handled internally by the PORT routines (e.g., through line-search), and are not user-tuned in our implementation.
+Tolerance thresholds defaults to the ones set by \texttt{nlminb}.\footnote{These include a relative improvement threshold for the objective function ($10^{-10}$), a parameter change threshold ($1.5 \times 10^{-8}$), and an additional false convergence tolerance ($2.2\times 10^{-14}$).}
+Convergence is assessed using the convergence code supplied by the \texttt{nlminb} optimizer, with supplemental diagnostics calculating the gradient L2-norm in the obtained solution.
+
+
+
+
+\subsubsection{Calculation of the matrix exponential} Prediction is performed by applying the solution to the Kolmogorov differential equation in \cref{eq:markov_eq_solution} using the aforementioned scoring rules for assessment of accuracy.
+The \texttt{Rcpp} model implementation accommodates three calculation methods for the transient distribution of the Markov chain. The first is a Padé approximation of the matrix exponential. The second method is to calculate the transient distribution via \textit{uniformization} (or \textit{randomization}). Uniformization provides an alternative representation of a MJP such that all holding times distributions have the same intensity parameter \citep[Section 1.3.4]{bladt_nielsen}. We refer to \citet{sherlock2021a} for a detailed algorithmic description. The third method is by applying the eigendecomposition
+\begin{align*}
+    \exp{\left( \bm{A}u \right) } = \bm{U}  \exp{\left( \bm{\Lambda}u \right) } \bm{U}^{-1}, 
+\end{align*}
+which substantially reduces numerical effort since exponentiating a diagonal matrix amounts to exponentiating each diagonal element.
+We refer to \citet{bisgaard2024A} for algebraic expressions for the eigenspaces $\bm{U}$ and $\bm{U}^{-1}$, in case of the nearest class parameterization. In case of the other four generator parameterizations, we apply numerical schemes for the eigendecompositions using the \texttt{Eigen} library in \texttt{C++} \citep{eigenweb}.
+
+\subsubsection{Speed of likelihood computation} We have tested the speed of the likelihood computation with respect to the different score options and the different methods for calculating the transient distribution of the Markov chain, using the \texttt{bench} library \citep{R_bench}. We compare our \texttt{C++} implementation with a standard (``slow'') \texttt{R} implementation based on a Padé approximation of the transient distribution. \cref{tab:mjp_score_computation_speed} displays the results of the speed investigation.
+\begin{table}[htb!]
+    \centering
+    \caption{Relative speed of MJP score computation wrt. calculation method of transient distribution and score metric. Uniformization is performed with maximum truncation error on $2^{-52}$ (see \citet{sherlock2021a} for details). The base reference for the speed investigation is the ``\texttt{C++} w. eigendecomposition'' which has a median run time on $1.85$ ms.}
+    \label{tab:mjp_score_computation_speed}
+\begin{tabular}{lcc}
+\toprule
+  & Log score & Ranked probability score \\%& Brier score \\
+\midrule
+\texttt{R} w. Padé & 154.03 & 98.71 \\%& 150.15\\
+\texttt{C++} w. Padé & 3.26 & 3.40 \\%& 3.42\\
+\texttt{C++} w. uniformization & 6.77 & 6.84 \\%& 6.78\\
+\texttt{C++} w. eigendecomposition & \textbf{1.00} & 1.10 \\%& 1.07\\
+\bottomrule
+\end{tabular}
+\end{table}
+The results in \cref{tab:mjp_score_computation_speed} show a substantial speedup when moving from a standard \texttt{R} implementation to \texttt{C++}.
+The calculation method for the transient distribution does impact the computation speed. If the generator matrix is diagonalizable, the eigendecomposition provides a highly efficient (and accurate) way to calculate the transient distribution. Our implementation checks if this is the case, and if not, uniformization is applied as outlined by \citet{sherlock2021a}. Although uniformization can be slower than the Padé approximation, it has the advantage that the user controls the truncation error. 
+For the \texttt{C++} implementations, computation speed differs little between the log score and RPS, as both require similar operations. By contrast, the standard \texttt{R} implementations differ substantially. This is likely due to the \texttt{cumsum} function used in the RPS implementation, which benefits from sequential memory access and CPU cache optimization.
+
+
+
+
+
+\subsection{Reference predictors} \label{sec:reference_forecasts}
+Reference predictors provide a benchmark against which the MJP from \cref{sec:mjp} can be evaluated. They allow us to quantify the benefits of introducing temporal dynamics, state dependence, and covariates relative to simpler predictive models.
+In this study, we consider three such benchmarks: 1) The cumulative link model (CLM) serves as the primary reference predictor suited for static regression problems with ordinal state space; 
+2) a discrete-time Markov chain (DTMC) serves as a predictor of empirical transition patterns; 
+3) a uniform distribution predictor provides a minimal baseline that distributes probability evenly across feasible states.
+
+\subsubsection{Cumulative link model} \label{sec:cumulative_link_model}
+
+The CLM is a regression model for ordinal outcomes and serves as this study's primary reference predictor. It provides a static benchmark in which temporal dynamics are not modeled explicitly but are instead encoded through covariates. The covariate design matrix $\bm{z}'^{(s)}$ includes i) the time between observations, $\tau^{(s)}$, ii) rail characteristics as described in \cref{sec:data}, and iii) indicator variables for the initial defect state $y_1^{(s)} =2,3,\dots,m$. 
+
+The cumulative probabilities are defined as
+\begin{align*}
+     \mathds{P}\left( X^{(s)} \leq j \; \vert \; \bm{z}'^{(s)} \right) = 
+     \pi_1^{(s)}(\bm{z}'^{(s)}) + \dots + \pi_j^{(s)}(\bm{z}'^{(s)}), \quad j = 1, \dots, m, 
+\end{align*}
+where $\pi^{(s)}_j\left(\bm{z}'^{(s)}\right) = \mathds{P} \left(  X^{(s)} = j \; \vert \; \bm{z}'^{(s)} \right)$ with $\sum_{j = 1}^m \pi^{(s)}_j(\bm{z}'^{(s)}) = 1$ for $s \in \mathcal{S}$. 
+Note the staticity is indicated by writing $X^{(s)}$, while we in \cref{sec:mjp} denoted the process by $X^{(s)}(t)$ with explicit time dependence.
+$G^{-1}$ denotes a link function, which is the inverse of some continuous cumulative density function, $G$.
+The cumulative link model is then given by
+\begin{align}
+    G^{-1} \left(  \mathds{P}\left( X^{(s)} \leq j \; \vert \; \bm{z}'^{(s)} \right) \right)
+    = \alpha_j + \bm{\beta}^\top \bm{z}'^{(s)}, \quad j = 1, \dots, m-1, \; s \in \mathcal{S}, \label{eq:cum_link_model}
+\end{align}
+where $\alpha_j$ is an intercept for the $j$ cumulative link, and $\bm{\beta}^\top$ are the coefficients for the covariates, $\bm{z}'^{(s)}$. 
+
+As seen from \cref{eq:cum_link_model}, the cumulative probability of an event, $j$, is obtained by the linear predictor, $\alpha_j + \bm{\beta}^\top \bm{z}'^{(s)}$, through the link function, $G$.
+The regression setting in \cref{eq:cum_link_model} is somewhat related to that of the regression in \cref{eq:trans_rates_covariates} as there is some base rate (or intercept) that is scaled (or added) by the covariate contribution, all mapped through some transformation of exponential family. %However, the covariate set, $\bm{z}^{(s)}$, in \cref{eq:trans_rates_covariates}, is only a subset of the covariates used in \cref{eq:cum_link_model}. As the Markov jump process inherently captures temporal dynamics and state dependency via \cref{eq:markov_property}, there is no need to include the time between observations, $\tau^{(s)}$, and the initial defect observation $y_1^{(s)}$ in the covariates $\bm{z}^{(s)}$. 
+The CLM is static in terms of temporal dependency. Further, it has no intrinsic formulation of state dependence. This implies that some of the recorded endpoint data of the defect trajectories, $Y^{(s)}$, need to be incorporated through the covariates, i.e. the time between observations, $\tau^{(s)}$, and the initial defect observation $y_1^{(s)}$. %Subsequently, $\bm{z}'^{(s)}$ contains this information in addition to the rail characteristics described in \cref{sec:data}. Therefore, it is denoted by a prime to indicate the difference between the covariates in \cref{eq:trans_rates_covariates}.
+
+The link function specifies the distribution of an unobserved continuous variable, of which only crude ordinal measurements, $Y^{(s)}$, are recorded. If $G(\cdot)$ is the standard logistic distribution, then $G^{-1}(\cdot)$ is the logit function, leading to a \textit{proportional odds logistic regression model} \citep{mccullagh1980a}, where the log-odds of being in category $j$ or below differ by a constant across categories.
+If $G(\cdot)$ is the standard normal distribution, then $G^{-1}(\cdot)$ is the probit function, and the cumulative link model generalizes the binary probit model \citep{agresti2012}.
+If $G^{-1}(\cdot)$ is the complementary log-log function, the model corresponds to a proportional hazards model for grouped survival times \citep{Christensen2023}.
+In the prediction study in \cref{sec:results}, we test the logit, probit, and complementary log-log link functions to evaluate which yields the highest prediction accuracy.
+
+Using the relationship between the cumulative distribution function and the probability mass function for an ordinal variable, we obtain
+\begin{align}
+     \pi^{(s)}_j\left(\bm{z}'^{(s)}\right) = 
+     \mathds{P}\left( X^{(s)} = j \; \vert \; \bm{z}'^{(s)} \right) = 
+    \begin{cases}
+    \mathds{P}\left( X^{(s)} \leq j \; \vert \; \bm{z}'^{(s)} \right), \quad j = 1 \\
+     \mathds{P}\left( X^{(s)} \leq j \; \vert \; \bm{z}'^{(s)} \right) - \mathds{P}\left( X^{(s)} \leq j -1 \; \vert \; \bm{z}'^{(s)} \right), \quad \text{else}.   
+    \end{cases} \label{eq:cum_link_probs}
+\end{align}
+The likelihood function of the recorded jumps is then obtained from the probability mass function of the categorical distribution (the single trial multinomial distribution corresponding to the multivariate extension of the Bernoulli distribution), i.e.
+\begin{equation*}
+\begin{aligned}
+     L\left( \bm{\theta}; y_2^{(1)}, \dots, y_2^{(|\mathcal{S}|)} \right) = \prod_{s \in \mathcal{S}} \prod_{j = 1}^m \left( \pi^{(s)}_j\left(\bm{z}'^{(s)}\right) \right)^{\mathds{1}_{ \{ j \; = \; y_2^{(s)}  \} }}, 
+\end{aligned} \label{eq:likelihood_cumlink}
+\end{equation*}
+where $\mathds{1}_{ \{ q \} }$ is an indicator which is 1 if the event $q$ occurs and zero otherwise, and $\bm{\theta}$ denotes the set of model parameters (that is $\{\alpha_j\}$ and $\bm{\beta}$). The model parameters are determined by maximum likelihood estimation taking the logarithm to the likelihood function, i.e.
+\begin{align*}
+   \widehat{\pmb{\theta}}  \; = \argmax_{\left( \{ \alpha_{j} \}_{j = 1}^{m-1}, \bm{\beta} \right)} \sum_{s \in \mathcal{S}} \sum_{j = 1}^m 
+   \mathds{1}_{ \{ j \; = \; y_2^{(s)} \} } \log\left( \pi^{(s)}_j\left(\bm{z}'^{(s)}\right) \right), 
+\end{align*}
+where the $\pi^{(s)}_j\left(\bm{z}'^{(s)}\right)$ are defined in \cref{eq:cum_link_probs} related to the cumulative link functional in \cref{eq:cum_link_model}.
+The model is estimated with the \texttt{polr} function from the \texttt{MASS} library \citep{mass_R}.
+With determined model coefficients, the CLM can be applied for prediction. 
+Predictions are obtained directly as probabilities for each category via \cref{eq:cum_link_probs} and \cref{eq:cum_link_model}, given the covariates $\bm{z}’^{(s)}$.
+
+%\subsubsection{Random forest} \label{sec:random_forest}
+%Random forests (RF) are an ensemble of decision trees and can be used for multiclass classification taks \citep{Breiman2001}. 
+%Like the case of the CLM, the second defect recording $ y_2^{(s)}\in\{1,\dots,m\}$ constitutes the categorical response, and $ \bm z'^{(s)}$ is used as covariates (i.e. starting state, observation interval, and optionally the exogenous information described in \cref{sec:data}).
+%Each decision tree is trained on a bootstrap resample and uses random subsampling at each split. The resulting probabilistic forecast is obtained from the empirical vote proportions across trees,
+%\[
+%\widehat{\pi}^{(s),\text{RF}}_j(\bm z'^{(s)}) \;=\; \frac{1}{B}\sum_{b=1}^B \mathds{1}\{T_b(\bm z'^{(s)}) = j\}, \quad j=1,\dots,m,
+%\]
+%where $T_b(\cdot)$ denotes the class prediction of tree $b$ and $B$ is the number of trees.
+
+%Although random forests do not explicitly enforce ordinality, their probabilistic forecasts can be assessed using the same proper scoring rules as the other predictors.
+
+
+\subsubsection{Discrete-time Markov chain} \label{sec:DTMC}
+Like MJPs, DTMCs can be used to model dynamic processes. Contrary to the MJP, the random variable in a DTMC is indexed at discrete time points. 
+Let $X^{(s)}_{n} \in \mathcal J$ with $n \in \mathbb N $.  
+A discrete-time Markov chain assumes that, conditional on the current state, the next observed state is independent of the past, that is
+\begin{align}
+\mathbb{P} \left(X^{(s)}_{n+1}=j \mid X^{(s)}_n = i, X^{(s)}_{n-1} = k, \dots \right) =\mathbb{P} \left(X^{(s)}_{n+1}=j \mid X^{(s)}_n=i\right)=\Gamma_{ij}, \quad \text{for } i,j,k \in \mathcal J,
+\end{align}
+where $\bm \Gamma$ denotes the transition probability matrix and $\Gamma_{ij}$ its $(i,j)$'th entries.
+Each tuple in the transition data $\{ ( y_1^{(s)}, y_2^{(s)}, \tau^{(s)} ) \}_{s \in \mathcal{S}}$ is treated as a single observation-interval transition, with transition probabilities indexed by the interval length $\tau^{(s)}$ (via bins).
+Because observation intervals $\tau^{(s)}$ vary, the transition matrix is assumed to depend on $\tau^{(s)}$. Let the bins be defined by the bin edges $0=t_0<t_1<\dots<t_L=\infty,$ and define a function
+$T(\tau) = \ell$ if $\tau\in [t_{\ell-1},t_\ell)$.
+Then the DTMC uses
+$
+\mathbb{P}\!\left(y_2^{(s)}=j \mid y_1^{(s)}=i,\; \tau^{(s)}\right)
+= \Gamma^{(T(\tau^{(s)}))}_{ij},
+$
+i.e., a separate transition matrix $\bm \Gamma^{(\ell)}$ for each time bin $\ell$. For these, the transition counts of the data are given by
+$
+N^{(\ell)}_{ij}
+= \sum_{s\in\mathcal S}
+\mathds{1}_{\left\{T(\tau^{(s)})=\ell,\; y_1^{(s)}=i,\; y_2^{(s)}=j\right\}}
+$.
+The estimated transition probabilities are then calculated as
+$$
+\widehat \Gamma^{(\ell)}_{ij}
+=
+\frac{N^{(\ell)}_{ij}+\alpha}
+{\sum_{r=1}^m \left(N^{(\ell)}_{ir}+\alpha\right)},
+$$
+where $\alpha$ is a non-negative smoothing parameter.
+
+Compared with the CLM, the DTMC provides a benchmark that estimates transition dynamics directly from data.
+
+
+
+\subsubsection{Uniform distribution predictor} \label{sec:uniform_predictor}
+As a secondary reference, we consider a uniform distribution predictor. It represents a baseline in which probability mass is spread evenly across all states that are reachable given the initial observation $y_1^{(s)}$. In particular, if degradation is assumed non-reversible, only states $j \geq y_1^{(s)}$ are included in the support. The predictor is defined as
+\begin{align}
+    \widehat{\pi}^{(s),\text{Uni.}}_i(y_1^{(s)}) 
+    = \frac{\mathds{1}_{ \{ i \geq y_1^{(s)} \} }}{\sum_{j \in \mathcal{J}} \mathds{1}_{ \{ j \geq y_1^{(s)} \} }}, 
+    \quad i \in \mathcal{J}, \; s \in \mathcal{S}. \label{eq:uniform_predictor}
+\end{align}
+
+Although simplistic, evaluating forecast accuracy relative to a uniform predictor is informative. It establishes the performance of a purely uninformative model and thereby provides a lower bound against which more advanced approaches can be compared. The relative improvement over the uniform predictor highlights the added value of incorporating covariates, temporal dynamics, and state dependence, and also gives an indication of the intrinsic difficulty of the forecasting problem.
+
+%\subsubsection{Uniform predictor}
+%Predicting the uniform distribution is a type of \textit{preferenceless} naïve forecast method, i.e. it predicts equal probability masses over the entire state space. Subsequently, each state is assigned a probability of $1/m$. As defect propagation is state dependent and assumed irreversible, we correct the uniform predictor so that the entire probability mass is divided between the states that are possible to reach given the starting point $y_1^{(s)}$ for each defect. 
+%Thus, the corrected uniform predictor is given by 
+%\begin{align}
+%    \widehat{\bm{\pi}}^{(s),\text{Uni.}}_i \left( y_1^{(s)} \right) = \frac{\mathds{1}_{ \{  i \; \geq \; y_1^{(s)}  \} }   }{\sum_{j \in \mathcal{J}} \mathds{1}_{ \{ j \; \geq \; y_1^{(s)} \} }   }, \quad \forall s \in \mathcal S. \label{eq:uniform_predictor}
+%\end{align}
+%The uniform predictor in \cref{eq:uniform_predictor} can be regarded as a variation of a random classifier, i.e. it is preferenceless in the reachable states.
+
+
+
+%\subsubsection{Empirical distribution predictor}
+%Predicting the empirical distribution is another naïve approach to forecasting. It is more competitive given data with many repeated events. For this study, we compute the empirical distribution of the initial state of the defect trajectories, i.e. $y_1^{(s)}$. Given the distribution of the recorded $y_1^{(s)}$ for $s \in \mathcal{S}$, the empirical predictor assigns corresponding probability masses to the state space for the future, i.e.
+%\begin{align}
+%    \widehat{\bm{\pi}}^{(s),\text{Empi.}}_i \left( y_1^{(s)},y_2^{(s)} \right) = \frac{\sum_{s \in \mathcal{S}} \mathds{1}_{ \{  i \; = \; y_1^{(s)} \; \wedge \; j \; = \; y_2^{(s)}   \} }   }{\sum_{s \in \mathcal{S}} \mathds{1}_{ \{  i \; = \; y_1^{(s)}    \} }   }, \quad \forall j \in \mathcal{J}.  \label{eq:empirical_distr}
+%\end{align}
+% \begin{align}
+%     \widehat{\bm{\pi}}^{(s),\text{Empi.}}_i \left( y_1^{(s)} \right) = \begin{cases}
+%         0, \quad i \; < \; y_1^{(s)} \\
+%         \frac{1}{|\mathcal{S}|}\left( \sum_{s \in \mathcal{S}} \left( \mathds{1}_{ \{ i \; = \; y_1^{(s)} \} } +
+%         \frac{\mathds{1}_{ \{ i \; < \; y_1^{(s)} \} }}{m - y_1^{(s)} + 1}  \right) \right)
+%         , \quad \text{else}.
+%     \end{cases}
+%     \label{eq:empirical_distr}
+% \end{align}
+%As described earlier, we add $\frac{\mathds{1}_{ \{ i \; < \; y_1^{(s)} \} }}{m - y_1^{(s)} + 1} $ to the reachable states to correct for probability masses assigned to states that are unreachable for $X^{(s)}$ given $y_1^{(s)}$.
+
+
